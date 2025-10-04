@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(sqlite3:*)",
+      "Bash(curl:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBpYWxpZ24uY29tIiwicm9sZSI6IkFkbWluaXN0cmF0b3IiLCJpYXQiOjE3NTk0MTQ4NTQsImV4cCI6MTc1OTUwMTI1NH0.r29ei1Leo2luH1cjsqWtv4UmUxxRGvjtfvBnJu-3whM\")",
+      "Bash(npm run seed:*)",
+      "Bash(npm run seed:dev:*)",
+      "Bash(/Users/home/.nvm/versions/node/v17.9.1/bin/npm run dev)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

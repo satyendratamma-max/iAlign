@@ -1,0 +1,143 @@
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../config/database';
+
+export interface ResourceAllocationAttributes {
+  id?: number;
+  projectId: number;
+  resourceId: number;
+  milestoneId?: number;
+  domainTeamId?: number;
+  allocationType: string;
+  allocationPercentage: number;
+  allocatedHours?: number;
+  startDate?: Date;
+  endDate?: Date;
+  actualStartDate?: Date;
+  actualEndDate?: Date;
+  billableRate?: number;
+  cost?: number;
+  roleOnProject?: string;
+  createdDate?: Date;
+  modifiedDate?: Date;
+  isActive?: boolean;
+}
+
+class ResourceAllocation extends Model<ResourceAllocationAttributes> implements ResourceAllocationAttributes {
+  declare id: number;
+  declare projectId: number;
+  declare resourceId: number;
+  declare milestoneId?: number;
+  declare domainTeamId?: number;
+  declare allocationType: string;
+  declare allocationPercentage: number;
+  declare allocatedHours?: number;
+  declare startDate?: Date;
+  declare endDate?: Date;
+  declare actualStartDate?: Date;
+  declare actualEndDate?: Date;
+  declare billableRate?: number;
+  declare cost?: number;
+  declare roleOnProject?: string;
+  declare createdDate: Date;
+  declare modifiedDate: Date;
+  declare isActive: boolean;
+}
+
+ResourceAllocation.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    projectId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    resourceId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    milestoneId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    domainTeamId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    allocationType: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'Shared',
+    },
+    allocationPercentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+        max: 100,
+      },
+    },
+    allocatedHours: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    startDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    endDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    actualStartDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    actualEndDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    billableRate: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    cost: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+    },
+    roleOnProject: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    createdDate: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    modifiedDate: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'ResourceAllocations',
+    timestamps: false,
+    hooks: {
+      beforeUpdate: (allocation) => {
+        (allocation as any).modifiedDate = new Date();
+      },
+    },
+  }
+);
+
+export default ResourceAllocation;

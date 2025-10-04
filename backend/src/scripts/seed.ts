@@ -1,0 +1,616 @@
+import bcrypt from 'bcrypt';
+import sequelize from '../config/database';
+import User from '../models/User';
+import Portfolio from '../models/Portfolio';
+import Project from '../models/Project';
+import Domain from '../models/Domain';
+import Team from '../models/Team';
+import Resource from '../models/Resource';
+import Milestone from '../models/Milestone';
+import ResourceAllocation from '../models/ResourceAllocation';
+import Pipeline from '../models/Pipeline';
+import ProjectPipeline from '../models/ProjectPipeline';
+import CapacityModel from '../models/CapacityModel';
+import CapacityScenario from '../models/CapacityScenario';
+
+const DOMAIN_NAMES = [
+  'Engineering', 'VC', 'Make', 'Buy', 'Quality',
+  'Logistics', 'Plan', 'Sales', 'Service', 'HR',
+  'Finance', 'Infrastructure'
+];
+
+const SKILL_TYPES = ['Portfolio', 'FA', 'Dev', 'Test'];
+
+const PHASES = [
+  'Requirements',
+  'Design',
+  'Build',
+  'Test',
+  'UAT',
+  'Go-Live',
+  'Hypercare'
+];
+
+const FISCAL_YEARS = ['FY24', 'FY25', 'FY26', 'FY27'];
+
+const seedDatabase = async () => {
+  try {
+    console.log('🌱 Starting comprehensive database seeding...');
+
+    // Sync database
+    await sequelize.sync({ force: true });
+    console.log('✅ Database synced');
+
+    // 1. Create Users
+    console.log('👥 Creating users...');
+    const passwordHash = await bcrypt.hash('Admin@123', 10);
+
+    const admin = await User.create({
+      username: 'admin',
+      email: 'admin@ialign.com',
+      passwordHash,
+      firstName: 'Admin',
+      lastName: 'User',
+      role: 'Administrator',
+      isActive: true,
+    });
+
+    const users: any[] = [admin];
+
+    // Domain managers
+    for (let i = 0; i < 12; i++) {
+      const user = await User.create({
+        username: `dm${i + 1}`,
+        email: `domain.manager${i + 1}@ialign.com`,
+        passwordHash,
+        firstName: `DomainManager`,
+        lastName: `${i + 1}`,
+        role: 'Domain Manager',
+        isActive: true,
+      });
+      users.push(user);
+    }
+
+    // Project managers
+    for (let i = 0; i < 15; i++) {
+      const user = await User.create({
+        username: `pm${i + 1}`,
+        email: `pm${i + 1}@ialign.com`,
+        passwordHash,
+        firstName: `PM`,
+        lastName: `${i + 1}`,
+        role: 'Project Manager',
+        isActive: true,
+      });
+      users.push(user);
+    }
+
+    // Team leads
+    for (let i = 0; i < 20; i++) {
+      const user = await User.create({
+        username: `lead${i + 1}`,
+        email: `lead${i + 1}@ialign.com`,
+        passwordHash,
+        firstName: `TeamLead`,
+        lastName: `${i + 1}`,
+        role: 'Team Lead',
+        isActive: true,
+      });
+      users.push(user);
+    }
+
+    console.log(`✅ Created ${users.length} users`);
+
+    // 2. Create Domains (12 fixed domains)
+    // We need to create domains first, then portfolios
+    console.log('🏢 Creating 12 domains...');
+    const domains: any[] = [];
+    const locations = ['San Francisco', 'New York', 'Austin', 'Chicago', 'Seattle', 'Boston'];
+
+    for (let i = 0; i < DOMAIN_NAMES.length; i++) {
+      const domain = await Domain.create({
+        name: DOMAIN_NAMES[i],
+        type: 'Business',
+        managerId: users[i + 1].id,
+        location: locations[i % locations.length],
+        isActive: true,
+      });
+      domains.push(domain);
+    }
+
+    console.log(`✅ Created ${domains.length} domains`);
+
+    // 3. Create Portfolios - each domain gets at least one portfolio with same name
+    console.log('📁 Creating portfolios...');
+    const portfolios: any[] = [];
+
+    // Create default portfolio for each domain
+    for (const domain of domains) {
+      const portfolio = await Portfolio.create({
+        domainId: domain.id,
+        name: domain.name,
+        description: `Primary portfolio for ${domain.name} domain`,
+        type: 'Strategic',
+        totalValue: (Math.floor(Math.random() * 20) + 10) * 1000000, // $10M-$30M
+        roiIndex: Math.floor(Math.random() * 30) + 15, // 15-45%
+        riskScore: Math.floor(Math.random() * 60) + 20, // 20-80
+        managerId: domain.managerId,
+        isActive: true,
+      });
+      portfolios.push(portfolio);
+    }
+
+    // Add specific Engineering portfolios
+    const engineeringDomain = domains.find(d => d.name === 'Engineering');
+    if (engineeringDomain) {
+      const engPortfolios = [
+        {
+          name: 'NPI & Commercialization',
+          description: 'New Product Introduction and Commercialization initiatives',
+          type: 'Innovation',
+        },
+        {
+          name: 'DevSecOps',
+          description: 'Development, Security, and Operations integration',
+          type: 'Operational',
+        },
+        {
+          name: 'Simulation, Systems and Sustainability',
+          description: 'Simulation tools, systems engineering, and sustainability projects',
+          type: 'Technical',
+        },
+      ];
+
+      for (const engPortfolio of engPortfolios) {
+        const portfolio = await Portfolio.create({
+          domainId: engineeringDomain.id,
+          name: engPortfolio.name,
+          description: engPortfolio.description,
+          type: engPortfolio.type,
+          totalValue: (Math.floor(Math.random() * 15) + 8) * 1000000,
+          roiIndex: Math.floor(Math.random() * 25) + 18,
+          riskScore: Math.floor(Math.random() * 50) + 25,
+          managerId: engineeringDomain.managerId,
+          isActive: true,
+        });
+        portfolios.push(portfolio);
+      }
+    }
+
+    console.log(`✅ Created ${portfolios.length} portfolios`);
+
+    // 4. Create Domain Teams (4 skill types per domain = 48 teams)
+    console.log('👥 Creating domain teams...');
+    const teams: any[] = [];
+    let teamLeadIndex = 0;
+
+    for (const domain of domains) {
+      for (const skillType of SKILL_TYPES) {
+        const memberCount = Math.floor(Math.random() * 4) + 2; // 2-5 members
+        const team = await Team.create({
+          domainId: domain.id,
+          name: `${domain.name} ${skillType} Team`,
+          skillType,
+          type: skillType,
+          leadId: users[28 + (teamLeadIndex % 20)].id, // Use team leads
+          location: domain.location,
+          totalMembers: memberCount,
+          totalCapacityHours: memberCount * 160, // 160 hours/month per person
+          utilizationRate: Math.floor(Math.random() * 30) + 70, // 70-100%
+          monthlyCost: memberCount * 15000,
+          isActive: true,
+        });
+        teams.push(team);
+        teamLeadIndex++;
+      }
+    }
+
+    console.log(`✅ Created ${teams.length} teams`);
+
+    // 5. Create Resources (2-5 per team = ~150 resources)
+    console.log('👨‍💼 Creating resources...');
+    const resources: any[] = [];
+    let empId = 1;
+
+    const firstNames = ['Alex', 'Blake', 'Casey', 'Dana', 'Ellis', 'Finley', 'Grey', 'Harper', 'Indigo', 'Jordan'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+
+    for (const team of teams) {
+      const memberCount = team.totalMembers || 3;
+      for (let i = 0; i < memberCount; i++) {
+        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const hourlyRate = Math.floor(Math.random() * 100) + 80; // $80-180/hr
+
+        const resource = await Resource.create({
+          domainTeamId: team.id,
+          employeeId: `EMP${String(empId).padStart(4, '0')}`,
+          firstName,
+          lastName,
+          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${empId}@ialign.com`,
+          primarySkill: team.skillType,
+          secondarySkills: JSON.stringify([SKILL_TYPES[Math.floor(Math.random() * 4)]]),
+          role: `${team.skillType} Specialist`,
+          location: team.location,
+          timezone: 'PST',
+          hourlyRate,
+          monthlyCost: hourlyRate * 160,
+          totalCapacityHours: 160,
+          utilizationRate: Math.floor(Math.random() * 30) + 70,
+          homeLocation: team.location,
+          isRemote: Math.random() > 0.7,
+          isActive: true,
+        });
+        resources.push(resource);
+        empId++;
+      }
+    }
+
+    console.log(`✅ Created ${resources.length} resources`);
+
+    // 6. Create Projects - allocated to portfolios
+    console.log('📊 Creating projects...');
+    const projects: any[] = [];
+    let projectIndex = 0;
+
+    const projectTemplates = [
+      { name: 'Digital Transformation', process: 'Process Automation', type: 'Strategic' },
+      { name: 'System Integration', process: 'Data Integration', type: 'Integration' },
+      { name: 'Platform Modernization', process: 'Legacy Migration', type: 'Infrastructure' },
+      { name: 'Analytics Dashboard', process: 'Reporting', type: 'Analytics' },
+    ];
+
+    const priorities = ['Low', 'Medium', 'High', 'Critical'];
+    const healthStatuses = ['Green', 'Green', 'Yellow', 'Red'];
+
+    // Create projects for each domain, distributed across their portfolios
+    for (const domain of domains) {
+      // Get all portfolios for this domain
+      const domainPortfolios = portfolios.filter(p => p.domainId === domain.id);
+      const projectCount = Math.floor(Math.random() * 3) + 2; // 2-4 projects per domain
+
+      for (let i = 0; i < projectCount; i++) {
+        const template = projectTemplates[i % projectTemplates.length];
+        const fiscalYear = FISCAL_YEARS[Math.floor(Math.random() * 4)];
+
+        // Round-robin assign projects to portfolios within the domain
+        const portfolio = domainPortfolios[i % domainPortfolios.length];
+
+        // Determine dates based on fiscal year
+        let startYear = 2024;
+        let startMonth = Math.floor(Math.random() * 12);
+
+        if (fiscalYear === 'FY24') {
+          startYear = 2024;
+          startMonth = Math.floor(Math.random() * 6); // Early 2024
+        } else if (fiscalYear === 'FY25') {
+          startYear = 2024;
+          startMonth = 6 + Math.floor(Math.random() * 6); // Late 2024
+        } else if (fiscalYear === 'FY26') {
+          startYear = 2025;
+        } else {
+          startYear = 2026;
+        }
+
+        const startDate = new Date(startYear, startMonth, 1);
+        const endDate = new Date(startYear, startMonth + 6 + Math.floor(Math.random() * 6), 28);
+
+        const budget = (Math.floor(Math.random() * 15) + 5) * 100000; // $500k - $2M
+        const progress = fiscalYear === 'FY24' ? Math.floor(Math.random() * 30) + 70 :
+                        fiscalYear === 'FY25' ? Math.floor(Math.random() * 50) + 30 :
+                        Math.floor(Math.random() * 30);
+
+        const status = fiscalYear === 'FY24' && Math.random() > 0.5 ? 'Completed' :
+                      fiscalYear === 'FY27' ? 'Planning' : 'In Progress';
+
+        const project = await Project.create({
+          portfolioId: portfolio.id, // Now using the portfolio from domainPortfolios
+          domainId: domain.id,
+          name: `${domain.name} ${template.name} ${fiscalYear}`,
+          description: `${template.name} initiative for ${domain.name} domain`,
+          businessProcess: template.process,
+          functionality: `Core ${domain.name} functionality enhancement`,
+          status,
+          priority: priorities[Math.floor(Math.random() * 4)],
+          type: template.type,
+          fiscalYear,
+          progress,
+          currentPhase: PHASES[Math.floor(progress / 15)], // Map progress to phase
+          budget,
+          actualCost: Math.floor(budget * (progress / 100)),
+          forecastedCost: Math.floor(budget * 1.05),
+          startDate,
+          endDate,
+          actualStartDate: status !== 'Planning' ? startDate : undefined,
+          actualEndDate: status === 'Completed' ? endDate : undefined,
+          deadline: endDate,
+          healthStatus: healthStatuses[Math.floor(Math.random() * 4)],
+          projectManagerId: users[13 + (projectIndex % 15)].id,
+          sponsorId: users[1 + (projectIndex % 12)].id,
+          isActive: true,
+        });
+
+        projects.push(project);
+        projectIndex++;
+      }
+    }
+
+    console.log(`✅ Created ${projects.length} projects`);
+
+    // 7. Create Milestones (7 phases per project)
+    console.log('🎯 Creating milestones...');
+    let milestoneCount = 0;
+
+    for (const project of projects) {
+      const startDate = new Date(project.startDate);
+      const endDate = new Date(project.endDate);
+      const totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const daysPerPhase = totalDays / 7;
+
+      for (let i = 0; i < PHASES.length; i++) {
+        const phaseStart = new Date(startDate.getTime() + (i * daysPerPhase * 24 * 60 * 60 * 1000));
+        const phaseEnd = new Date(startDate.getTime() + ((i + 1) * daysPerPhase * 24 * 60 * 60 * 1000));
+
+        const phaseProgress = Math.max(0, Math.min(100, (project.progress - (i * 15))));
+        let status = 'Not Started';
+        if (phaseProgress === 100) status = 'Completed';
+        else if (phaseProgress > 0) status = 'In Progress';
+
+        await Milestone.create({
+          projectId: project.id,
+          phase: PHASES[i],
+          name: `${PHASES[i]} Phase`,
+          description: `${PHASES[i]} milestone for ${project.name}`,
+          plannedStartDate: phaseStart,
+          plannedEndDate: phaseEnd,
+          actualStartDate: status !== 'Not Started' ? phaseStart : undefined,
+          actualEndDate: status === 'Completed' ? phaseEnd : undefined,
+          status,
+          progress: Math.floor(phaseProgress),
+          dependencies: i > 0 ? JSON.stringify([i - 1]) : undefined,
+          deliverables: JSON.stringify([`${PHASES[i]} documentation`, `${PHASES[i]} signoff`]),
+          healthStatus: project.healthStatus,
+          isActive: true,
+        });
+        milestoneCount++;
+      }
+    }
+
+    console.log(`✅ Created ${milestoneCount} milestones`);
+
+    // 8. Create Pipelines/Applications (50 common apps)
+    console.log('🔧 Creating pipelines...');
+    const pipelineTypes = ['Application', 'Infrastructure', 'Integration'];
+    const vendors = ['SAP', 'Oracle', 'Salesforce', 'Microsoft', 'AWS', 'Custom'];
+    const pipelines: any[] = [];
+
+    const pipelineNames = [
+      'ERP System', 'CRM Platform', 'Data Warehouse', 'API Gateway',
+      'Cloud Infrastructure', 'Authentication Service', 'Payment Gateway',
+      'Analytics Engine', 'Email Service', 'File Storage', 'CDN',
+      'Load Balancer', 'Database Cluster', 'Message Queue', 'Cache Layer',
+      'Monitoring System', 'Logging Platform', 'CI/CD Pipeline', 'Container Registry',
+      'Service Mesh', 'Identity Provider', 'Backup System', 'DR Site',
+      'Web Application Firewall', 'DDoS Protection', 'VPN Gateway',
+      'EDI System', 'MDM Platform', 'BI Tool', 'ETL Pipeline',
+      'Search Engine', 'Recommendation Engine', 'Notification Service',
+      'Workflow Engine', 'Document Management', 'E-Signature Platform',
+      'Chat Platform', 'Video Conferencing', 'Collaboration Tool',
+      'Project Management', 'HR System', 'Finance System', 'Procurement System',
+      'Inventory System', 'Order Management', 'Shipping System',
+      'Customer Portal', 'Vendor Portal', 'Employee Portal'
+    ];
+
+    for (const name of pipelineNames) {
+      const pipeline = await Pipeline.create({
+        name,
+        type: pipelineTypes[Math.floor(Math.random() * 3)],
+        vendor: vendors[Math.floor(Math.random() * 6)],
+        platform: Math.random() > 0.5 ? 'Cloud' : 'On-Premise',
+        environment: 'Production',
+        description: `${name} for enterprise operations`,
+        isActive: true,
+      });
+      pipelines.push(pipeline);
+    }
+
+    console.log(`✅ Created ${pipelines.length} pipelines`);
+
+    // 9. Create Project-Pipeline relationships (1-5 apps per project)
+    console.log('🔗 Creating project-pipeline relationships...');
+    let ppCount = 0;
+
+    for (const project of projects) {
+      const pipelineCount = Math.floor(Math.random() * 4) + 1; // 1-4 pipelines
+      const selectedPipelines = pipelines
+        .sort(() => 0.5 - Math.random())
+        .slice(0, pipelineCount);
+
+      for (const pipeline of selectedPipelines) {
+        await ProjectPipeline.create({
+          projectId: project.id,
+          pipelineId: pipeline.id,
+          integrationType: ['Source', 'Target', 'Middleware'][Math.floor(Math.random() * 3)],
+          setupRequired: Math.random() > 0.3,
+          status: project.status === 'Completed' ? 'Completed' :
+                  project.status === 'Planning' ? 'Planned' : 'In Progress',
+          notes: `Integration requirement for ${project.name}`,
+          isActive: true,
+        });
+        ppCount++;
+      }
+    }
+
+    console.log(`✅ Created ${ppCount} project-pipeline relationships`);
+
+    // 10. Create Resource Allocations (3-8 resources per project)
+    console.log('👥 Creating resource allocations...');
+    let allocationCount = 0;
+
+    for (const project of projects) {
+      // Get domain teams for this project's domain
+      const domainTeams = teams.filter(t => t.domainId === project.domainId);
+
+      // Allocate resources from each skill type
+      for (const skillType of SKILL_TYPES) {
+        const team = domainTeams.find(t => t.skillType === skillType);
+        if (!team) continue;
+
+        const teamResources = resources.filter(r => r.domainTeamId === team.id);
+        const allocCount = Math.floor(Math.random() * 2) + 1; // 1-2 resources per skill
+
+        for (let i = 0; i < Math.min(allocCount, teamResources.length); i++) {
+          const resource = teamResources[i];
+
+          await ResourceAllocation.create({
+            projectId: project.id,
+            resourceId: resource.id,
+            domainTeamId: team.id,
+            allocationType: ['Dedicated', 'Shared', 'On-Demand'][Math.floor(Math.random() * 3)],
+            allocationPercentage: Math.floor(Math.random() * 50) + 25, // 25-75%
+            allocatedHours: Math.floor(Math.random() * 80) + 40, // 40-120 hours/month
+            startDate: project.startDate,
+            endDate: project.endDate,
+            actualStartDate: project.actualStartDate,
+            actualEndDate: project.actualEndDate,
+            billableRate: resource.hourlyRate,
+            cost: resource.hourlyRate * 100,
+            roleOnProject: `${skillType} Resource`,
+            isActive: true,
+          });
+          allocationCount++;
+        }
+      }
+
+      // Add some cross-domain allocations (10% of projects)
+      if (Math.random() < 0.1) {
+        const otherDomainTeam = teams[Math.floor(Math.random() * teams.length)];
+        const otherResources = resources.filter(r => r.domainTeamId === otherDomainTeam.id);
+
+        if (otherResources.length > 0) {
+          const resource = otherResources[0];
+
+          await ResourceAllocation.create({
+            projectId: project.id,
+            resourceId: resource.id,
+            domainTeamId: otherDomainTeam.id,
+            allocationType: 'Shared',
+            allocationPercentage: Math.floor(Math.random() * 25) + 10, // 10-35%
+            allocatedHours: Math.floor(Math.random() * 40) + 20, // 20-60 hours/month
+            startDate: project.startDate,
+            endDate: project.endDate,
+            billableRate: resource.hourlyRate,
+            cost: resource.hourlyRate * 50,
+            roleOnProject: 'Cross-Domain Support',
+            isActive: true,
+          });
+          allocationCount++;
+        }
+      }
+    }
+
+    console.log(`✅ Created ${allocationCount} resource allocations`);
+
+    // 11. Create Capacity Models
+    console.log('📊 Creating capacity models...');
+    const models: any[] = [];
+
+    const modelTypes = ['Baseline', 'Optimistic', 'Pessimistic'];
+    for (const modelType of modelTypes) {
+      const model = await CapacityModel.create({
+        name: `${modelType} Capacity Model FY25`,
+        description: `${modelType} scenario for fiscal year 2025`,
+        modelType,
+        fiscalYear: 'FY25',
+        quarter: 'Q2',
+        prioritizationCriteria: JSON.stringify({
+          criticalProjects: 'first',
+          highPriority: 'second',
+          skillMatch: 'preferred'
+        }),
+        assumptions: JSON.stringify({
+          overtimeAllowed: modelType === 'Optimistic',
+          hiringPlan: modelType !== 'Pessimistic',
+          attritionRate: modelType === 'Pessimistic' ? 15 : 10
+        }),
+        createdBy: admin.id,
+        isBaseline: modelType === 'Baseline',
+        isActive: true,
+      });
+      models.push(model);
+    }
+
+    console.log(`✅ Created ${models.length} capacity models`);
+
+    // 12. Create Capacity Scenarios (one per domain per skill type per model)
+    console.log('📈 Creating capacity scenarios...');
+    let scenarioCount = 0;
+
+    for (const model of models) {
+      for (const domain of domains) {
+        for (const skillType of SKILL_TYPES) {
+          const domainTeam = teams.find(t => t.domainId === domain.id && t.skillType === skillType);
+          if (!domainTeam) continue;
+
+          const supply = domainTeam.totalCapacityHours || 480;
+          const demandMultiplier = model.modelType === 'Optimistic' ? 0.8 :
+                                  model.modelType === 'Pessimistic' ? 1.2 : 1.0;
+          const demand = Math.floor(supply * demandMultiplier);
+          const utilization = (demand / supply) * 100;
+
+          await CapacityScenario.create({
+            capacityModelId: model.id,
+            domainId: domain.id,
+            domainTeamId: domainTeam.id,
+            scenarioName: `${domain.name} ${skillType} Capacity`,
+            description: `Capacity analysis for ${domain.name} ${skillType} team`,
+            totalDemandHours: demand,
+            totalSupplyHours: supply,
+            utilizationRate: utilization,
+            overAllocationHours: Math.max(0, demand - supply),
+            skillType,
+            fiscalPeriod: 'FY25-Q2',
+            calculations: JSON.stringify({
+              totalProjects: projects.filter(p => p.domainId === domain.id).length,
+              activeAllocations: allocationCount,
+              averageAllocation: 65
+            }),
+            recommendations: utilization > 100
+              ? JSON.stringify(['Hire additional resources', 'Reduce project scope'])
+              : JSON.stringify(['Capacity available for new projects']),
+          });
+          scenarioCount++;
+        }
+      }
+    }
+
+    console.log(`✅ Created ${scenarioCount} capacity scenarios`);
+
+    // Summary
+    console.log('\n🎉 Database seeding completed successfully!');
+    console.log('\n📊 Summary:');
+    console.log(`   - Users: ${users.length}`);
+    console.log(`   - Portfolios: 1`);
+    console.log(`   - Domains: ${domains.length}`);
+    console.log(`   - Teams: ${teams.length}`);
+    console.log(`   - Resources: ${resources.length}`);
+    console.log(`   - Projects: ${projects.length}`);
+    console.log(`   - Milestones: ${milestoneCount}`);
+    console.log(`   - Pipelines: ${pipelines.length}`);
+    console.log(`   - Project-Pipeline Links: ${ppCount}`);
+    console.log(`   - Resource Allocations: ${allocationCount}`);
+    console.log(`   - Capacity Models: ${models.length}`);
+    console.log(`   - Capacity Scenarios: ${scenarioCount}`);
+    console.log('\n🔐 Login credentials:');
+    console.log('   Email: admin@ialign.com');
+    console.log('   Password: Admin@123');
+    console.log('\n✨ All users have the same password: Admin@123');
+
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Seeding failed:', error);
+    process.exit(1);
+  }
+};
+
+seedDatabase();
