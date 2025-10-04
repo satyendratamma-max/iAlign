@@ -10,6 +10,7 @@ import Pipeline from './Pipeline';
 import ProjectPipeline from './ProjectPipeline';
 import CapacityModel from './CapacityModel';
 import CapacityScenario from './CapacityScenario';
+import Notification from './notification.model';
 
 // Portfolio Associations
 Portfolio.hasMany(Project, { foreignKey: 'portfolioId', as: 'projects' });
@@ -95,6 +96,10 @@ CapacityModel.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 CapacityScenario.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 CapacityScenario.belongsTo(Team, { foreignKey: 'domainTeamId', as: 'domainTeam' });
 
+// Notification Associations
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 export {
   User,
   Portfolio,
@@ -108,6 +113,7 @@ export {
   ProjectPipeline,
   CapacityModel,
   CapacityScenario,
+  Notification,
 };
 
 export default {
@@ -123,4 +129,5 @@ export default {
   ProjectPipeline,
   CapacityModel,
   CapacityScenario,
+  Notification,
 };
