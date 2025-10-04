@@ -18,10 +18,21 @@ import {
 } from '@mui/material';
 import {
   Business,
-  TrendingUp,
-  People,
   AttachMoney,
   Add as AddIcon,
+  Folder,
+  Engineering,
+  Link,
+  Build,
+  ShoppingCart,
+  VerifiedUser,
+  LocalShipping,
+  CalendarMonth,
+  Storefront,
+  Support,
+  Groups,
+  AccountBalance,
+  Cloud,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -31,40 +42,95 @@ interface Domain {
   id: number;
   name: string;
   type?: string;
-  location?: string;
+  budget?: number;
   manager?: {
     firstName: string;
     lastName: string;
   };
 }
 
+interface Project {
+  id: number;
+  name: string;
+  status: string;
+  domainId?: number;
+  budget?: number;
+  portfolios?: Array<{
+    domainId?: number;
+  }>;
+}
+
 const DomainsList = () => {
   const navigate = useNavigate();
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [newDomain, setNewDomain] = useState({
     name: '',
     description: '',
-    location: '',
   });
 
+  const getDomainIcon = (domainName: string) => {
+    const name = domainName.toLowerCase();
+    const iconMap: { [key: string]: JSX.Element } = {
+      engineering: <Engineering />,
+      vc: <Link />,
+      make: <Build />,
+      buy: <ShoppingCart />,
+      quality: <VerifiedUser />,
+      logistics: <LocalShipping />,
+      plan: <CalendarMonth />,
+      sales: <Storefront />,
+      service: <Support />,
+      hr: <Groups />,
+      finance: <AccountBalance />,
+      infrastructure: <Cloud />,
+    };
+
+    return iconMap[name] || <Business />;
+  };
+
   useEffect(() => {
-    fetchDomains();
+    fetchData();
   }, []);
 
-  const fetchDomains = async () => {
+  const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const response = await axios.get(`${API_URL}/domains`, config);
-      setDomains(response.data.data);
+      const [domainsResponse, projectsResponse] = await Promise.all([
+        axios.get(`${API_URL}/domains`, config),
+        axios.get(`${API_URL}/projects`, config),
+      ]);
+
+      setDomains(domainsResponse.data.data);
+      setProjects(projectsResponse.data.data);
     } catch (error) {
-      console.error('Error fetching domains:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getDomainStats = (domainId: number) => {
+    const domainProjects = projects.filter(
+      (project) =>
+        project.domainId === domainId ||
+        project.portfolios?.some(p => p.domainId === domainId)
+    );
+
+    const activeProjects = domainProjects.filter(
+      (project) => project.status === 'In Progress' || project.status === 'Planning'
+    ).length;
+
+    const totalBudget = domainProjects.reduce(
+      (sum, project) => sum + (project.budget || 0),
+      0
+    );
+
+    return { activeProjects, totalBudget };
   };
 
   const handleOpenDialog = () => {
@@ -73,7 +139,7 @@ const DomainsList = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewDomain({ name: '', description: '', location: '' });
+    setNewDomain({ name: '', description: '' });
   };
 
   const handleSaveDomain = async () => {
@@ -82,7 +148,7 @@ const DomainsList = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       await axios.post(`${API_URL}/domains`, newDomain, config);
-      fetchDomains();
+      fetchData();
       handleCloseDialog();
     } catch (error) {
       console.error('Error creating domain:', error);
@@ -99,12 +165,29 @@ const DomainsList = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        mb={{ xs: 3, sm: 4 }}
+        gap={{ xs: 2, sm: 0 }}
+      >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
+            }}
+            gutterBottom
+          >
             Domain Portfolios
           </Typography>
-          <Typography color="text.secondary">
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          >
             Select a domain to view its portfolio, projects, and team capacity
           </Typography>
         </Box>
@@ -112,81 +195,167 @@ const DomainsList = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleOpenDialog}
+          sx={{
+            alignSelf: { xs: 'stretch', sm: 'auto' },
+            whiteSpace: 'nowrap',
+          }}
         >
           Add Domain
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {domains.map((domain) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={domain.id}>
-            <Card
-              sx={{
-                height: '100%',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4,
-                },
-              }}
-            >
-              <CardActionArea
-                onClick={() => navigate(`/domain/${domain.id}/portfolios`)}
-                sx={{ height: '100%' }}
+      <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
+        {domains.map((domain) => {
+          const stats = getDomainStats(domain.id);
+          const icon = getDomainIcon(domain.name);
+          return (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={domain.id}>
+              <Card
+                sx={{
+                  height: '100%',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    boxShadow: 6,
+                  },
+                }}
               >
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <Box
-                      sx={{
-                        backgroundColor: 'primary.main',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: 48,
-                        height: 48,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mr: 2,
-                      }}
-                    >
-                      <Business />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                        {domain.name}
-                      </Typography>
-                      {domain.location && (
-                        <Typography variant="caption" color="text.secondary">
-                          {domain.location}
+                <CardActionArea
+                  onClick={() => navigate(`/domain/${domain.id}/portfolios`)}
+                  sx={{ height: '100%' }}
+                >
+                  <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+                    <Box display="flex" alignItems="center" mb={2.5}>
+                      <Box
+                        sx={{
+                          backgroundColor: '#1e40af',
+                          color: 'white',
+                          borderRadius: 2.5,
+                          width: { xs: 48, sm: 52, md: 56 },
+                          height: { xs: 48, sm: 52, md: 56 },
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mr: 2,
+                          boxShadow: '0 4px 12px rgba(30,64,175,0.3)',
+                        }}
+                      >
+                        {icon}
+                      </Box>
+                      <Box flex={1}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 0,
+                            fontWeight: 700,
+                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' },
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {domain.name}
                         </Typography>
-                      )}
+                      </Box>
                     </Box>
-                  </Box>
 
-                  {domain.manager && (
-                    <Box mt={2}>
-                      <Typography variant="caption" color="text.secondary">
-                        Manager
-                      </Typography>
-                      <Typography variant="body2">
-                        {domain.manager.firstName} {domain.manager.lastName}
-                      </Typography>
+                    <Box display="flex" gap={2} mt={2.5}>
+                      <Box
+                        flex={1}
+                        sx={{
+                          bgcolor: 'action.hover',
+                          borderRadius: 2,
+                          p: { xs: 1.5, sm: 1.5 },
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                          <Folder sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'text.secondary',
+                              fontWeight: 600,
+                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                            }}
+                          >
+                            Projects
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="h5"
+                          sx={{
+                            fontWeight: 700,
+                            color: 'text.primary',
+                            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                          }}
+                        >
+                          {stats.activeProjects}
+                        </Typography>
+                      </Box>
+                      <Box
+                        flex={1}
+                        sx={{
+                          bgcolor: 'action.hover',
+                          borderRadius: 2,
+                          p: { xs: 1.5, sm: 1.5 },
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                          <AttachMoney sx={{ fontSize: 16, color: 'success.main' }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'text.secondary',
+                              fontWeight: 600,
+                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                            }}
+                          >
+                            Budget
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="h5"
+                          sx={{
+                            fontWeight: 700,
+                            color: 'text.primary',
+                            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                          }}
+                        >
+                          ${(stats.totalBudget / 1000000).toFixed(1)}M
+                        </Typography>
+                      </Box>
                     </Box>
-                  )}
 
-                  <Box mt={2}>
-                    <Chip
-                      label="View Portfolio"
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
+                    {domain.manager && (
+                      <Box
+                        mt={2.5}
+                        pt={2}
+                        sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                            fontSize: '0.7rem',
+                          }}
+                        >
+                          Manager
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: 600, mt: 0.5, color: 'text.primary' }}
+                        >
+                          {domain.manager.firstName} {domain.manager.lastName}
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {domains.length === 0 && (
@@ -221,13 +390,6 @@ const DomainsList = () => {
               margin="normal"
               multiline
               rows={3}
-            />
-            <TextField
-              fullWidth
-              label="Location"
-              value={newDomain.location}
-              onChange={(e) => setNewDomain({ ...newDomain, location: e.target.value })}
-              margin="normal"
             />
           </Box>
         </DialogContent>

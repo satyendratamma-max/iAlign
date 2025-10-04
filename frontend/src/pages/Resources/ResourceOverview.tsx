@@ -233,34 +233,62 @@ const ResourceOverview = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        mb={{ xs: 2, sm: 3 }}
+        gap={{ xs: 2, sm: 0 }}
+      >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
+            }}
+            gutterBottom
+          >
             Resource Overview
           </Typography>
-          <Typography color="text.secondary">
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          >
             Overview of all enterprise resources and utilization
           </Typography>
         </Box>
-        <Box display="flex" gap={1}>
+        <Box
+          display="flex"
+          flexWrap="wrap"
+          gap={1}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
+        >
           <Button
             variant="outlined"
-            startIcon={<TemplateIcon />}
+            startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={generateResourceTemplate}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Template
           </Button>
           <Button
             variant="outlined"
-            startIcon={<DownloadIcon />}
+            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={handleExport}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Export
           </Button>
           <Button
             variant="outlined"
             component="label"
-            startIcon={<UploadIcon />}
+            startIcon={<UploadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Import
             <input
@@ -274,26 +302,28 @@ const ResourceOverview = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            size="small"
+            sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
           >
             Add Resource
           </Button>
         </Box>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+        <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>
           <TableHead>
             <TableRow>
-              <TableCell>Employee ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Domain</TableCell>
-              <TableCell>Portfolio</TableCell>
-              <TableCell>Domain Team</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Location</TableCell>
-              <TableCell>Hourly Rate</TableCell>
-              <TableCell>Utilization</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell sx={{ minWidth: 110 }}>Employee ID</TableCell>
+              <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Portfolio</TableCell>
+              <TableCell sx={{ minWidth: 130 }}>Domain Team</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Role</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Location</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Hourly Rate</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Utilization</TableCell>
+              <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>

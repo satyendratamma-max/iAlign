@@ -337,34 +337,62 @@ const ProjectManagement = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        mb={{ xs: 2, sm: 3 }}
+        gap={{ xs: 2, sm: 0 }}
+      >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
+            }}
+            gutterBottom
+          >
             Project Management
           </Typography>
-          <Typography color="text.secondary">
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          >
             Manage and track all enterprise projects
           </Typography>
         </Box>
-        <Box display="flex" gap={1}>
+        <Box
+          display="flex"
+          flexWrap="wrap"
+          gap={1}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
+        >
           <Button
             variant="outlined"
-            startIcon={<TemplateIcon />}
+            startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={generateProjectTemplate}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Template
           </Button>
           <Button
             variant="outlined"
-            startIcon={<DownloadIcon />}
+            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={handleExport}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Export
           </Button>
           <Button
             variant="outlined"
             component="label"
-            startIcon={<UploadIcon />}
+            startIcon={<UploadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Import
             <input
@@ -378,31 +406,33 @@ const ProjectManagement = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            size="small"
+            sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
           >
             Add Project
           </Button>
         </Box>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+        <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
             <TableRow>
-              <TableCell>Project #</TableCell>
-              <TableCell>Project Name</TableCell>
-              <TableCell>Domain</TableCell>
-              <TableCell>Portfolio</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Fiscal Year</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Priority</TableCell>
-              <TableCell>Current Phase</TableCell>
-              <TableCell>Progress</TableCell>
-              <TableCell>Budget</TableCell>
-              <TableCell>Start Date</TableCell>
-              <TableCell>End Date</TableCell>
-              <TableCell>Health</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Project #</TableCell>
+              <TableCell sx={{ minWidth: 180 }}>Project Name</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Portfolio</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Type</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Fiscal Year</TableCell>
+              <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Priority</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Current Phase</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Budget</TableCell>
+              <TableCell sx={{ minWidth: 110 }}>Start Date</TableCell>
+              <TableCell sx={{ minWidth: 110 }}>End Date</TableCell>
+              <TableCell sx={{ minWidth: 90 }}>Health</TableCell>
+              <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>

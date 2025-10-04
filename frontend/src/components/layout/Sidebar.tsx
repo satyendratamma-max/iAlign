@@ -8,7 +8,9 @@ import {
   Typography,
   Box,
   Divider,
-  Collapse,
+  useTheme,
+  useMediaQuery,
+  Tooltip,
 } from '@mui/material';
 import {
   Dashboard,
@@ -16,16 +18,17 @@ import {
   People,
   Storage,
   Speed,
-  Assessment,
   Assignment,
+  BusinessCenter,
+  Groups,
   Timeline,
-  ExpandLess,
-  ExpandMore,
+  HelpOutline,
+  Info,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState } from 'react';
 
 const drawerWidth = 260;
+const miniDrawerWidth = 72;
 
 const menuSections = [
   {
@@ -37,16 +40,17 @@ const menuSections = [
   {
     title: 'Portfolio',
     items: [
-      { text: 'Domains', icon: <Folder />, path: '/domains' },
+      { text: 'Domains', icon: <BusinessCenter />, path: '/domains' },
       { text: 'Portfolio Overview', icon: <Folder />, path: '/portfolio-overview' },
-      { text: 'Projects', icon: <Folder />, path: '/projects' },
+      { text: 'Projects', icon: <Assignment />, path: '/projects' },
+      { text: 'Milestones', icon: <Timeline />, path: '/milestones' },
     ],
   },
   {
     title: 'Resources',
     items: [
       { text: 'Resource Overview', icon: <People />, path: '/resource-overview' },
-      { text: 'Domain Teams', icon: <People />, path: '/resources' },
+      { text: 'Domain Teams', icon: <Groups />, path: '/resources' },
       { text: 'Allocation Matrix', icon: <Assignment />, path: '/resources/allocation' },
     ],
   },
@@ -63,52 +67,76 @@ const menuSections = [
     ],
   },
   {
-    title: 'Analytics',
+    title: 'Support',
     items: [
-      { text: 'Analytics', icon: <Assessment />, path: '/analytics' },
+      { text: 'Help', icon: <HelpOutline />, path: '/help' },
+      { text: 'About', icon: <Info />, path: '/about' },
     ],
   },
 ];
 
-const Sidebar = () => {
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const Sidebar = ({ open, onClose }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          backgroundColor: '#1e293b',
-          color: 'white',
-        },
-      }}
-    >
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h5" fontWeight="bold" color="white">
-          iAlign
-        </Typography>
-        <Typography variant="body2" color="rgba(255,255,255,0.7)">
-          Resource Planning
-        </Typography>
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    if (isMobile) {
+      onClose();
+    }
+  };
+
+  const drawerContent = (
+    <>
+      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            color: 'white',
+            fontSize: '1.2rem',
+          }}
+        >
+          iA
+        </Box>
+        {open && (
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              iAlign
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+              Resource Planning
+            </Typography>
+          </Box>
+        )}
       </Box>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
-      <List sx={{ pt: 1 }}>
+      <Divider sx={{ borderColor: 'divider', opacity: 0.1 }} />
+      <List sx={{ pt: 1, px: 1 }}>
         {menuSections.map((section, sectionIndex) => (
           <Box key={section.title}>
-            {section.title !== 'Main' && (
-              <ListItem sx={{ pt: 2, pb: 0.5 }}>
+            {section.title !== 'Main' && open && (
+              <ListItem sx={{ pt: 2, pb: 0.5, px: 2 }}>
                 <Typography
                   variant="caption"
                   sx={{
-                    color: 'rgba(255,255,255,0.5)',
+                    opacity: 0.6,
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
+                    fontSize: '0.7rem',
                   }}
                 >
                   {section.title}
@@ -116,40 +144,86 @@ const Sidebar = () => {
               </ListItem>
             )}
             {section.items.map((item) => (
-              <ListItem key={item.path} disablePadding>
-                <ListItemButton
-                  selected={location.pathname === item.path}
-                  onClick={() => navigate(item.path)}
-                  sx={{
-                    '&.Mui-selected': {
-                      backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(99, 102, 241, 0.3)',
+              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                <Tooltip title={!open ? item.text : ''} placement="right" arrow>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      borderRadius: 2,
+                      minHeight: 48,
+                      justifyContent: open ? 'initial' : 'center',
+                      px: 2,
+                      '&.Mui-selected': {
+                        backgroundColor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': {
+                          backgroundColor: 'primary.dark',
+                        },
+                        '& .MuiListItemIcon-root': {
+                          color: 'primary.contrastText',
+                        },
                       },
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.08)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: '0.875rem',
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                      },
                     }}
-                  />
-                </ListItemButton>
+                  >
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 0,
+                        mr: open ? 2 : 'auto',
+                        justifyContent: 'center',
+                        color: 'inherit',
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {open && (
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             ))}
-            {sectionIndex < menuSections.length - 1 && section.title === 'Main' && (
-              <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', my: 1 }} />
+            {sectionIndex < menuSections.length - 1 && section.title === 'Main' && open && (
+              <Divider sx={{ borderColor: 'divider', opacity: 0.1, my: 1.5 }} />
             )}
           </Box>
         ))}
       </List>
+    </>
+  );
+
+  return (
+    <Drawer
+      variant={isMobile ? 'temporary' : 'permanent'}
+      open={isMobile ? open : true}
+      onClose={onClose}
+      sx={{
+        width: open ? drawerWidth : miniDrawerWidth,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: open ? drawerWidth : miniDrawerWidth,
+          boxSizing: 'border-box',
+          backgroundColor: 'background.paper',
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+          overflowX: 'hidden',
+        },
+      }}
+    >
+      {drawerContent}
     </Drawer>
   );
 };

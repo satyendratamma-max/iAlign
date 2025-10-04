@@ -8,11 +8,14 @@ import PortfolioList from './pages/Portfolio/PortfolioList';
 import PortfolioProjects from './pages/Portfolio/PortfolioProjects';
 import DomainPortfolioOverview from './pages/Portfolio/DomainPortfolioOverview';
 import MilestoneTracker from './pages/Portfolio/MilestoneTracker';
+import MilestonesOverview from './pages/Portfolio/MilestonesOverview';
 import ResourceOverview from './pages/Resources/ResourceOverview';
 import DomainTeams from './pages/Resources/DomainTeams';
 import ResourceAllocation from './pages/Resources/ResourceAllocation';
 import PipelineOverview from './pages/Pipeline/PipelineOverview';
 import CapacityDashboard from './pages/Capacity/CapacityDashboard';
+import HelpPage from './pages/Help';
+import About from './pages/About';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
 
@@ -37,6 +40,7 @@ function App() {
         <Route path="/portfolio/domain/:domainId" element={<DomainPortfolioOverview />} />
         <Route path="/projects" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/milestones" element={<MilestoneTracker />} />
+        <Route path="/milestones" element={<MilestonesOverview />} />
 
         {/* Resource Routes */}
         <Route path="/resource-overview" element={<ResourceOverview />} />
@@ -48,6 +52,10 @@ function App() {
 
         {/* Capacity Routes */}
         <Route path="/capacity-overview" element={<CapacityDashboard />} />
+
+        {/* Support Routes */}
+        <Route path="/help" element={<HelpPage />} />
+        <Route path="/about" element={<About />} />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
