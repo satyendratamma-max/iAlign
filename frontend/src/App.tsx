@@ -16,8 +16,29 @@ import PipelineOverview from './pages/Pipeline/PipelineOverview';
 import CapacityDashboard from './pages/Capacity/CapacityDashboard';
 import HelpPage from './pages/Help';
 import About from './pages/About';
+import AccessProvisioning from './pages/Admin/AccessProvisioning';
+import Reports from './pages/Admin/Reports';
+import DataManagement from './pages/Admin/DataManagement';
+import DataLookup from './pages/Admin/DataLookup';
+import DataModel from './pages/Admin/DataModel';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
+import { ReactNode } from 'react';
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+  requiredRole?: string;
+}
+
+const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
+  const { user } = useAppSelector((state) => state.auth);
+
+  if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 function App() {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
@@ -56,6 +77,48 @@ function App() {
         {/* Support Routes */}
         <Route path="/help" element={<HelpPage />} />
         <Route path="/about" element={<About />} />
+
+        {/* Admin Routes - Protected */}
+        <Route
+          path="/admin/access-provisioning"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <AccessProvisioning />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/data-management"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <DataManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/data-lookup"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <DataLookup />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/data-model"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <DataModel />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

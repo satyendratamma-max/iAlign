@@ -24,8 +24,15 @@ import {
   Timeline,
   HelpOutline,
   Info,
+  AdminPanelSettings,
+  ManageAccounts,
+  Assessment,
+  CloudSync,
+  Schema,
+  FindInPage,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppSelector } from '../../hooks/redux';
 
 const drawerWidth = 260;
 const miniDrawerWidth = 72;
@@ -75,6 +82,17 @@ const menuSections = [
   },
 ];
 
+const adminMenuSection = {
+  title: 'Admin Tools',
+  items: [
+    { text: 'Access Provisioning', icon: <ManageAccounts />, path: '/admin/access-provisioning' },
+    { text: 'Reports', icon: <Assessment />, path: '/admin/reports' },
+    { text: 'Data Management', icon: <CloudSync />, path: '/admin/data-management' },
+    { text: 'Data Lookup', icon: <FindInPage />, path: '/admin/data-lookup' },
+    { text: 'Data Model', icon: <Schema />, path: '/admin/data-model' },
+  ],
+};
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -85,6 +103,8 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === 'Administrator';
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -125,7 +145,7 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
       </Box>
       <Divider sx={{ borderColor: 'divider', opacity: 0.1 }} />
       <List sx={{ pt: 1, px: 1 }}>
-        {menuSections.map((section, sectionIndex) => (
+        {[...menuSections, ...(isAdmin ? [adminMenuSection] : [])].map((section, sectionIndex) => (
           <Box key={section.title}>
             {section.title !== 'Main' && open && (
               <ListItem sx={{ pt: 2, pb: 0.5, px: 2 }}>

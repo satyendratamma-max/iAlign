@@ -15,6 +15,7 @@ import './models';
 // Import routes
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import adminRoutes from './routes/admin.routes';
 import portfolioRoutes from './routes/portfolio.routes';
 import projectRoutes from './routes/project.routes';
 import domainRoutes from './routes/domain.routes';
@@ -87,6 +88,7 @@ const API_VERSION = process.env.API_VERSION || 'v1';
 
 app.use(`/api/${API_VERSION}/auth`, authRoutes);
 app.use(`/api/${API_VERSION}/users`, userRoutes);
+app.use(`/api/${API_VERSION}/admin`, adminRoutes);
 app.use(`/api/${API_VERSION}/portfolios`, portfolioRoutes);
 app.use(`/api/${API_VERSION}/projects`, projectRoutes);
 app.use(`/api/${API_VERSION}/domains`, domainRoutes);
