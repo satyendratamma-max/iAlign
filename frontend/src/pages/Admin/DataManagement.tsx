@@ -57,8 +57,11 @@ interface ImportStep {
 const DataManagement = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [reseedDialogOpen, setReseedDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [reseeding, setReseeding] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
+  const [reseedComplete, setReseedComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [steps, setSteps] = useState<ImportStep[]>([
@@ -269,6 +272,36 @@ const DataManagement = () => {
       setError(error.response?.data?.message || 'Error resetting database');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleResetAndReseed = async () => {
+    setReseeding(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      await axios.post(`${API_URL}/admin/reset-and-reseed`, {}, config);
+
+      setReseedComplete(true);
+      setReseedDialogOpen(false);
+
+      // Reset all steps
+      setSteps(
+        steps.map((step) => ({
+          ...step,
+          completed: false,
+          importing: false,
+          result: undefined,
+        }))
+      );
+      setActiveStep(0);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Error resetting and reseeding database');
+    } finally {
+      setReseeding(false);
     }
   };
 
@@ -518,15 +551,24 @@ const DataManagement = () => {
             Reset and reload system data from external sources
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          color="error"
-          startIcon={<RestartAlt />}
-          onClick={() => setResetDialogOpen(true)}
-          sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
-        >
-          Reset All Data
-        </Button>
+        <Box display="flex" gap={2} sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<RestartAlt />}
+            onClick={() => setReseedDialogOpen(true)}
+          >
+            Reset & Reseed
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<RestartAlt />}
+            onClick={() => setResetDialogOpen(true)}
+          >
+            Reset All Data
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -536,8 +578,14 @@ const DataManagement = () => {
       )}
 
       {resetComplete && (
-        <Alert severity="success" sx={{ mb: 3 }}>
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setResetComplete(false)}>
           Database has been reset successfully. You can now import your data using the steps below.
+        </Alert>
+      )}
+
+      {reseedComplete && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setReseedComplete(false)}>
+          Database has been reset and reseeded with sample data successfully. The application now has demonstration data.
         </Alert>
       )}
 
@@ -758,6 +806,65 @@ const DataManagement = () => {
             disabled={resetting}
           >
             {resetting ? 'Resetting...' : 'Yes, Reset All Data'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset and Reseed Confirmation Dialog */}
+      <Dialog open={reseedDialogOpen} onClose={() => setReseedDialogOpen(false)}>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Warning color="warning" />
+            Reset & Reseed with Sample Data
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" fontWeight="bold" gutterBottom>
+              This action will:
+            </Typography>
+            <List dense>
+              <ListItem>
+                <ListItemText primary="✓ Delete ALL existing data" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="✓ Recreate sample users, domains, portfolios, projects, resources, teams, and allocations" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="✓ Reset admin password to Admin@123" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="✓ Create ~100+ sample records for testing" />
+              </ListItem>
+            </List>
+          </Alert>
+          <Typography variant="body2" gutterBottom>
+            This is useful for:
+          </Typography>
+          <List dense>
+            <ListItem>
+              <ListItemText primary="• Testing the application with realistic data" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="• Demonstrating features to stakeholders" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="• Resetting to a clean state for development" />
+            </ListItem>
+          </List>
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            Warning: All current data will be permanently deleted!
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReseedDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleResetAndReseed}
+            variant="contained"
+            color="warning"
+            disabled={reseeding}
+          >
+            {reseeding ? 'Resetting & Reseeding...' : 'Yes, Reset & Reseed'}
           </Button>
         </DialogActions>
       </Dialog>

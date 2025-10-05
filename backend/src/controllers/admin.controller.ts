@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import sequelize from '../config/database';
 import logger from '../config/logger';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 export const resetAllData = async (_req: Request, res: Response, next: NextFunction) => {
   const transaction = await sequelize.transaction();
@@ -49,6 +53,25 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
   } catch (error) {
     await transaction.rollback();
     logger.error('Error resetting database:', error);
+    next(error);
+  }
+};
+
+export const resetAndReseedData = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.warn('Database reset and reseed initiated by admin');
+
+    // Run the seed script which handles both reset and seeding
+    await execAsync('npm run seed:dev');
+
+    logger.info('Database reset and reseed completed successfully');
+
+    res.json({
+      success: true,
+      message: 'Database has been reset and reseeded with sample data successfully.',
+    });
+  } catch (error) {
+    logger.error('Error resetting and reseeding database:', error);
     next(error);
   }
 };

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { resetAllData } from '../controllers/admin.controller';
+import { resetAllData, resetAndReseedData } from '../controllers/admin.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -9,5 +9,6 @@ router.use(authenticate);
 router.use(authorize('Administrator'));
 
 router.post('/reset-data', resetAllData);
+router.post('/reset-and-reseed', resetAndReseedData);
 
 export default router;
