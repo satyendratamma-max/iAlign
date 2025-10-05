@@ -9,24 +9,27 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
     logger.warn('Database reset initiated by admin');
 
     // Delete data in reverse dependency order
-    await sequelize.query('DELETE FROM Allocations', { transaction });
+    await sequelize.query('DELETE FROM ResourceAllocations', { transaction });
     await sequelize.query('DELETE FROM Milestones', { transaction });
+    await sequelize.query('DELETE FROM ProjectPipelines', { transaction });
     await sequelize.query('DELETE FROM Resources', { transaction });
     await sequelize.query('DELETE FROM Projects', { transaction });
+    await sequelize.query('DELETE FROM Pipelines', { transaction });
     await sequelize.query('DELETE FROM Teams', { transaction });
     await sequelize.query('DELETE FROM Portfolios', { transaction });
     await sequelize.query('DELETE FROM Domains', { transaction });
 
-    // Delete pipeline related data if exists
-    await sequelize.query('DELETE FROM PipelineProjects WHERE 1=1', { transaction }).catch(() => {});
-    await sequelize.query('DELETE FROM Pipelines WHERE 1=1', { transaction }).catch(() => {});
+    // Delete notifications (keep only for admin user)
+    await sequelize.query(
+      "DELETE FROM Notifications WHERE user_id != 1",
+      { transaction }
+    );
 
     // Delete capacity related data if exists
-    await sequelize.query('DELETE FROM CapacityRequests WHERE 1=1', { transaction }).catch(() => {});
-    await sequelize.query('DELETE FROM CapacityPlans WHERE 1=1', { transaction }).catch(() => {});
-    await sequelize.query('DELETE FROM Reservations WHERE 1=1', { transaction }).catch(() => {});
+    await sequelize.query('DELETE FROM CapacityScenarios', { transaction }).catch(() => {});
+    await sequelize.query('DELETE FROM CapacityModels', { transaction }).catch(() => {});
 
-    // Delete other data but keep admin user
+    // Delete other non-admin users
     await sequelize.query(
       "DELETE FROM Users WHERE email != 'admin@ialign.com'",
       { transaction }
