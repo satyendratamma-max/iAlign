@@ -1,5 +1,5 @@
 import User from './User';
-import Portfolio from './Portfolio';
+import SegmentFunction from './SegmentFunction';
 import Project from './Project';
 import Domain from './Domain';
 import Team from './Team';
@@ -12,15 +12,15 @@ import CapacityModel from './CapacityModel';
 import CapacityScenario from './CapacityScenario';
 import Notification from './notification.model';
 
-// Portfolio Associations
-Portfolio.hasMany(Project, { foreignKey: 'portfolioId', as: 'projects' });
-Project.belongsTo(Portfolio, { foreignKey: 'portfolioId', as: 'portfolio' });
+// SegmentFunction Associations
+SegmentFunction.hasMany(Project, { foreignKey: 'segmentFunctionId', as: 'projects' });
+Project.belongsTo(SegmentFunction, { foreignKey: 'segmentFunctionId', as: 'segmentFunctionData' });
 
-Portfolio.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
+SegmentFunction.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
 
 // Domain Associations
-Domain.hasMany(Portfolio, { foreignKey: 'domainId', as: 'portfolios' });
-Portfolio.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
+Domain.hasMany(SegmentFunction, { foreignKey: 'domainId', as: 'segmentFunctions' });
+SegmentFunction.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 
 Domain.hasMany(Project, { foreignKey: 'domainId', as: 'projects' });
 Project.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
@@ -40,8 +40,8 @@ Team.belongsTo(User, { foreignKey: 'leadId', as: 'lead' });
 Domain.hasMany(Resource, { foreignKey: 'domainId', as: 'resources' });
 Resource.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 
-Portfolio.hasMany(Resource, { foreignKey: 'portfolioId', as: 'resources' });
-Resource.belongsTo(Portfolio, { foreignKey: 'portfolioId', as: 'portfolio' });
+SegmentFunction.hasMany(Resource, { foreignKey: 'segmentFunctionId', as: 'resources' });
+Resource.belongsTo(SegmentFunction, { foreignKey: 'segmentFunctionId', as: 'segmentFunction' });
 
 // Project Associations
 Project.belongsTo(User, { foreignKey: 'projectManagerId', as: 'projectManager' });
@@ -102,7 +102,7 @@ Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 export {
   User,
-  Portfolio,
+  SegmentFunction,
   Project,
   Domain,
   Team,
@@ -118,7 +118,7 @@ export {
 
 export default {
   User,
-  Portfolio,
+  SegmentFunction,
   Project,
   Domain,
   Team,

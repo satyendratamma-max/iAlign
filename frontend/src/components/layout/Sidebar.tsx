@@ -45,10 +45,10 @@ const menuSections = [
     ],
   },
   {
-    title: 'Portfolio',
+    title: 'Segment Function',
     items: [
       { text: 'Domains', icon: <BusinessCenter />, path: '/domains' },
-      { text: 'Portfolio Overview', icon: <Folder />, path: '/portfolio-overview' },
+      { text: 'Segment Function Overview', icon: <Folder />, path: '/portfolio-overview' },
       { text: 'Projects', icon: <Assignment />, path: '/projects' },
       { text: 'Milestones', icon: <Timeline />, path: '/milestones' },
     ],

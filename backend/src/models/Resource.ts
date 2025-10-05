@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 export interface ResourceAttributes {
   id?: number;
   domainId?: number;
-  portfolioId?: number;
+  segmentFunctionId?: number;
   domainTeamId?: number;
   employeeId: string;
   firstName?: string;
@@ -28,7 +28,7 @@ export interface ResourceAttributes {
 class Resource extends Model<ResourceAttributes> implements ResourceAttributes {
   declare id: number;
   declare domainId?: number;
-  declare portfolioId?: number;
+  declare segmentFunctionId?: number;
   declare domainTeamId?: number;
   declare employeeId: string;
   declare firstName?: string;
@@ -60,7 +60,7 @@ Resource.init(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    portfolioId: {
+    segmentFunctionId: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },

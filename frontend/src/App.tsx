@@ -4,7 +4,7 @@ import Dashboard from './pages/Dashboard';
 import PortfolioOverview from './pages/Portfolio/PortfolioOverview';
 import ProjectManagement from './pages/Portfolio/ProjectManagement';
 import DomainsList from './pages/Portfolio/DomainsList';
-import PortfolioList from './pages/Portfolio/PortfolioList';
+import SegmentFunctionList from './pages/Portfolio/SegmentFunctionList';
 import PortfolioProjects from './pages/Portfolio/PortfolioProjects';
 import DomainPortfolioOverview from './pages/Portfolio/DomainPortfolioOverview';
 import MilestoneTracker from './pages/Portfolio/MilestoneTracker';
@@ -53,9 +53,9 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Portfolio Routes */}
+        {/* Segment Function Routes */}
         <Route path="/domains" element={<DomainsList />} />
-        <Route path="/domain/:domainId/portfolios" element={<PortfolioList />} />
+        <Route path="/domain/:domainId/portfolios" element={<SegmentFunctionList />} />
         <Route path="/portfolio/:portfolioId/projects" element={<PortfolioProjects />} />
         <Route path="/portfolio-overview" element={<PortfolioOverview />} />
         <Route path="/portfolio/domain/:domainId" element={<DomainPortfolioOverview />} />

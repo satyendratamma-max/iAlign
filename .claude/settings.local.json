@@ -8,7 +8,16 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBpYWxpZ24uY29tIiwicm9sZSI6IkFkbWluaXN0cmF0b3IiLCJpYXQiOjE3NTk0MTQ4NTQsImV4cCI6MTc1OTUwMTI1NH0.r29ei1Leo2luH1cjsqWtv4UmUxxRGvjtfvBnJu-3whM\")",
       "Bash(npm run seed:*)",
       "Bash(npm run seed:dev:*)",
-      "Bash(/Users/home/.nvm/versions/node/v17.9.1/bin/npm run dev)"
+      "Bash(/Users/home/.nvm/versions/node/v17.9.1/bin/npm run dev)",
+      "Bash(git log:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd comprehensive Admin Tools section with role-based access control\n\nFeatures:\n- Access Provisioning: Complete user management with CRUD operations, role assignment, and status toggling\n- Reports: User activity dashboard with metrics, last login tracking, role distribution, and Excel export\n- Data Management: Database reset and multi-step import wizard for bulk data loading from Excel/CSV\n- Data Lookup: Reference guide showing all entity IDs and foreign key relationships for manual imports\n- Data Model: Complete schema documentation with field definitions, relationships, and architecture overview\n\nBackend:\n- User management API endpoints (GET, POST, PUT, DELETE)\n- Admin-only database reset endpoint with transaction support\n- Role-based authorization middleware\n- Password reset utility script\n\nFrontend:\n- ProtectedRoute component for role-based route access\n- Admin menu section with conditional rendering based on user role\n- Five comprehensive admin pages with Material-UI components\n- Integration with existing authentication system\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nImplement fully functional notifications system\n\nFeatures:\n- Real-time notification popover in header with unread badge count\n- Mark individual notifications as read with single click\n- Mark all notifications as read with one action\n- Notification types with color-coded icons (info, success, warning, error)\n- Smart timestamp formatting (Just now, 5m ago, 2h ago, etc.)\n- Notifications automatically refresh after marking as read\n\nBackend:\n- Notification model with Sequelize (id, userId, type, title, message, isRead, timestamps)\n- Notification controller with CRUD operations and mark as read functionality\n- Notification routes with authentication middleware (GET, PUT endpoints)\n- Database associations (User hasMany Notifications)\n- Notification seeder with 7 sample notifications\n\nFrontend:\n- Interactive notification menu with Material-UI components\n- Unread/read visual distinction (background highlighting)\n- Click-to-mark-read functionality for unread notifications\n- Empty state handling (\"No notifications\" message)\n- React Router v7 future flags to suppress deprecation warnings\n\nFixed:\n- Sequelize model shadowing issue (changed from public! to declare)\n- React Router deprecation warnings (added v7_startTransition and v7_relativeSplatPath flags)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(seed.ts)",
+      "Bash({} ;)",
+      "Bash(xargs:*)",
+      "Bash(frontend/src/pages/Admin/DataManagement.tsx)"
     ],
     "deny": [],
     "ask": []

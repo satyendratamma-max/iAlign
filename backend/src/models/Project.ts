@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 export interface ProjectAttributes {
   id?: number;
   projectNumber?: string;
-  portfolioId?: number;
+  segmentFunctionId?: number;
   domainId?: number;
   name: string;
   description?: string;
@@ -57,7 +57,7 @@ export interface ProjectAttributes {
 class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare id: number;
   declare projectNumber?: string;
-  declare portfolioId?: number;
+  declare segmentFunctionId?: number;
   declare domainId?: number;
   declare name: string;
   declare description?: string;
@@ -119,7 +119,7 @@ Project.init(
       allowNull: true,
       unique: true,
     },
-    portfolioId: {
+    segmentFunctionId: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },

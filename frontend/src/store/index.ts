@@ -1,12 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
-import portfolioReducer from './slices/portfolioSlice';
+import segmentFunctionReducer from './slices/segmentFunctionSlice';
 import resourceReducer from './slices/resourceSlice';
 
 const store = configureStore({
   reducer: {
     auth: authReducer,
-    portfolio: portfolioReducer,
+    segmentFunction: segmentFunctionReducer,
     resource: resourceReducer,
   },
   middleware: (getDefaultMiddleware) =>

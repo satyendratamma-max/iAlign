@@ -121,15 +121,15 @@ const seedDatabase = async () => {
     console.log(`✅ Created ${domains.length} domains`);
 
     // 3. Create Portfolios - each domain gets at least one portfolio with same name
-    console.log('📁 Creating segmentFunctions...');
-    const segmentFunctions: any[] = [];
+    console.log('📁 Creating portfolios...');
+    const portfolios: any[] = [];
 
     // Create default portfolio for each domain
     for (const domain of domains) {
-      const segmentFunction = await SegmentFunction.create({
+      const portfolio = await Portfolio.create({
         domainId: domain.id,
         name: domain.name,
-        description: `Primary segment function for ${domain.name} domain`,
+        description: `Primary portfolio for ${domain.name} domain`,
         type: 'Strategic',
         totalValue: (Math.floor(Math.random() * 20) + 10) * 1000000, // $10M-$30M
         roiIndex: Math.floor(Math.random() * 30) + 15, // 15-45%
@@ -137,13 +137,13 @@ const seedDatabase = async () => {
         managerId: domain.managerId,
         isActive: true,
       });
-      segmentFunctions.push(segmentFunction);
+      portfolios.push(portfolio);
     }
 
-    // Add specific Engineering segment functions
+    // Add specific Engineering portfolios
     const engineeringDomain = domains.find(d => d.name === 'Engineering');
     if (engineeringDomain) {
-      const engSegmentFunctions = [
+      const engPortfolios = [
         {
           name: 'NPI & Commercialization',
           description: 'New Product Introduction and Commercialization initiatives',
@@ -161,8 +161,8 @@ const seedDatabase = async () => {
         },
       ];
 
-      for (const engPortfolio of engSegmentFunctions) {
-        const segmentFunction = await SegmentFunction.create({
+      for (const engPortfolio of engPortfolios) {
+        const portfolio = await Portfolio.create({
           domainId: engineeringDomain.id,
           name: engPortfolio.name,
           description: engPortfolio.description,
@@ -173,11 +173,11 @@ const seedDatabase = async () => {
           managerId: engineeringDomain.managerId,
           isActive: true,
         });
-        segmentFunctions.push(segmentFunction);
+        portfolios.push(portfolio);
       }
     }
 
-    console.log(`✅ Created ${segmentFunctions.length} segment functions`);
+    console.log(`✅ Created ${portfolios.length} portfolios`);
 
     // 4. Create Domain Teams (4 skill types per domain = 48 teams)
     console.log('👥 Creating domain teams...');
@@ -266,7 +266,7 @@ const seedDatabase = async () => {
     // Create projects for each domain, distributed across their portfolios
     for (const domain of domains) {
       // Get all portfolios for this domain
-      const domainSegmentFunctions = segmentFunctions.filter(p => p.domainId === domain.id);
+      const domainPortfolios = portfolios.filter(p => p.domainId === domain.id);
       const projectCount = Math.floor(Math.random() * 3) + 2; // 2-4 projects per domain
 
       for (let i = 0; i < projectCount; i++) {
@@ -274,7 +274,7 @@ const seedDatabase = async () => {
         const fiscalYear = FISCAL_YEARS[Math.floor(Math.random() * 4)];
 
         // Round-robin assign projects to portfolios within the domain
-        const segmentFunction = domainSegmentFunctions[i % domainSegmentFunctions.length];
+        const portfolio = domainPortfolios[i % domainPortfolios.length];
 
         // Determine dates based on fiscal year
         let startYear = 2024;
@@ -304,7 +304,7 @@ const seedDatabase = async () => {
                       fiscalYear === 'FY27' ? 'Planning' : 'In Progress';
 
         const project = await Project.create({
-          segmentFunctionId: segmentFunction.id, // Now using the portfolio from domainSegmentFunctions
+          portfolioId: portfolio.id, // Now using the portfolio from domainPortfolios
           domainId: domain.id,
           name: `${domain.name} ${template.name} ${fiscalYear}`,
           description: `${template.name} initiative for ${domain.name} domain`,
@@ -590,7 +590,7 @@ const seedDatabase = async () => {
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   - Users: ${users.length}`);
-    console.log(`   - Segment Functions: ${segmentFunctions.length}`);
+    console.log(`   - Portfolios: 1`);
     console.log(`   - Domains: ${domains.length}`);
     console.log(`   - Teams: ${teams.length}`);
     console.log(`   - Resources: ${resources.length}`);
