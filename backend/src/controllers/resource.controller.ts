@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Resource from '../models/Resource';
 import Domain from '../models/Domain';
-import Portfolio from '../models/Portfolio';
+import SegmentFunction from '../models/SegmentFunction';
 import Team from '../models/Team';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
@@ -18,8 +18,8 @@ export const getAllResources = async (_req: Request, res: Response, next: NextFu
           attributes: ['id', 'name'],
         },
         {
-          model: Portfolio,
-          as: 'portfolio',
+          model: SegmentFunction,
+          as: 'segmentFunction',
           attributes: ['id', 'name'],
         },
         {
@@ -51,8 +51,8 @@ export const getResourceById = async (req: Request, res: Response, next: NextFun
           attributes: ['id', 'name'],
         },
         {
-          model: Portfolio,
-          as: 'portfolio',
+          model: SegmentFunction,
+          as: 'segmentFunction',
           attributes: ['id', 'name'],
         },
         {

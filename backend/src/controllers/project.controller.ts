@@ -1,17 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import Project from '../models/Project';
 import Domain from '../models/Domain';
-import Portfolio from '../models/Portfolio';
+import SegmentFunction from '../models/SegmentFunction';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { portfolioId, status } = req.query;
+    const { segmentFunctionId, status } = req.query;
     const where: any = { isActive: true };
 
-    if (portfolioId) {
-      where.portfolioId = portfolioId;
+    if (segmentFunctionId) {
+      where.segmentFunctionId = segmentFunctionId;
     }
 
     if (status) {
@@ -28,8 +28,8 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
           attributes: ['id', 'name'],
         },
         {
-          model: Portfolio,
-          as: 'portfolio',
+          model: SegmentFunction,
+          as: 'segmentFunctionData',
           attributes: ['id', 'name'],
         },
       ],
@@ -56,8 +56,8 @@ export const getProjectById = async (req: Request, res: Response, next: NextFunc
           attributes: ['id', 'name'],
         },
         {
-          model: Portfolio,
-          as: 'portfolio',
+          model: SegmentFunction,
+          as: 'segmentFunctionData',
           attributes: ['id', 'name'],
         },
       ],

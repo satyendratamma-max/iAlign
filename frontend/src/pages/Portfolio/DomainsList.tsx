@@ -91,6 +91,78 @@ const DomainsList = () => {
     return iconMap[name] || <Business />;
   };
 
+  const getDomainColor = (domainName: string) => {
+    const name = domainName.toLowerCase();
+    const colorMap: { [key: string]: { bg: string; gradient: string; icon: string } } = {
+      engineering: {
+        bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        gradient: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+        icon: '#667eea'
+      },
+      vc: {
+        bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        gradient: 'linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%)',
+        icon: '#f093fb'
+      },
+      make: {
+        bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        gradient: 'linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%)',
+        icon: '#4facfe'
+      },
+      buy: {
+        bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+        gradient: 'linear-gradient(135deg, rgba(67, 233, 123, 0.1) 0%, rgba(56, 249, 215, 0.1) 100%)',
+        icon: '#43e97b'
+      },
+      quality: {
+        bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        gradient: 'linear-gradient(135deg, rgba(250, 112, 154, 0.1) 0%, rgba(254, 225, 64, 0.1) 100%)',
+        icon: '#fa709a'
+      },
+      logistics: {
+        bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+        gradient: 'linear-gradient(135deg, rgba(48, 207, 208, 0.1) 0%, rgba(51, 8, 103, 0.1) 100%)',
+        icon: '#30cfd0'
+      },
+      plan: {
+        bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+        gradient: 'linear-gradient(135deg, rgba(168, 237, 234, 0.1) 0%, rgba(254, 214, 227, 0.1) 100%)',
+        icon: '#5ed5d0'
+      },
+      sales: {
+        bg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 154, 158, 0.1) 0%, rgba(254, 207, 239, 0.1) 100%)',
+        icon: '#ff9a9e'
+      },
+      service: {
+        bg: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 236, 210, 0.1) 0%, rgba(252, 182, 159, 0.1) 100%)',
+        icon: '#fcb69f'
+      },
+      hr: {
+        bg: 'linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 110, 127, 0.1) 0%, rgba(191, 233, 255, 0.1) 100%)',
+        icon: '#ff6e7f'
+      },
+      finance: {
+        bg: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+        gradient: 'linear-gradient(135deg, rgba(224, 195, 252, 0.1) 0%, rgba(142, 197, 252, 0.1) 100%)',
+        icon: '#8ec5fc'
+      },
+      infrastructure: {
+        bg: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
+        gradient: 'linear-gradient(135deg, rgba(251, 194, 235, 0.1) 0%, rgba(166, 193, 238, 0.1) 100%)',
+        icon: '#a6c1ee'
+      },
+    };
+
+    return colorMap[name] || {
+      bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      gradient: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+      icon: '#667eea'
+    };
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -208,15 +280,20 @@ const DomainsList = () => {
         {domains.map((domain) => {
           const stats = getDomainStats(domain.id);
           const icon = getDomainIcon(domain.name);
+          const colors = getDomainColor(domain.name);
           return (
             <Grid item xs={12} sm={6} md={4} lg={3} key={domain.id}>
               <Card
                 sx={{
                   height: '100%',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: colors.gradient,
+                  border: '1px solid',
+                  borderColor: 'divider',
                   '&:hover': {
                     transform: 'translateY(-8px)',
-                    boxShadow: 6,
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
+                    borderColor: colors.icon,
                   },
                 }}
               >
@@ -228,16 +305,19 @@ const DomainsList = () => {
                     <Box display="flex" alignItems="center" mb={2.5}>
                       <Box
                         sx={{
-                          backgroundColor: '#1e40af',
+                          background: colors.bg,
                           color: 'white',
-                          borderRadius: 2.5,
-                          width: { xs: 48, sm: 52, md: 56 },
-                          height: { xs: 48, sm: 52, md: 56 },
+                          borderRadius: 3,
+                          width: { xs: 56, sm: 60, md: 64 },
+                          height: { xs: 56, sm: 60, md: 64 },
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           mr: 2,
-                          boxShadow: '0 4px 12px rgba(30,64,175,0.3)',
+                          boxShadow: `0 8px 24px ${colors.icon}40`,
+                          '& svg': {
+                            fontSize: { xs: 28, sm: 30, md: 32 }
+                          }
                         }}
                       >
                         {icon}
@@ -261,13 +341,20 @@ const DomainsList = () => {
                       <Box
                         flex={1}
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: 'background.paper',
                           borderRadius: 2,
                           p: { xs: 1.5, sm: 1.5 },
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: colors.icon,
+                            bgcolor: `${colors.icon}10`,
+                          }
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <Folder sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Folder sx={{ fontSize: 18, color: colors.icon }} />
                           <Typography
                             variant="caption"
                             sx={{
@@ -293,13 +380,20 @@ const DomainsList = () => {
                       <Box
                         flex={1}
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: 'background.paper',
                           borderRadius: 2,
                           p: { xs: 1.5, sm: 1.5 },
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: '#10b981',
+                            bgcolor: '#10b98110',
+                          }
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <AttachMoney sx={{ fontSize: 16, color: 'success.main' }} />
+                          <AttachMoney sx={{ fontSize: 18, color: '#10b981' }} />
                           <Typography
                             variant="caption"
                             sx={{
