@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 import logger from '../config/logger';
