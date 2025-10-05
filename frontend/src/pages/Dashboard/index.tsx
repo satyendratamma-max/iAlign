@@ -49,8 +49,8 @@ interface DashboardMetrics {
   priorityBreakdown: Record<string, number>;
 }
 
-interface PortfolioStats {
-  totalPortfolios: number;
+interface SegmentFunctionStats {
+  totalSegmentFunctions: number;
   totalValue: number;
   averageROI: number;
   averageRisk: number;
@@ -94,7 +94,7 @@ interface Allocation {
 
 const Dashboard = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [portfolioStats, setPortfolioStats] = useState<PortfolioStats | null>(null);
+  const [segmentFunctionStats, setSegmentFunctionStats] = useState<SegmentFunctionStats | null>(null);
   const [resourceMetrics, setResourceMetrics] = useState<ResourceMetrics | null>(null);
   const [domainPerformance, setDomainPerformance] = useState<DomainPerformance[]>([]);
   const [topProjects, setTopProjects] = useState<Project[]>([]);
@@ -109,12 +109,12 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         };
 
-        const [projectsRes, resourcesRes, allocationsRes, domainsRes, portfoliosRes] = await Promise.all([
+        const [projectsRes, resourcesRes, allocationsRes, domainsRes, segmentFunctionsRes] = await Promise.all([
           axios.get(`${API_URL}/projects`, config),
           axios.get(`${API_URL}/resources`, config),
           axios.get(`${API_URL}/allocations`, config),
           axios.get(`${API_URL}/domains`, config),
-          axios.get(`${API_URL}/portfolios`, config),
+          axios.get(`${API_URL}/segment-functions`, config),
         ]);
 
         const projects: Project[] = projectsRes.data.data;
@@ -201,8 +201,8 @@ const Dashboard = () => {
         setDomainPerformance(domainPerf);
 
         // Portfolio stats
-        setPortfolioStats({
-          totalPortfolios: portfoliosRes.data.data.length,
+        setSegmentFunctionStats({
+          totalSegmentFunctions: segmentFunctionsRes.data.data.length,
           totalValue: totalBudget,
           averageROI: 15.5, // placeholder
           averageRisk: 3.2, // placeholder
@@ -251,10 +251,10 @@ const Dashboard = () => {
 
   const mainMetrics = [
     {
-      title: 'Total Portfolio Value',
-      value: portfolioStats ? formatCurrency(portfolioStats.totalValue) : '$0',
+      title: 'Total Segment Function Value',
+      value: segmentFunctionStats ? formatCurrency(segmentFunctionStats.totalValue) : '$0',
       icon: <Business sx={{ fontSize: 40 }} />,
-      subtitle: `${portfolioStats?.totalPortfolios || 0} portfolios`,
+      subtitle: `${segmentFunctionStats?.totalSegmentFunctions || 0} segment functions`,
       trend: '+12% from last quarter',
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       iconBg: 'rgba(102, 126, 234, 0.1)',

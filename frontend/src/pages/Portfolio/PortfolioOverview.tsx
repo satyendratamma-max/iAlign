@@ -25,7 +25,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
-interface Portfolio {
+interface SegmentFunction {
   id: number;
   domainId?: number;
   name: string;
@@ -48,24 +48,24 @@ interface Domain {
 }
 
 const PortfolioOverview = () => {
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentPortfolio, setCurrentPortfolio] = useState<Partial<Portfolio>>({});
+  const [currentSegmentFunction, setCurrentSegmentFunction] = useState<Partial<SegmentFunction>>({});
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [portfoliosRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/portfolios`, config),
+      const [segmentFunctionsRes, domainsRes] = await Promise.all([
+        axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/domains`, config),
       ]);
 
-      setPortfolios(portfoliosRes.data.data);
+      setSegmentFunctions(segmentFunctionsRes.data.data);
       setDomains(domainsRes.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -78,20 +78,20 @@ const PortfolioOverview = () => {
     fetchData();
   }, []);
 
-  const handleOpenDialog = (portfolio?: Portfolio) => {
-    if (portfolio) {
+  const handleOpenDialog = (segmentFunction?: SegmentFunction) => {
+    if (segmentFunction) {
       setEditMode(true);
-      setCurrentPortfolio(portfolio);
+      setCurrentSegmentFunction(segmentFunction);
     } else {
       setEditMode(false);
-      setCurrentPortfolio({});
+      setCurrentSegmentFunction({});
     }
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setCurrentPortfolio({});
+    setCurrentSegmentFunction({});
   };
 
   const handleSave = async () => {
@@ -99,29 +99,29 @@ const PortfolioOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      if (editMode && currentPortfolio.id) {
-        await axios.put(`${API_URL}/portfolios/${currentPortfolio.id}`, currentPortfolio, config);
+      if (editMode && currentSegmentFunction.id) {
+        await axios.put(`${API_URL}/segment-functions/${currentSegmentFunction.id}`, currentSegmentFunction, config);
       } else {
-        await axios.post(`${API_URL}/portfolios`, currentPortfolio, config);
+        await axios.post(`${API_URL}/segment-functions`, currentSegmentFunction, config);
       }
 
       fetchData();
       handleCloseDialog();
     } catch (error) {
-      console.error('Error saving portfolio:', error);
+      console.error('Error handling segment function:', error);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this portfolio?')) {
+    if (confirm('Are you sure you want to delete this segment function?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_URL}/portfolios/${id}`, {
+        await axios.delete(`${API_URL}/segment-functions/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();
       } catch (error) {
-        console.error('Error deleting portfolio:', error);
+        console.error('Error handling segment function:', error);
       }
     }
   };
@@ -159,7 +159,7 @@ const PortfolioOverview = () => {
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
         >
-          Add Portfolio
+          Add Segment Function
         </Button>
       </Box>
 
@@ -177,34 +177,34 @@ const PortfolioOverview = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {portfolios.map((portfolio) => (
-              <TableRow key={portfolio.id}>
+            {segmentFunctions.map((segmentFunction) => (
+              <TableRow key={segmentFunction.id}>
                 <TableCell>
                   <Typography variant="body1" fontWeight="medium">
-                    {portfolio.name}
+                    {segmentFunction.name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {portfolio.description}
+                    {segmentFunction.description}
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  {portfolio.domain?.name || '-'}
+                  {segmentFunction.domain?.name || '-'}
                 </TableCell>
                 <TableCell>
-                  <Chip label={portfolio.type || 'N/A'} size="small" />
+                  <Chip label={segmentFunction.type || 'N/A'} size="small" />
                 </TableCell>
-                <TableCell>{formatCurrency(portfolio.totalValue)}</TableCell>
-                <TableCell>{portfolio.roiIndex ? `${portfolio.roiIndex}%` : '-'}</TableCell>
+                <TableCell>{formatCurrency(segmentFunction.totalValue)}</TableCell>
+                <TableCell>{segmentFunction.roiIndex ? `${segmentFunction.roiIndex}%` : '-'}</TableCell>
                 <TableCell>
                   <Chip
-                    label={portfolio.riskScore || 'N/A'}
+                    label={segmentFunction.riskScore || 'N/A'}
                     size="small"
                     color={
-                      !portfolio.riskScore
+                      !segmentFunction.riskScore
                         ? 'default'
-                        : portfolio.riskScore < 30
+                        : segmentFunction.riskScore < 30
                         ? 'success'
-                        : portfolio.riskScore < 60
+                        : segmentFunction.riskScore < 60
                         ? 'warning'
                         : 'error'
                     }
@@ -214,7 +214,7 @@ const PortfolioOverview = () => {
                   <Button
                     size="small"
                     startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(portfolio)}
+                    onClick={() => handleOpenDialog(segmentFunction)}
                   >
                     Edit
                   </Button>
@@ -222,7 +222,7 @@ const PortfolioOverview = () => {
                     size="small"
                     color="error"
                     startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(portfolio.id)}
+                    onClick={() => handleDelete(segmentFunction.id)}
                   >
                     Delete
                   </Button>
@@ -234,16 +234,16 @@ const PortfolioOverview = () => {
       </TableContainer>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editMode ? 'Edit Portfolio' : 'Add Portfolio'}</DialogTitle>
+        <DialogTitle>{editMode ? 'Edit Segment Function' : 'Add Segment Function'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Name"
-                value={currentPortfolio.name || ''}
+                value={currentSegmentFunction.name || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({ ...currentPortfolio, name: e.target.value })
+                  setCurrentSegmentFunction({ ...currentSegmentFunction, name: e.target.value })
                 }
               />
             </Grid>
@@ -253,9 +253,9 @@ const PortfolioOverview = () => {
                 label="Description"
                 multiline
                 rows={3}
-                value={currentPortfolio.description || ''}
+                value={currentSegmentFunction.description || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({ ...currentPortfolio, description: e.target.value })
+                  setCurrentSegmentFunction({ ...currentSegmentFunction, description: e.target.value })
                 }
               />
             </Grid>
@@ -264,9 +264,9 @@ const PortfolioOverview = () => {
                 select
                 fullWidth
                 label="Domain"
-                value={currentPortfolio.domainId || ''}
+                value={currentSegmentFunction.domainId || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({ ...currentPortfolio, domainId: e.target.value as number })
+                  setCurrentSegmentFunction({ ...currentSegmentFunction, domainId: e.target.value as number })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -281,9 +281,9 @@ const PortfolioOverview = () => {
               <TextField
                 fullWidth
                 label="Type"
-                value={currentPortfolio.type || ''}
+                value={currentSegmentFunction.type || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({ ...currentPortfolio, type: e.target.value })
+                  setCurrentSegmentFunction({ ...currentSegmentFunction, type: e.target.value })
                 }
               />
             </Grid>
@@ -292,10 +292,10 @@ const PortfolioOverview = () => {
                 fullWidth
                 label="Total Value"
                 type="number"
-                value={currentPortfolio.totalValue || ''}
+                value={currentSegmentFunction.totalValue || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({
-                    ...currentPortfolio,
+                  setCurrentSegmentFunction({
+                    ...currentSegmentFunction,
                     totalValue: parseFloat(e.target.value),
                   })
                 }
@@ -306,10 +306,10 @@ const PortfolioOverview = () => {
                 fullWidth
                 label="ROI Index (%)"
                 type="number"
-                value={currentPortfolio.roiIndex || ''}
+                value={currentSegmentFunction.roiIndex || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({
-                    ...currentPortfolio,
+                  setCurrentSegmentFunction({
+                    ...currentSegmentFunction,
                     roiIndex: parseFloat(e.target.value),
                   })
                 }
@@ -320,10 +320,10 @@ const PortfolioOverview = () => {
                 fullWidth
                 label="Risk Score"
                 type="number"
-                value={currentPortfolio.riskScore || ''}
+                value={currentSegmentFunction.riskScore || ''}
                 onChange={(e) =>
-                  setCurrentPortfolio({
-                    ...currentPortfolio,
+                  setCurrentSegmentFunction({
+                    ...currentSegmentFunction,
                     riskScore: parseInt(e.target.value),
                   })
                 }

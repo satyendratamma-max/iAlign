@@ -36,7 +36,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 interface Resource {
   id: number;
   domainId?: number;
-  portfolioId?: number;
+  segmentFunctionId?: number;
   domainTeamId?: number;
   employeeId: string;
   firstName?: string;
@@ -51,7 +51,7 @@ interface Resource {
     id: number;
     name: string;
   };
-  portfolio?: {
+  segmentFunction?: {
     id: number;
     name: string;
   };
@@ -66,7 +66,7 @@ interface Domain {
   name: string;
 }
 
-interface Portfolio {
+interface SegmentFunction {
   id: number;
   name: string;
 }
@@ -79,7 +79,7 @@ interface Team {
 const ResourceOverview = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -91,7 +91,7 @@ const ResourceOverview = () => {
     role: '',
     location: '',
     domain: '',
-    portfolio: '',
+    segmentFunction: '',
     domainTeam: '',
   });
 
@@ -100,16 +100,16 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [resourcesRes, domainsRes, portfoliosRes, teamsRes] = await Promise.all([
+      const [resourcesRes, domainsRes, segmentFunctionsRes, teamsRes] = await Promise.all([
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
-        axios.get(`${API_URL}/portfolios`, config),
+        axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/teams`, config),
       ]);
 
       setResources(resourcesRes.data.data);
       setDomains(domainsRes.data.data);
-      setPortfolios(portfoliosRes.data.data);
+      setSegmentFunctions(segmentFunctionsRes.data.data);
       setTeams(teamsRes.data.data);
     } catch (error) {
       console.error('Error fetching resources:', error);
@@ -317,7 +317,7 @@ const ResourceOverview = () => {
               <TableCell sx={{ minWidth: 110 }}>Employee ID</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Portfolio</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Segment Function</TableCell>
               <TableCell sx={{ minWidth: 130 }}>Domain Team</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Role</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Location</TableCell>
@@ -366,14 +366,14 @@ const ResourceOverview = () => {
                   size="small"
                   select
                   placeholder="All"
-                  value={filters.portfolio}
-                  onChange={(e) => setFilters({ ...filters, portfolio: e.target.value })}
+                  value={filters.segmentFunction}
+                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value })}
                   fullWidth
                 >
                   <MenuItem value="">All</MenuItem>
-                  {portfolios.map((portfolio) => (
-                    <MenuItem key={portfolio.id} value={portfolio.name}>
-                      {portfolio.name}
+                  {segmentFunctions.map((segmentFunction) => (
+                    <MenuItem key={segmentFunction.id} value={segmentFunction.name}>
+                      {segmentFunction.name}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -426,7 +426,7 @@ const ResourceOverview = () => {
                   resource.employeeId.toLowerCase().includes(filters.employeeId.toLowerCase()) &&
                   fullName.includes(filters.name.toLowerCase()) &&
                   (filters.domain === '' || resource.domain?.name === filters.domain) &&
-                  (filters.portfolio === '' || resource.portfolio?.name === filters.portfolio) &&
+                  (filters.segmentFunction === '' || resource.segmentFunction?.name === filters.segmentFunction) &&
                   (filters.domainTeam === '' || resource.domainTeam?.name === filters.domainTeam) &&
                   (resource.role || '').toLowerCase().includes(filters.role.toLowerCase()) &&
                   (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
@@ -451,7 +451,7 @@ const ResourceOverview = () => {
                   {resource.domain?.name || '-'}
                 </TableCell>
                 <TableCell>
-                  {resource.portfolio?.name || '-'}
+                  {resource.segmentFunction?.name || '-'}
                 </TableCell>
                 <TableCell>
                   {resource.domainTeam?.name || '-'}
@@ -536,16 +536,16 @@ const ResourceOverview = () => {
               <TextField
                 select
                 fullWidth
-                label="Portfolio"
-                value={currentResource.portfolioId || ''}
+                label="Segment Function"
+                value={currentResource.segmentFunctionId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, portfolioId: e.target.value as number })
+                  setCurrentResource({ ...currentResource, segmentFunctionId: e.target.value as number })
                 }
               >
                 <MenuItem value="">None</MenuItem>
-                {portfolios.map((portfolio) => (
-                  <MenuItem key={portfolio.id} value={portfolio.id}>
-                    {portfolio.name}
+                {segmentFunctions.map((segmentFunction) => (
+                  <MenuItem key={segmentFunction.id} value={segmentFunction.id}>
+                    {segmentFunction.name}
                   </MenuItem>
                 ))}
               </TextField>

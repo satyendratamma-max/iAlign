@@ -18,7 +18,14 @@
       "Bash({} ;)",
       "Bash(xargs:*)",
       "Bash(frontend/src/pages/Admin/DataManagement.tsx)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nComplete Portfolio to Segment Function refactoring and fix routing\n\nChanges:\n- Deleted old Portfolio model, controller, and routes files\n- Dropped Portfolios table from database (now using SegmentFunctions)\n- Updated all frontend routing from /portfolio to /segment-function\n- Fixed PortfolioProjects component to use segment-functions API\n- Updated DomainsList navigation to segment-functions route\n- Updated SegmentFunctionList navigation to new project routes\n- Updated App.tsx routing: /portfolio/:portfolioId/projects -> /segment-function/:segmentFunctionId/projects\n- Simplified domain cards with unified blue (#1e40af) and grey (#f3f4f6) color scheme\n\nAPI Endpoints:\n- All endpoints now use /segment-functions instead of /portfolios\n- Projects include segmentFunctionData associations\n- Resources load correctly with segmentFunction associations\n\nFixed Errors:\n- Resolved \"Portfolio is not associated to Resource\" errors\n- Fixed 500 errors on /api/v1/projects and /api/v1/resources endpoints\n- Backend restarted to clear cached Sequelize associations\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(for:*)",
+      "Bash(do sed -i '' 's/interface Portfolio/interface SegmentFunction/g' \"$file\")",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(do sed -i '' 's/currentPortfolio/currentSegmentFunction/g' \"$file\")",
+      "Bash(do sed -i '' 's/setCurrentPortfolio/setCurrentSegmentFunction/g' \"$file\")"
     ],
     "deny": [],
     "ask": []

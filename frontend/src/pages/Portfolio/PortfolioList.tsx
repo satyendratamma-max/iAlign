@@ -25,7 +25,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
-interface Portfolio {
+interface SegmentFunction {
   id: number;
   domainId?: number;
   name: string;
@@ -45,11 +45,11 @@ interface Domain {
 const PortfolioList = () => {
   const { domainId } = useParams<{ domainId: string }>();
   const navigate = useNavigate();
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [domain, setDomain] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
-  const [newPortfolio, setNewPortfolio] = useState({
+  const [newSegmentFunction, setNewSegmentFunction] = useState({
     name: '',
     description: '',
     type: '',
@@ -64,17 +64,17 @@ const PortfolioList = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainRes, portfoliosRes] = await Promise.all([
+      const [domainRes, segmentFunctionsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
-        axios.get(`${API_URL}/portfolios`, config),
+        axios.get(`${API_URL}/segment-functions`, config),
       ]);
 
       setDomain(domainRes.data.data);
-      // Filter portfolios by domainId
-      const domainPortfolios = portfoliosRes.data.data.filter(
-        (p: Portfolio) => p.domainId === parseInt(domainId!)
+      // Filter segmentFunctions by domainId
+      const domainPortfolios = segmentFunctionsRes.data.data.filter(
+        (p: SegmentFunction) => p.domainId === parseInt(domainId!)
       );
-      setPortfolios(domainPortfolios);
+      setSegmentFunctions(domainPortfolios);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -88,23 +88,23 @@ const PortfolioList = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewPortfolio({ name: '', description: '', type: '' });
+    setNewSegmentFunction({ name: '', description: '', type: '' });
   };
 
-  const handleSavePortfolio = async () => {
+  const handleSaveSegmentFunction = async () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       await axios.post(
-        `${API_URL}/portfolios`,
-        { ...newPortfolio, domainId: parseInt(domainId!) },
+        `${API_URL}/segment-functions`,
+        { ...newSegmentFunction, domainId: parseInt(domainId!) },
         config
       );
       fetchData();
       handleCloseDialog();
     } catch (error) {
-      console.error('Error creating portfolio:', error);
+      console.error('Error handling segment function:', error);
     }
   };
 
@@ -137,10 +137,10 @@ const PortfolioList = () => {
             Back to Domains
           </Button>
           <Typography variant="h4" gutterBottom>
-            {domain?.name} Portfolios
+            {domain?.name} Segment Functions
           </Typography>
           <Typography color="text.secondary">
-            {domain?.description || 'View and manage portfolios for this domain'}
+            {domain?.description || 'View and manage segmentFunctions for this domain'}
           </Typography>
         </Box>
         <Button
@@ -148,13 +148,13 @@ const PortfolioList = () => {
           startIcon={<AddIcon />}
           onClick={handleOpenDialog}
         >
-          Add Portfolio
+          Add Segment Function
         </Button>
       </Box>
 
       <Grid container spacing={3}>
-        {portfolios.map((portfolio) => (
-          <Grid item xs={12} sm={6} md={4} key={portfolio.id}>
+        {segmentFunctions.map((segmentFunction) => (
+          <Grid item xs={12} sm={6} md={4} key={segmentFunction.id}>
             <Card
               sx={{
                 height: '100%',
@@ -166,7 +166,7 @@ const PortfolioList = () => {
               }}
             >
               <CardActionArea
-                onClick={() => navigate(`/portfolio/${portfolio.id}/projects`)}
+                onClick={() => navigate(`/segment-function/${segmentFunction.id}/projects`)}
                 sx={{ height: '100%' }}
               >
                 <CardContent>
@@ -188,17 +188,17 @@ const PortfolioList = () => {
                     </Box>
                     <Box flex={1}>
                       <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                        {portfolio.name}
+                        {segmentFunction.name}
                       </Typography>
-                      {portfolio.type && (
-                        <Chip label={portfolio.type} size="small" sx={{ mt: 0.5 }} />
+                      {segmentFunction.type && (
+                        <Chip label={segmentFunction.type} size="small" sx={{ mt: 0.5 }} />
                       )}
                     </Box>
                   </Box>
 
-                  {portfolio.description && (
+                  {segmentFunction.description && (
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {portfolio.description}
+                      {segmentFunction.description}
                     </Typography>
                   )}
 
@@ -207,17 +207,17 @@ const PortfolioList = () => {
                       Total Value
                     </Typography>
                     <Typography variant="h6">
-                      {formatCurrency(portfolio.totalValue)}
+                      {formatCurrency(segmentFunction.totalValue)}
                     </Typography>
                   </Box>
 
-                  {portfolio.roiIndex !== undefined && (
+                  {segmentFunction.roiIndex !== undefined && (
                     <Box mt={1}>
                       <Typography variant="caption" color="text.secondary">
                         ROI Index
                       </Typography>
                       <Typography variant="body1">
-                        {portfolio.roiIndex}%
+                        {segmentFunction.roiIndex}%
                       </Typography>
                     </Box>
                   )}
@@ -228,35 +228,35 @@ const PortfolioList = () => {
         ))}
       </Grid>
 
-      {portfolios.length === 0 && (
+      {segmentFunctions.length === 0 && (
         <Box textAlign="center" py={8}>
           <Typography variant="h6" color="text.secondary">
-            No portfolios found for this domain
+            No segmentFunctions found for this domain
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Click "Add Portfolio" to create one
+            Click "Add Segment Function" to create one
           </Typography>
         </Box>
       )}
 
-      {/* Add Portfolio Dialog */}
+      {/* Add Segment Function Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Portfolio</DialogTitle>
+        <DialogTitle>Add New Segment Function</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <TextField
               fullWidth
-              label="Portfolio Name"
-              value={newPortfolio.name}
-              onChange={(e) => setNewPortfolio({ ...newPortfolio, name: e.target.value })}
+              label="Segment Function Name"
+              value={newSegmentFunction.name}
+              onChange={(e) => setNewSegmentFunction({ ...newSegmentFunction, name: e.target.value })}
               margin="normal"
               required
             />
             <TextField
               fullWidth
               label="Description"
-              value={newPortfolio.description}
-              onChange={(e) => setNewPortfolio({ ...newPortfolio, description: e.target.value })}
+              value={newSegmentFunction.description}
+              onChange={(e) => setNewSegmentFunction({ ...newSegmentFunction, description: e.target.value })}
               margin="normal"
               multiline
               rows={3}
@@ -264,8 +264,8 @@ const PortfolioList = () => {
             <TextField
               fullWidth
               label="Type"
-              value={newPortfolio.type}
-              onChange={(e) => setNewPortfolio({ ...newPortfolio, type: e.target.value })}
+              value={newSegmentFunction.type}
+              onChange={(e) => setNewSegmentFunction({ ...newSegmentFunction, type: e.target.value })}
               margin="normal"
               placeholder="e.g., Strategic, Operational, Tactical"
             />
@@ -274,11 +274,11 @@ const PortfolioList = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button
-            onClick={handleSavePortfolio}
+            onClick={handleSaveSegmentFunction}
             variant="contained"
-            disabled={!newPortfolio.name}
+            disabled={!newSegmentFunction.name}
           >
-            Add Portfolio
+            Add Segment Function
           </Button>
         </DialogActions>
       </Dialog>
