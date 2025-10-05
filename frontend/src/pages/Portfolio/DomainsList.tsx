@@ -55,9 +55,10 @@ interface Project {
   status: string;
   domainId?: number;
   budget?: number;
-  portfolios?: Array<{
+  segmentFunctionId?: number;
+  segmentFunctionData?: {
     domainId?: number;
-  }>;
+  };
 }
 
 const DomainsList = () => {
@@ -126,7 +127,7 @@ const DomainsList = () => {
     const domainProjects = projects.filter(
       (project) =>
         project.domainId === domainId ||
-        project.portfolios?.some(p => p.domainId === domainId)
+        project.segmentFunctionData?.domainId === domainId
     );
 
     const activeProjects = domainProjects.filter(
@@ -190,13 +191,13 @@ const DomainsList = () => {
             }}
             gutterBottom
           >
-            Domain Portfolios
+            Domains
           </Typography>
           <Typography
             color="text.secondary"
             sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
           >
-            Select a domain to view its portfolio, projects, and team capacity
+            Select a domain to view its segment functions, projects, and team capacity
           </Typography>
         </Box>
         <Button

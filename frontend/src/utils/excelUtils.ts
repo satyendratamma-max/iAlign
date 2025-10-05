@@ -140,7 +140,7 @@ export const generateProjectTemplate = () => {
       projectNumber: 'DMND0000001',
       name: 'Sample Project',
       description: 'Project description',
-      portfolioId: 1,
+      segmentFunctionId: 1,
       domainId: 1,
       status: 'Planning',
       priority: 'Medium',
@@ -197,7 +197,7 @@ export const generateResourceTemplate = () => {
       monthlyCost: 16000,
       totalCapacityHours: 160,
       domainId: 1,
-      portfolioId: 1,
+      segmentFunctionId: 1,
       domainTeamId: 1,
     },
   ];

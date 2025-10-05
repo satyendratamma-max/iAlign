@@ -43,7 +43,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 interface Project {
   id: number;
   projectNumber?: string;
-  portfolioId?: number;
+  segmentFunctionId?: number;
   domainId?: number;
   name: string;
   description?: string;
@@ -93,7 +93,7 @@ interface Project {
     id: number;
     name: string;
   };
-  portfolio?: {
+  segmentFunctionData?: {
     id: number;
     name: string;
   };
@@ -104,7 +104,7 @@ interface Domain {
   name: string;
 }
 
-interface Portfolio {
+interface SegmentFunction {
   id: number;
   name: string;
 }
@@ -124,7 +124,7 @@ interface Resource {
 const ProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -138,7 +138,7 @@ const ProjectManagement = () => {
     projectNumber: '',
     name: '',
     domain: '',
-    portfolio: '',
+    segmentFunction: '',
     type: '',
     fiscalYear: '',
     status: '',
@@ -152,15 +152,15 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [projectsRes, domainsRes, portfoliosRes] = await Promise.all([
+      const [projectsRes, domainsRes, segmentFunctionsRes] = await Promise.all([
         axios.get(`${API_URL}/projects`, config),
         axios.get(`${API_URL}/domains`, config),
-        axios.get(`${API_URL}/portfolios`, config),
+        axios.get(`${API_URL}/segment-functions`, config),
       ]);
 
       setProjects(projectsRes.data.data);
       setDomains(domainsRes.data.data);
-      setPortfolios(portfoliosRes.data.data);
+      setSegmentFunctions(segmentFunctionsRes.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -421,7 +421,7 @@ const ProjectManagement = () => {
               <TableCell sx={{ minWidth: 100 }}>Project #</TableCell>
               <TableCell sx={{ minWidth: 180 }}>Project Name</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Portfolio</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>Segment Function</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Type</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Fiscal Year</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
@@ -475,14 +475,14 @@ const ProjectManagement = () => {
                   size="small"
                   select
                   placeholder="All"
-                  value={filters.portfolio}
-                  onChange={(e) => setFilters({ ...filters, portfolio: e.target.value })}
+                  value={filters.segmentFunction}
+                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value })}
                   fullWidth
                 >
                   <MenuItem value="">All</MenuItem>
-                  {portfolios.map((portfolio) => (
-                    <MenuItem key={portfolio.id} value={portfolio.name}>
-                      {portfolio.name}
+                  {segmentFunctions.map((segmentFunction) => (
+                    <MenuItem key={segmentFunction.id} value={segmentFunction.name}>
+                      {segmentFunction.name}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -576,7 +576,7 @@ const ProjectManagement = () => {
                   (project.projectNumber || '').toLowerCase().includes(filters.projectNumber.toLowerCase()) &&
                   project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
                   (filters.domain === '' || project.domain?.name === filters.domain) &&
-                  (filters.portfolio === '' || project.portfolio?.name === filters.portfolio) &&
+                  (filters.segmentFunction === '' || project.segmentFunctionData?.name === filters.segmentFunction) &&
                   (filters.type === '' || (project.type || '').toLowerCase().includes(filters.type.toLowerCase())) &&
                   (filters.fiscalYear === '' || (project.fiscalYear || '').toLowerCase().includes(filters.fiscalYear.toLowerCase())) &&
                   (filters.status === '' || project.status === filters.status) &&
@@ -604,7 +604,7 @@ const ProjectManagement = () => {
                   {project.domain?.name || '-'}
                 </TableCell>
                 <TableCell>
-                  {project.portfolio?.name || '-'}
+                  {project.segmentFunctionData?.name || '-'}
                 </TableCell>
                 <TableCell>{project.type || '-'}</TableCell>
                 <TableCell>{project.fiscalYear || '-'}</TableCell>
@@ -727,16 +727,16 @@ const ProjectManagement = () => {
               <TextField
                 select
                 fullWidth
-                label="Portfolio"
-                value={currentProject.portfolioId || ''}
+                label="Segment Function"
+                value={currentProject.segmentFunctionId || ''}
                 onChange={(e) =>
-                  setCurrentProject({ ...currentProject, portfolioId: e.target.value as number })
+                  setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value as number })
                 }
               >
                 <MenuItem value="">None</MenuItem>
-                {portfolios.map((portfolio) => (
-                  <MenuItem key={portfolio.id} value={portfolio.id}>
-                    {portfolio.name}
+                {segmentFunctions.map((segmentFunction) => (
+                  <MenuItem key={segmentFunction.id} value={segmentFunction.id}>
+                    {segmentFunction.name}
                   </MenuItem>
                 ))}
               </TextField>
