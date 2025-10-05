@@ -55,8 +55,8 @@ function App() {
 
         {/* Segment Function Routes */}
         <Route path="/domains" element={<DomainsList />} />
-        <Route path="/domain/:domainId/portfolios" element={<SegmentFunctionList />} />
-        <Route path="/portfolio/:portfolioId/projects" element={<PortfolioProjects />} />
+        <Route path="/domain/:domainId/segment-functions" element={<SegmentFunctionList />} />
+        <Route path="/segment-function/:segmentFunctionId/projects" element={<PortfolioProjects />} />
         <Route path="/portfolio-overview" element={<PortfolioOverview />} />
         <Route path="/portfolio/domain/:domainId" element={<DomainPortfolioOverview />} />
         <Route path="/projects" element={<ProjectManagement />} />

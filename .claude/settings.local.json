@@ -17,7 +17,8 @@
       "Bash(seed.ts)",
       "Bash({} ;)",
       "Bash(xargs:*)",
-      "Bash(frontend/src/pages/Admin/DataManagement.tsx)"
+      "Bash(frontend/src/pages/Admin/DataManagement.tsx)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

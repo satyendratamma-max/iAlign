@@ -35,7 +35,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 interface Project {
   id: number;
-  portfolioId?: number;
+  segmentFunctionId?: number;
   name: string;
   description?: string;
   status: string;
@@ -47,7 +47,7 @@ interface Project {
   healthStatus?: string;
 }
 
-interface Portfolio {
+interface SegmentFunction {
   id: number;
   name: string;
   description?: string;
@@ -70,10 +70,10 @@ interface Resource {
 }
 
 const PortfolioProjects = () => {
-  const { portfolioId } = useParams<{ portfolioId: string }>();
+  const { segmentFunctionId } = useParams<{ segmentFunctionId: string }>();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [segmentFunction, setSegmentFunction] = useState<SegmentFunction | null>(null);
   const [loading, setLoading] = useState(true);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -82,24 +82,24 @@ const PortfolioProjects = () => {
 
   useEffect(() => {
     fetchData();
-  }, [portfolioId]);
+  }, [segmentFunctionId]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [portfolioRes, projectsRes] = await Promise.all([
-        axios.get(`${API_URL}/portfolios/${portfolioId}`, config),
+      const [segmentFunctionRes, projectsRes] = await Promise.all([
+        axios.get(`${API_URL}/segment-functions/${segmentFunctionId}`, config),
         axios.get(`${API_URL}/projects`, config),
       ]);
 
-      setPortfolio(portfolioRes.data.data);
-      // Filter projects by portfolioId
-      const portfolioProjects = projectsRes.data.data.filter(
-        (p: Project) => p.portfolioId === parseInt(portfolioId!)
+      setSegmentFunction(segmentFunctionRes.data.data);
+      // Filter projects by segmentFunctionId
+      const segmentFunctionProjects = projectsRes.data.data.filter(
+        (p: Project) => p.segmentFunctionId === parseInt(segmentFunctionId!)
       );
-      setProjects(portfolioProjects);
+      setProjects(segmentFunctionProjects);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -201,19 +201,19 @@ const PortfolioProjects = () => {
       <Box mb={4}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate(`/domain/${portfolio?.domainId}/portfolios`)}
+          onClick={() => navigate(`/domain/${segmentFunction?.domainId}/segment-functions`)}
           sx={{ mb: 2 }}
         >
-          Back to Portfolios
+          Back to Segment Functions
         </Button>
         <Typography variant="h4" gutterBottom>
-          {portfolio?.name}
+          {segmentFunction?.name}
         </Typography>
         <Typography color="text.secondary">
-          {portfolio?.description || 'Portfolio projects overview'}
+          {segmentFunction?.description || 'Segment function projects overview'}
         </Typography>
-        {portfolio?.domain && (
-          <Chip label={portfolio.domain.name} sx={{ mt: 1 }} />
+        {segmentFunction?.domain && (
+          <Chip label={segmentFunction.domain.name} sx={{ mt: 1 }} />
         )}
       </Box>
 
@@ -312,10 +312,10 @@ const PortfolioProjects = () => {
       ) : (
         <Box textAlign="center" py={8}>
           <Typography variant="h6" color="text.secondary">
-            No projects found in this portfolio
+            No projects found in this segment function
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Projects can be assigned to this portfolio from the Project Management page
+            Projects can be assigned to this segment function from the Project Management page
           </Typography>
         </Box>
       )}

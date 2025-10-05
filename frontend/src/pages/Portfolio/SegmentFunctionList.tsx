@@ -166,7 +166,7 @@ const SegmentFunctionList = () => {
               }}
             >
               <CardActionArea
-                onClick={() => navigate(`/portfolio/${segmentFunction.id}/projects`)}
+                onClick={() => navigate(`/segment-function/${segmentFunction.id}/projects`)}
                 sx={{ height: '100%' }}
               >
                 <CardContent>
