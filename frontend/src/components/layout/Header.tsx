@@ -60,17 +60,26 @@ const Header = ({ onMenuClick, sidebarOpen }: HeaderProps) => {
   const theme = useTheme();
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    // Only fetch notifications if user is authenticated
+    const token = localStorage.getItem('token');
+    if (token && user) {
+      fetchNotifications();
+    }
+  }, [user]);
 
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) return; // Early return if no token
+
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const response = await axios.get(`${API_URL}/notifications`, config);
       setNotifications(response.data.data || []);
     } catch (error: any) {
-      console.error('Failed to fetch notifications:', error);
+      // Silently handle auth errors to avoid console spam
+      if (error?.response?.status !== 401) {
+        console.error('Failed to fetch notifications:', error);
+      }
     }
   };
 
