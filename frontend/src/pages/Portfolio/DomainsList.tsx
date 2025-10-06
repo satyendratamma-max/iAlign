@@ -94,9 +94,8 @@ const DomainsList = () => {
 
   const getDomainColor = () => {
     return {
-      bg: '#1e40af',      // Mid to dark blue (blue-800)
-      cardBg: '#f3f4f6',  // Light grey (gray-100)
-      icon: '#1e40af'
+      bg: 'primary.main',      // Theme-aware primary color
+      icon: 'primary.main'      // Theme-aware primary color
     };
   };
 
@@ -224,13 +223,13 @@ const DomainsList = () => {
                 sx={{
                   height: '100%',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: colors.cardBg,
+                  backgroundColor: 'background.paper',
                   border: '2px solid',
                   borderColor: 'transparent',
                   '&:hover': {
                     transform: 'translateY(-8px)',
-                    boxShadow: `0 20px 40px ${colors.icon}30`,
-                    borderColor: colors.icon,
+                    boxShadow: (theme) => `0 20px 40px ${theme.palette.primary.main}30`,
+                    borderColor: 'primary.main',
                   },
                 }}
               >
@@ -243,7 +242,7 @@ const DomainsList = () => {
                       <Box
                         sx={{
                           backgroundColor: colors.bg,
-                          color: 'white',
+                          color: 'primary.contrastText',
                           borderRadius: 3,
                           width: { xs: 56, sm: 60, md: 64 },
                           height: { xs: 56, sm: 60, md: 64 },
@@ -251,7 +250,7 @@ const DomainsList = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           mr: 2,
-                          boxShadow: `0 8px 20px ${colors.icon}35`,
+                          boxShadow: (theme) => `0 8px 20px ${theme.palette.primary.main}35`,
                           '& svg': {
                             fontSize: { xs: 28, sm: 30, md: 32 }
                           }
@@ -278,20 +277,22 @@ const DomainsList = () => {
                       <Box
                         flex={1}
                         sx={{
-                          bgcolor: 'white',
+                          bgcolor: 'background.default',
                           borderRadius: 2,
                           p: { xs: 1.5, sm: 1.5 },
                           border: '1px solid',
-                          borderColor: '#e5e7eb',
+                          borderColor: 'divider',
                           transition: 'all 0.2s',
                           '&:hover': {
-                            borderColor: '#1e40af',
-                            bgcolor: '#eff6ff',
+                            borderColor: 'primary.main',
+                            bgcolor: (theme) => theme.palette.mode === 'dark'
+                              ? 'rgba(25, 118, 210, 0.08)'
+                              : 'primary.lighter',
                           }
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <Folder sx={{ fontSize: 18, color: '#1e40af' }} />
+                          <Folder sx={{ fontSize: 18, color: 'primary.main' }} />
                           <Typography
                             variant="caption"
                             sx={{
@@ -317,20 +318,22 @@ const DomainsList = () => {
                       <Box
                         flex={1}
                         sx={{
-                          bgcolor: 'white',
+                          bgcolor: 'background.default',
                           borderRadius: 2,
                           p: { xs: 1.5, sm: 1.5 },
                           border: '1px solid',
-                          borderColor: '#e5e7eb',
+                          borderColor: 'divider',
                           transition: 'all 0.2s',
                           '&:hover': {
-                            borderColor: '#1e40af',
-                            bgcolor: '#eff6ff',
+                            borderColor: 'primary.main',
+                            bgcolor: (theme) => theme.palette.mode === 'dark'
+                              ? 'rgba(25, 118, 210, 0.08)'
+                              : 'primary.lighter',
                           }
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <AttachMoney sx={{ fontSize: 18, color: '#1e40af' }} />
+                          <AttachMoney sx={{ fontSize: 18, color: 'primary.main' }} />
                           <Typography
                             variant="caption"
                             sx={{

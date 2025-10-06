@@ -4,6 +4,7 @@ import sequelize from '../config/database';
 export interface MilestoneAttributes {
   id?: number;
   projectId: number;
+  ownerId?: number;
   phase: string;
   name: string;
   description?: string;
@@ -24,6 +25,7 @@ export interface MilestoneAttributes {
 class Milestone extends Model<MilestoneAttributes> implements MilestoneAttributes {
   declare id: number;
   declare projectId: number;
+  declare ownerId?: number;
   declare phase: string;
   declare name: string;
   declare description?: string;
@@ -51,6 +53,10 @@ Milestone.init(
     projectId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+    },
+    ownerId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     phase: {
       type: DataTypes.STRING(50),

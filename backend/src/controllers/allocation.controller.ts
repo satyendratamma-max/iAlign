@@ -2,8 +2,13 @@ import { Request, Response } from 'express';
 import ResourceAllocation from '../models/ResourceAllocation';
 import Resource from '../models/Resource';
 import Project from '../models/Project';
-import Team from '../models/Team';
 import Milestone from '../models/Milestone';
+import ResourceCapability from '../models/ResourceCapability';
+import ProjectRequirement from '../models/ProjectRequirement';
+import App from '../models/App';
+import Technology from '../models/Technology';
+import Role from '../models/Role';
+import { calculateMatchScore } from '../utils/resourceMatcher';
 
 export const getAllAllocations = async (req: Request, res: Response) => {
   try {
@@ -26,9 +31,48 @@ export const getAllAllocations = async (req: Request, res: Response) => {
         attributes: ['id', 'name', 'status', 'fiscalYear', 'domainId'],
       },
       {
-        model: Team,
-        as: 'domainTeam',
-        attributes: ['id', 'name', 'skillType'],
+        model: ResourceCapability,
+        as: 'resourceCapability',
+        required: false,
+        include: [
+          {
+            model: App,
+            as: 'app',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Technology,
+            as: 'technology',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code', 'level'],
+          },
+        ],
+      },
+      {
+        model: ProjectRequirement,
+        as: 'projectRequirement',
+        required: false,
+        include: [
+          {
+            model: App,
+            as: 'app',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Technology,
+            as: 'technology',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code', 'level'],
+          },
+        ],
       },
     ];
 
@@ -76,8 +120,48 @@ export const getAllocationById = async (req: Request, res: Response) => {
           as: 'project',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: ResourceCapability,
+          as: 'resourceCapability',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
+        {
+          model: ProjectRequirement,
+          as: 'projectRequirement',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
         },
         {
           model: Milestone,
@@ -108,7 +192,19 @@ export const getAllocationById = async (req: Request, res: Response) => {
 
 export const createAllocation = async (req: Request, res: Response) => {
   try {
-    const allocation = await ResourceAllocation.create(req.body);
+    const allocationData = req.body;
+
+    // If resourceCapabilityId and projectRequirementId are provided, calculate match score
+    if (allocationData.resourceCapabilityId && allocationData.projectRequirementId) {
+      const capability = await ResourceCapability.findByPk(allocationData.resourceCapabilityId);
+      const requirement = await ProjectRequirement.findByPk(allocationData.projectRequirementId);
+
+      if (capability && requirement) {
+        allocationData.matchScore = calculateMatchScore(capability, requirement);
+      }
+    }
+
+    const allocation = await ResourceAllocation.create(allocationData);
 
     const fullAllocation = await ResourceAllocation.findOne({
       where: { id: allocation.id },
@@ -122,8 +218,31 @@ export const createAllocation = async (req: Request, res: Response) => {
           as: 'project',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: ResourceCapability,
+          as: 'resourceCapability',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
+        {
+          model: ProjectRequirement,
+          as: 'projectRequirement',
+          required: false,
         },
       ],
     });
@@ -171,8 +290,31 @@ export const updateAllocation = async (req: Request, res: Response) => {
           as: 'project',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: ResourceCapability,
+          as: 'resourceCapability',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
+        {
+          model: ProjectRequirement,
+          as: 'projectRequirement',
+          required: false,
         },
       ],
     });
@@ -234,8 +376,31 @@ export const getResourceAllocations = async (req: Request, res: Response) => {
           as: 'project',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: ResourceCapability,
+          as: 'resourceCapability',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
+        {
+          model: ProjectRequirement,
+          as: 'projectRequirement',
+          required: false,
         },
       ],
       order: [['startDate', 'DESC']],
@@ -266,8 +431,31 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
           as: 'resource',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: ResourceCapability,
+          as: 'resourceCapability',
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
+        {
+          model: ProjectRequirement,
+          as: 'projectRequirement',
+          required: false,
         },
       ],
       order: [['startDate', 'ASC']],

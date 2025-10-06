@@ -37,19 +37,16 @@ interface Resource {
   utilizationRate?: number;
 }
 
-interface Team {
+interface Allocation {
   id: number;
-  name: string;
-  type?: string;
-  location?: string;
-  totalMembers?: number;
-  utilizationRate?: number;
-  monthlyCost?: number;
+  resourceId: number;
+  projectId: number;
+  allocationPercentage: number;
 }
 
 const CapacityDashboard = () => {
   const [resources, setResources] = useState<Resource[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,13 +55,13 @@ const CapacityDashboard = () => {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [resourcesRes, teamsRes] = await Promise.all([
+        const [resourcesRes, allocationsRes] = await Promise.all([
           axios.get(`${API_URL}/resources`, config),
-          axios.get(`${API_URL}/teams`, config),
+          axios.get(`${API_URL}/allocations`, config),
         ]);
 
-        setResources(resourcesRes.data.data);
-        setTeams(teamsRes.data.data);
+        setResources(resourcesRes.data.data || []);
+        setAllocations(allocationsRes.data.data || []);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -85,9 +82,23 @@ const CapacityDashboard = () => {
 
   const totalResources = resources.length;
   const avgUtilization = resources.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) / totalResources || 0;
-  const totalTeams = teams.length;
-  const totalMembers = teams.reduce((sum, t) => sum + (t.totalMembers || 0), 0);
-  const totalMonthlyCost = teams.reduce((sum, t) => sum + (Number(t.monthlyCost) || 0), 0);
+
+  // Calculate actual utilization from allocations
+  const resourceUtilization = new Map<number, number>();
+  allocations.forEach(allocation => {
+    const current = resourceUtilization.get(allocation.resourceId) || 0;
+    resourceUtilization.set(allocation.resourceId, current + allocation.allocationPercentage);
+  });
+
+  const allocatedResources = resourceUtilization.size;
+  const totalAllocations = allocations.length;
+
+  // Calculate monthly cost based on resources
+  const totalMonthlyCost = resources.reduce((sum, r) => {
+    const monthlyHours = 160; // Standard work month
+    return sum + ((r.hourlyRate || 0) * monthlyHours);
+  }, 0);
+
   const avgHourlyRate = resources.reduce((sum, r) => sum + (r.hourlyRate || 0), 0) / totalResources || 0;
 
   const utilizationBreakdown = {
@@ -132,7 +143,7 @@ const CapacityDashboard = () => {
                   </Typography>
                   <Typography variant="h4">{totalResources}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {totalMembers} team members
+                    {allocatedResources} actively allocated
                   </Typography>
                 </Box>
                 <Box sx={{ color: 'primary.main' }}>
@@ -174,7 +185,7 @@ const CapacityDashboard = () => {
                   </Typography>
                   <Typography variant="h4">{formatCurrency(totalMonthlyCost)}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Across {totalTeams} teams
+                    {totalResources} resources
                   </Typography>
                 </Box>
                 <Box sx={{ color: 'info.main' }}>
@@ -330,10 +341,10 @@ const CapacityDashboard = () => {
 
               <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                 <Typography variant="body2" fontWeight="medium" gutterBottom>
-                  Team Overview
+                  Allocation Overview
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {totalTeams} teams with {totalMembers} total members
+                  {totalAllocations} active allocations across {allocatedResources} resources
                 </Typography>
               </Box>
             </CardContent>

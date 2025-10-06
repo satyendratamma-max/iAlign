@@ -48,7 +48,6 @@ const DataLookup = () => {
   // Entity data
   const [domains, setDomains] = useState<any[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
@@ -68,7 +67,6 @@ const DataLookup = () => {
       const [
         domainsRes,
         segmentFunctionsRes,
-        teamsRes,
         projectsRes,
         resourcesRes,
         milestonesRes,
@@ -76,7 +74,6 @@ const DataLookup = () => {
       ] = await Promise.all([
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/teams`, config),
         axios.get(`${API_URL}/projects`, config),
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/milestones`, config),
@@ -85,7 +82,6 @@ const DataLookup = () => {
 
       setDomains(domainsRes.data.data || []);
       setSegmentFunctions(segmentFunctionsRes.data.data || []);
-      setTeams(teamsRes.data.data || []);
       setProjects(projectsRes.data.data || []);
       setResources(resourcesRes.data.data || []);
       setMilestones(milestonesRes.data.data || []);
@@ -144,8 +140,7 @@ const DataLookup = () => {
             sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
           >
             <Tab label={`Domains (${domains.length})`} />
-            <Tab label={`Portfolios (${segmentFunctions.length})`} />
-            <Tab label={`Teams (${teams.length})`} />
+            <Tab label={`Segment Functions (${segmentFunctions.length})`} />
             <Tab label={`Projects (${projects.length})`} />
             <Tab label={`Resources (${resources.length})`} />
             <Tab label={`Milestones (${milestones.length})`} />
@@ -209,7 +204,7 @@ const DataLookup = () => {
             </TableContainer>
           </TabPanel>
 
-          {/* Portfolios Tab */}
+          {/* Segment Functions Tab */}
           <TabPanel value={tabValue} index={1}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
@@ -258,51 +253,8 @@ const DataLookup = () => {
             </TableContainer>
           </TabPanel>
 
-          {/* Teams Tab */}
-          <TabPanel value={tabValue} index={2}>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Team Name</strong></TableCell>
-                    <TableCell><strong>Domain ID</strong></TableCell>
-                    <TableCell><strong>Domain Name</strong></TableCell>
-                    <TableCell><strong>Manager</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filterData(teams, ['id', 'name', 'domainId', 'managerName']).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        No teams found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filterData(teams, ['id', 'name', 'domainId', 'managerName']).map((team) => {
-                      const domain = domains.find((d) => d.id === team.domainId);
-                      return (
-                        <TableRow key={team.id} hover>
-                          <TableCell>
-                            <Chip label={team.id} size="small" color="primary" />
-                          </TableCell>
-                          <TableCell>{team.name}</TableCell>
-                          <TableCell>
-                            <Chip label={team.domainId} size="small" color="secondary" />
-                          </TableCell>
-                          <TableCell>{domain?.name || '-'}</TableCell>
-                          <TableCell>{team.managerName || '-'}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </TabPanel>
-
           {/* Projects Tab */}
-          <TabPanel value={tabValue} index={3}>
+          <TabPanel value={tabValue} index={2}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
@@ -351,38 +303,41 @@ const DataLookup = () => {
           </TabPanel>
 
           {/* Resources Tab */}
-          <TabPanel value={tabValue} index={4}>
+          <TabPanel value={tabValue} index={3}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell><strong>ID</strong></TableCell>
+                    <TableCell><strong>Employee ID</strong></TableCell>
                     <TableCell><strong>Resource Name</strong></TableCell>
-                    <TableCell><strong>Team ID</strong></TableCell>
-                    <TableCell><strong>Team Name</strong></TableCell>
+                    <TableCell><strong>Domain ID</strong></TableCell>
+                    <TableCell><strong>Segment Function ID</strong></TableCell>
                     <TableCell><strong>Role</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(resources, ['id', 'name', 'teamId', 'role']).length === 0 ? (
+                  {filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role']).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         No resources found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(resources, ['id', 'name', 'teamId', 'role']).map((resource) => {
-                      const team = teams.find((t) => t.id === resource.teamId);
+                    filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role']).map((resource) => {
                       return (
                         <TableRow key={resource.id} hover>
                           <TableCell>
                             <Chip label={resource.id} size="small" color="primary" />
                           </TableCell>
-                          <TableCell>{resource.name}</TableCell>
+                          <TableCell>{resource.employeeId}</TableCell>
+                          <TableCell>{resource.firstName} {resource.lastName}</TableCell>
                           <TableCell>
-                            <Chip label={resource.teamId} size="small" color="secondary" />
+                            {resource.domainId ? <Chip label={resource.domainId} size="small" color="secondary" /> : '-'}
                           </TableCell>
-                          <TableCell>{team?.name || '-'}</TableCell>
+                          <TableCell>
+                            {resource.segmentFunctionId ? <Chip label={resource.segmentFunctionId} size="small" color="secondary" /> : '-'}
+                          </TableCell>
                           <TableCell>{resource.role || '-'}</TableCell>
                         </TableRow>
                       );
@@ -394,7 +349,7 @@ const DataLookup = () => {
           </TabPanel>
 
           {/* Milestones Tab */}
-          <TabPanel value={tabValue} index={5}>
+          <TabPanel value={tabValue} index={4}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
@@ -449,7 +404,7 @@ const DataLookup = () => {
           </TabPanel>
 
           {/* Allocations Tab */}
-          <TabPanel value={tabValue} index={6}>
+          <TabPanel value={tabValue} index={5}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>

@@ -16,12 +16,16 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
     await sequelize.query('DELETE FROM ResourceAllocations', { transaction });
     await sequelize.query('DELETE FROM Milestones', { transaction });
     await sequelize.query('DELETE FROM ProjectPipelines', { transaction });
+    await sequelize.query('DELETE FROM ProjectRequirements', { transaction });
+    await sequelize.query('DELETE FROM ResourceCapabilities', { transaction });
     await sequelize.query('DELETE FROM Resources', { transaction });
     await sequelize.query('DELETE FROM Projects', { transaction });
     await sequelize.query('DELETE FROM Pipelines', { transaction });
-    await sequelize.query('DELETE FROM Teams', { transaction });
     await sequelize.query('DELETE FROM SegmentFunctions', { transaction });
     await sequelize.query('DELETE FROM Domains', { transaction });
+    await sequelize.query('DELETE FROM Roles', { transaction });
+    await sequelize.query('DELETE FROM Technologies', { transaction });
+    await sequelize.query('DELETE FROM Apps', { transaction });
 
     // Delete notifications (keep only for admin user)
     await sequelize.query(

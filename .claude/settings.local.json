@@ -25,7 +25,11 @@
       "Bash(echo:*)",
       "Bash(done)",
       "Bash(do sed -i '' 's/currentPortfolio/currentSegmentFunction/g' \"$file\")",
-      "Bash(do sed -i '' 's/setCurrentPortfolio/setCurrentSegmentFunction/g' \"$file\")"
+      "Bash(do sed -i '' 's/setCurrentPortfolio/setCurrentSegmentFunction/g' \"$file\")",
+      "Bash(git commit:*)",
+      "Bash(python3:*)",
+      "Bash(awk:*)",
+      "Bash(npx ts-node:*)"
     ],
     "deny": [],
     "ask": []

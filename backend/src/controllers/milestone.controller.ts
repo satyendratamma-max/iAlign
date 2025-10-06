@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Milestone from '../models/Milestone';
 import Project from '../models/Project';
+import User from '../models/User';
 
 export const getAllMilestones = async (req: Request, res: Response) => {
   try {
@@ -18,6 +19,12 @@ export const getAllMilestones = async (req: Request, res: Response) => {
           model: Project,
           as: 'project',
           attributes: ['id', 'name', 'status'],
+        },
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+          required: false,
         },
       ],
       order: [['plannedStartDate', 'ASC']],
@@ -46,6 +53,12 @@ export const getMilestoneById = async (req: Request, res: Response) => {
         {
           model: Project,
           as: 'project',
+        },
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+          required: false,
         },
       ],
     });

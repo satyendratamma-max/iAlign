@@ -6,10 +6,12 @@ export interface ResourceAllocationAttributes {
   projectId: number;
   resourceId: number;
   milestoneId?: number;
-  domainTeamId?: number;
+  resourceCapabilityId?: number;
+  projectRequirementId?: number;
   allocationType: string;
   allocationPercentage: number;
   allocatedHours?: number;
+  matchScore?: number;
   startDate?: Date;
   endDate?: Date;
   actualStartDate?: Date;
@@ -27,10 +29,12 @@ class ResourceAllocation extends Model<ResourceAllocationAttributes> implements 
   declare projectId: number;
   declare resourceId: number;
   declare milestoneId?: number;
-  declare domainTeamId?: number;
+  declare resourceCapabilityId?: number;
+  declare projectRequirementId?: number;
   declare allocationType: string;
   declare allocationPercentage: number;
   declare allocatedHours?: number;
+  declare matchScore?: number;
   declare startDate?: Date;
   declare endDate?: Date;
   declare actualStartDate?: Date;
@@ -62,9 +66,15 @@ ResourceAllocation.init(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    domainTeamId: {
+    resourceCapabilityId: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      comment: 'FK to ResourceCapabilities - Links allocation to specific capability',
+    },
+    projectRequirementId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'FK to ProjectRequirements - Links to which requirement this fulfills',
     },
     allocationType: {
       type: DataTypes.STRING(50),
@@ -83,6 +93,15 @@ ResourceAllocation.init(
     allocatedHours: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
+    },
+    matchScore: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      validate: {
+        min: 0,
+        max: 100,
+      },
+      comment: 'Calculated match score (0-100) between resource capability and project requirement',
     },
     startDate: {
       type: DataTypes.DATE,

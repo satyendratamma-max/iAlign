@@ -33,11 +33,36 @@ import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
+interface Capability {
+  id: number;
+  appId: number;
+  technologyId: number;
+  roleId: number;
+  proficiencyLevel: string;
+  yearsOfExperience?: number;
+  isPrimary: boolean;
+  app: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  technology: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  role: {
+    id: number;
+    name: string;
+    code: string;
+    level: string;
+  };
+}
+
 interface Resource {
   id: number;
   domainId?: number;
   segmentFunctionId?: number;
-  domainTeamId?: number;
   employeeId: string;
   firstName?: string;
   lastName?: string;
@@ -55,10 +80,7 @@ interface Resource {
     id: number;
     name: string;
   };
-  domainTeam?: {
-    id: number;
-    name: string;
-  };
+  capabilities?: Capability[];
 }
 
 interface Domain {
@@ -71,16 +93,10 @@ interface SegmentFunction {
   name: string;
 }
 
-interface Team {
-  id: number;
-  name: string;
-}
-
 const ResourceOverview = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -92,7 +108,6 @@ const ResourceOverview = () => {
     location: '',
     domain: '',
     segmentFunction: '',
-    domainTeam: '',
   });
 
   const fetchResources = async () => {
@@ -100,17 +115,15 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [resourcesRes, domainsRes, segmentFunctionsRes, teamsRes] = await Promise.all([
+      const [resourcesRes, domainsRes, segmentFunctionsRes] = await Promise.all([
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/teams`, config),
       ]);
 
       setResources(resourcesRes.data.data);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
-      setTeams(teamsRes.data.data);
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
@@ -318,8 +331,7 @@ const ResourceOverview = () => {
               <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Segment Function</TableCell>
-              <TableCell sx={{ minWidth: 130 }}>Domain Team</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Role</TableCell>
+              <TableCell sx={{ minWidth: 200 }}>Capabilities</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Location</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Hourly Rate</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Utilization</TableCell>
@@ -378,32 +390,7 @@ const ResourceOverview = () => {
                   ))}
                 </TextField>
               </TableCell>
-              <TableCell>
-                <TextField
-                  size="small"
-                  select
-                  placeholder="All"
-                  value={filters.domainTeam}
-                  onChange={(e) => setFilters({ ...filters, domainTeam: e.target.value })}
-                  fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {teams.map((team) => (
-                    <MenuItem key={team.id} value={team.name}>
-                      {team.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
-              <TableCell>
-                <TextField
-                  size="small"
-                  placeholder="Filter by role"
-                  value={filters.role}
-                  onChange={(e) => setFilters({ ...filters, role: e.target.value })}
-                  fullWidth
-                />
-              </TableCell>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -427,8 +414,6 @@ const ResourceOverview = () => {
                   fullName.includes(filters.name.toLowerCase()) &&
                   (filters.domain === '' || resource.domain?.name === filters.domain) &&
                   (filters.segmentFunction === '' || resource.segmentFunction?.name === filters.segmentFunction) &&
-                  (filters.domainTeam === '' || resource.domainTeam?.name === filters.domainTeam) &&
-                  (resource.role || '').toLowerCase().includes(filters.role.toLowerCase()) &&
                   (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
                 );
               })
@@ -454,9 +439,25 @@ const ResourceOverview = () => {
                   {resource.segmentFunction?.name || '-'}
                 </TableCell>
                 <TableCell>
-                  {resource.domainTeam?.name || '-'}
+                  <Box display="flex" flexWrap="wrap" gap={0.5}>
+                    {resource.capabilities && resource.capabilities.length > 0 ? (
+                      resource.capabilities.map((capability) => (
+                        <Chip
+                          key={capability.id}
+                          label={`${capability.app.code}/${capability.technology.code}/${capability.role.code}`}
+                          size="small"
+                          color={capability.isPrimary ? 'primary' : 'default'}
+                          sx={{ fontSize: '0.75rem' }}
+                          title={`${capability.app.name} - ${capability.technology.name} - ${capability.role.name} (${capability.proficiencyLevel})`}
+                        />
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No capabilities
+                      </Typography>
+                    )}
+                  </Box>
                 </TableCell>
-                <TableCell>{resource.role || '-'}</TableCell>
                 <TableCell>{resource.location || '-'}</TableCell>
                 <TableCell>{formatCurrency(resource.hourlyRate)}/hr</TableCell>
                 <TableCell>
@@ -546,24 +547,6 @@ const ResourceOverview = () => {
                 {segmentFunctions.map((segmentFunction) => (
                   <MenuItem key={segmentFunction.id} value={segmentFunction.id}>
                     {segmentFunction.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Domain Team"
-                value={currentResource.domainTeamId || ''}
-                onChange={(e) =>
-                  setCurrentResource({ ...currentResource, domainTeamId: e.target.value as number })
-                }
-              >
-                <MenuItem value="">None</MenuItem>
-                {teams.map((team) => (
-                  <MenuItem key={team.id} value={team.id}>
-                    {team.name}
                   </MenuItem>
                 ))}
               </TextField>

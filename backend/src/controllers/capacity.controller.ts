@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import CapacityModel from '../models/CapacityModel';
 import CapacityScenario from '../models/CapacityScenario';
 import Domain from '../models/Domain';
-import Team from '../models/Team';
 import User from '../models/User';
+import App from '../models/App';
+import Technology from '../models/Technology';
+import Role from '../models/Role';
 
 export const getAllModels = async (req: Request, res: Response) => {
   try {
@@ -60,9 +62,19 @@ export const getModelById = async (req: Request, res: Response) => {
               attributes: ['id', 'name'],
             },
             {
-              model: Team,
-              as: 'domainTeam',
-              attributes: ['id', 'name', 'skillType'],
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code'],
             },
           ],
         },
@@ -194,12 +206,14 @@ export const deleteModel = async (req: Request, res: Response) => {
 // Scenario management
 export const getAllScenarios = async (req: Request, res: Response) => {
   try {
-    const { capacityModelId, domainId, skillType } = req.query;
+    const { capacityModelId, domainId, appId, technologyId, roleId } = req.query;
 
     const where: any = {};
     if (capacityModelId) where.capacityModelId = capacityModelId;
     if (domainId) where.domainId = domainId;
-    if (skillType) where.skillType = skillType;
+    if (appId) where.appId = appId;
+    if (technologyId) where.technologyId = technologyId;
+    if (roleId) where.roleId = roleId;
 
     const scenarios = await CapacityScenario.findAll({
       where,
@@ -210,9 +224,19 @@ export const getAllScenarios = async (req: Request, res: Response) => {
           attributes: ['id', 'name'],
         },
         {
-          model: Team,
-          as: 'domainTeam',
-          attributes: ['id', 'name', 'skillType'],
+          model: App,
+          as: 'app',
+          attributes: ['id', 'name', 'code'],
+        },
+        {
+          model: Technology,
+          as: 'technology',
+          attributes: ['id', 'name', 'code'],
+        },
+        {
+          model: Role,
+          as: 'role',
+          attributes: ['id', 'name', 'code'],
         },
         {
           model: CapacityModel,
@@ -220,7 +244,7 @@ export const getAllScenarios = async (req: Request, res: Response) => {
           attributes: ['id', 'name', 'modelType'],
         },
       ],
-      order: [['domainId', 'ASC'], ['skillType', 'ASC']],
+      order: [['domainId', 'ASC']],
     });
 
     return res.json({
@@ -248,8 +272,16 @@ export const getScenarioById = async (req: Request, res: Response) => {
           as: 'domain',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: App,
+          as: 'app',
+        },
+        {
+          model: Technology,
+          as: 'technology',
+        },
+        {
+          model: Role,
+          as: 'role',
         },
         {
           model: CapacityModel,
@@ -290,8 +322,16 @@ export const createScenario = async (req: Request, res: Response) => {
           as: 'domain',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: App,
+          as: 'app',
+        },
+        {
+          model: Technology,
+          as: 'technology',
+        },
+        {
+          model: Role,
+          as: 'role',
         },
         {
           model: CapacityModel,
@@ -339,8 +379,16 @@ export const updateScenario = async (req: Request, res: Response) => {
           as: 'domain',
         },
         {
-          model: Team,
-          as: 'domainTeam',
+          model: App,
+          as: 'app',
+        },
+        {
+          model: Technology,
+          as: 'technology',
+        },
+        {
+          model: Role,
+          as: 'role',
         },
         {
           model: CapacityModel,
@@ -416,8 +464,16 @@ export const compareModels = async (req: Request, res: Response) => {
               as: 'domain',
             },
             {
-              model: Team,
-              as: 'domainTeam',
+              model: App,
+              as: 'app',
+            },
+            {
+              model: Technology,
+              as: 'technology',
+            },
+            {
+              model: Role,
+              as: 'role',
             },
           ],
         },

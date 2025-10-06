@@ -9,8 +9,8 @@ import PortfolioProjects from './pages/Portfolio/PortfolioProjects';
 import DomainPortfolioOverview from './pages/Portfolio/DomainPortfolioOverview';
 import MilestoneTracker from './pages/Portfolio/MilestoneTracker';
 import MilestonesOverview from './pages/Portfolio/MilestonesOverview';
+import ProjectRequirements from './pages/Projects/ProjectRequirements';
 import ResourceOverview from './pages/Resources/ResourceOverview';
-import DomainTeams from './pages/Resources/DomainTeams';
 import ResourceAllocation from './pages/Resources/ResourceAllocation';
 import PipelineOverview from './pages/Pipeline/PipelineOverview';
 import CapacityDashboard from './pages/Capacity/CapacityDashboard';
@@ -21,6 +21,9 @@ import Reports from './pages/Admin/Reports';
 import DataManagement from './pages/Admin/DataManagement';
 import DataLookup from './pages/Admin/DataLookup';
 import DataModel from './pages/Admin/DataModel';
+import AppsManagement from './pages/Admin/AppsManagement';
+import TechnologiesManagement from './pages/Admin/TechnologiesManagement';
+import RolesManagement from './pages/Admin/RolesManagement';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
 import { ReactNode } from 'react';
@@ -61,11 +64,11 @@ function App() {
         <Route path="/portfolio/domain/:domainId" element={<DomainPortfolioOverview />} />
         <Route path="/projects" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/milestones" element={<MilestoneTracker />} />
+        <Route path="/projects/:projectId/requirements" element={<ProjectRequirements />} />
         <Route path="/milestones" element={<MilestonesOverview />} />
 
         {/* Resource Routes */}
         <Route path="/resource-overview" element={<ResourceOverview />} />
-        <Route path="/resources" element={<DomainTeams />} />
         <Route path="/resources/allocation" element={<ResourceAllocation />} />
 
         {/* Pipeline Routes */}
@@ -116,6 +119,30 @@ function App() {
           element={
             <ProtectedRoute requiredRole="Administrator">
               <DataModel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/apps"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <AppsManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/technologies"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <TechnologiesManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <RolesManagement />
             </ProtectedRoute>
           }
         />

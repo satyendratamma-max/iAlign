@@ -5,7 +5,9 @@ export interface CapacityScenarioAttributes {
   id?: number;
   capacityModelId: number;
   domainId?: number;
-  domainTeamId?: number;
+  appId?: number;
+  technologyId?: number;
+  roleId?: number;
   scenarioName: string;
   description?: string;
   totalDemandHours?: number;
@@ -24,7 +26,9 @@ class CapacityScenario extends Model<CapacityScenarioAttributes> implements Capa
   declare id: number;
   declare capacityModelId: number;
   declare domainId?: number;
-  declare domainTeamId?: number;
+  declare appId?: number;
+  declare technologyId?: number;
+  declare roleId?: number;
   declare scenarioName: string;
   declare description?: string;
   declare totalDemandHours?: number;
@@ -54,9 +58,20 @@ CapacityScenario.init(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    domainTeamId: {
+    appId: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      comment: 'FK to Apps - Identifies the application context for this scenario',
+    },
+    technologyId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'FK to Technologies - Identifies the technology context for this scenario',
+    },
+    roleId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'FK to Roles - Identifies the role context for this scenario',
     },
     scenarioName: {
       type: DataTypes.STRING(200),

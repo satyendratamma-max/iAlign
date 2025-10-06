@@ -5,7 +5,6 @@ export interface ResourceAttributes {
   id?: number;
   domainId?: number;
   segmentFunctionId?: number;
-  domainTeamId?: number;
   employeeId: string;
   firstName?: string;
   lastName?: string;
@@ -29,7 +28,6 @@ class Resource extends Model<ResourceAttributes> implements ResourceAttributes {
   declare id: number;
   declare domainId?: number;
   declare segmentFunctionId?: number;
-  declare domainTeamId?: number;
   declare employeeId: string;
   declare firstName?: string;
   declare lastName?: string;
@@ -61,10 +59,6 @@ Resource.init(
       allowNull: true,
     },
     segmentFunctionId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    domainTeamId: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },

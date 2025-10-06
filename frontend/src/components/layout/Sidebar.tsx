@@ -30,6 +30,9 @@ import {
   CloudSync,
   Schema,
   FindInPage,
+  Apps,
+  Extension,
+  WorkOutline,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
@@ -45,7 +48,7 @@ const menuSections = [
     ],
   },
   {
-    title: 'Segment Function',
+    title: 'Projects',
     items: [
       { text: 'Domains', icon: <BusinessCenter />, path: '/domains' },
       { text: 'Segment Function Overview', icon: <Folder />, path: '/portfolio-overview' },
@@ -57,7 +60,6 @@ const menuSections = [
     title: 'Resources',
     items: [
       { text: 'Resource Overview', icon: <People />, path: '/resource-overview' },
-      { text: 'Domain Teams', icon: <Groups />, path: '/resources' },
       { text: 'Allocation Matrix', icon: <Assignment />, path: '/resources/allocation' },
     ],
   },
@@ -90,6 +92,9 @@ const adminMenuSection = {
     { text: 'Data Management', icon: <CloudSync />, path: '/admin/data-management' },
     { text: 'Data Lookup', icon: <FindInPage />, path: '/admin/data-lookup' },
     { text: 'Data Model', icon: <Schema />, path: '/admin/data-model' },
+    { text: 'Apps', icon: <Apps />, path: '/admin/apps' },
+    { text: 'Technologies', icon: <Extension />, path: '/admin/technologies' },
+    { text: 'Roles', icon: <WorkOutline />, path: '/admin/roles' },
   ],
 };
 

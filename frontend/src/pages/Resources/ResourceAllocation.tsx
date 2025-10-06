@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   Typography,
   Box,
-  Grid,
-  Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -14,6 +11,12 @@ import {
   Paper,
   Chip,
   CircularProgress,
+  Card,
+  CardContent,
+  Grid,
+  LinearProgress,
+  Tooltip,
+  Alert,
   Button,
   Dialog,
   DialogTitle,
@@ -21,70 +24,74 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Alert,
-  Slider,
+  IconButton,
 } from '@mui/material';
 import {
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Warning,
-  Upload as UploadIcon,
-  Download as DownloadIcon,
-  Description as TemplateIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+interface Capability {
+  id: number;
+  appId: number;
+  technologyId: number;
+  roleId: number;
+  proficiencyLevel: string;
+  isPrimary: boolean;
+  app: { id: number; name: string; code: string };
+  technology: { id: number; name: string; code: string };
+  role: { id: number; name: string; code: string };
+}
+
+interface Requirement {
+  id: number;
+  appId: number;
+  technologyId: number;
+  roleId: number;
+  proficiencyLevel: string;
+  requiredCount: number;
+  fulfilledCount: number;
+  app: { id: number; name: string; code: string };
+  technology: { id: number; name: string; code: string };
+  role: { id: number; name: string; code: string };
+}
 
 interface Resource {
   id: number;
   employeeId: string;
   firstName?: string;
   lastName?: string;
-  primarySkill?: string;
-  domainTeamId?: number;
-  domainTeam?: {
-    id: number;
-    name: string;
-    skillType: string;
-  };
+  capabilities?: Capability[];
 }
 
 interface Project {
   id: number;
   name: string;
   status: string;
-  fiscalYear?: string;
-  domainId?: number;
-  domain?: {
-    name: string;
-  };
 }
 
 interface Allocation {
   id: number;
   projectId: number;
   resourceId: number;
-  domainTeamId?: number;
+  resourceCapabilityId?: number;
+  projectRequirementId?: number;
   allocationType: string;
   allocationPercentage: number;
-  allocatedHours?: number;
-  startDate?: Date;
-  endDate?: Date;
-  roleOnProject?: string;
-  billableRate?: number;
+  matchScore?: number;
+  startDate?: string;
+  endDate?: string;
   resource?: Resource;
   project?: Project;
-  domainTeam?: {
-    id: number;
-    name: string;
-    skillType: string;
-  };
+  resourceCapability?: Capability;
+  projectRequirement?: Requirement;
 }
 
 const ResourceAllocation = () => {
@@ -92,12 +99,15 @@ const ResourceAllocation = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({});
-  const [filterFiscalYear, setFilterFiscalYear] = useState('');
-  const [filterDomain, setFilterDomain] = useState('');
-  const [filterSkill, setFilterSkill] = useState('');
+  const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({
+    allocationPercentage: 50,
+    allocationType: 'Shared',
+  });
+  const [selectedResourceCapabilities, setSelectedResourceCapabilities] = useState<Capability[]>([]);
+  const [selectedProjectRequirements, setSelectedProjectRequirements] = useState<Requirement[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -114,11 +124,11 @@ const ResourceAllocation = () => {
         axios.get(`${API_URL}/projects`, config),
       ]);
 
-      setAllocations(allocationsRes.data.data);
-      setResources(resourcesRes.data.data);
-      setProjects(projectsRes.data.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      setAllocations(allocationsRes.data.data || []);
+      setResources(resourcesRes.data.data || []);
+      setProjects(projectsRes.data.data || []);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -128,20 +138,64 @@ const ResourceAllocation = () => {
     if (allocation) {
       setEditMode(true);
       setCurrentAllocation(allocation);
+      if (allocation.resourceId) {
+        loadResourceCapabilities(allocation.resourceId);
+      }
+      if (allocation.projectId) {
+        loadProjectRequirements(allocation.projectId);
+      }
     } else {
       setEditMode(false);
       setCurrentAllocation({
-        allocationType: 'Shared',
         allocationPercentage: 50,
-        allocatedHours: 80,
+        allocationType: 'Shared',
       });
+      setSelectedResourceCapabilities([]);
+      setSelectedProjectRequirements([]);
     }
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setCurrentAllocation({});
+    setCurrentAllocation({
+      allocationPercentage: 50,
+      allocationType: 'Shared',
+    });
+    setSelectedResourceCapabilities([]);
+    setSelectedProjectRequirements([]);
+  };
+
+  const loadResourceCapabilities = async (resourceId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_URL}/resource-capabilities/resource/${resourceId}`, config);
+      setSelectedResourceCapabilities(res.data.data || []);
+    } catch (err) {
+      console.error('Error loading resource capabilities:', err);
+    }
+  };
+
+  const loadProjectRequirements = async (projectId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_URL}/project-requirements/project/${projectId}`, config);
+      setSelectedProjectRequirements(res.data.data || []);
+    } catch (err) {
+      console.error('Error loading project requirements:', err);
+    }
+  };
+
+  const handleResourceChange = (resourceId: number) => {
+    setCurrentAllocation({ ...currentAllocation, resourceId, resourceCapabilityId: undefined });
+    loadResourceCapabilities(resourceId);
+  };
+
+  const handleProjectChange = (projectId: number) => {
+    setCurrentAllocation({ ...currentAllocation, projectId, projectRequirementId: undefined });
+    loadProjectRequirements(projectId);
   };
 
   const handleSave = async () => {
@@ -150,19 +204,15 @@ const ResourceAllocation = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       if (editMode && currentAllocation.id) {
-        await axios.put(
-          `${API_URL}/allocations/${currentAllocation.id}`,
-          currentAllocation,
-          config
-        );
+        await axios.put(`${API_URL}/allocations/${currentAllocation.id}`, currentAllocation, config);
       } else {
         await axios.post(`${API_URL}/allocations`, currentAllocation, config);
       }
 
       fetchData();
       handleCloseDialog();
-    } catch (error) {
-      console.error('Error saving allocation:', error);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save allocation');
     }
   };
 
@@ -174,47 +224,67 @@ const ResourceAllocation = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();
-      } catch (error) {
-        console.error('Error deleting allocation:', error);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to delete allocation');
       }
     }
   };
 
-  const handleExport = () => {
-    exportToExcel(resources, 'resources_export');
+  const getMatchScoreColor = (score?: number) => {
+    if (!score) return 'default';
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'warning';
+    return 'error';
   };
 
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    importFromExcel(
-      file,
-      async (data) => {
-        try {
-          const token = localStorage.getItem('token');
-          const config = { headers: { Authorization: `Bearer ${token}` } };
-
-          // Bulk create resources
-          for (const resource of data) {
-            await axios.post(`${API_URL}/resources`, resource, config);
-          }
-
-          alert(`Successfully imported ${data.length} resources`);
-          fetchData();
-        } catch (error) {
-          console.error('Error importing resources:', error);
-          alert('Error importing some resources. Check console for details.');
-        }
-      },
-      (error) => {
-        alert(`Import error: ${error}`);
-      }
-    );
-
-    // Reset input
-    event.target.value = '';
+  const getMatchScoreIcon = (score?: number) => {
+    if (!score) return null;
+    if (score >= 80) return <CheckCircleIcon fontSize="small" color="success" />;
+    if (score >= 60) return <WarningIcon fontSize="small" color="warning" />;
+    return <ErrorIcon fontSize="small" color="error" />;
   };
+
+  const getMatchScoreLabel = (score?: number) => {
+    if (!score) return 'No Match Data';
+    if (score >= 80) return 'Excellent Match';
+    if (score >= 60) return 'Good Match';
+    if (score >= 40) return 'Fair Match';
+    return 'Poor Match';
+  };
+
+  // Calculate resource utilization statistics
+  const resourceStats = allocations.reduce((acc: any, allocation) => {
+    const resourceId = allocation.resourceId;
+    if (!acc[resourceId]) {
+      acc[resourceId] = {
+        resource: allocation.resource,
+        totalAllocation: 0,
+        allocations: [],
+        avgMatchScore: 0,
+      };
+    }
+    acc[resourceId].totalAllocation += allocation.allocationPercentage;
+    acc[resourceId].allocations.push(allocation);
+
+    if (allocation.matchScore) {
+      const scores = acc[resourceId].allocations
+        .filter((a: Allocation) => a.matchScore)
+        .map((a: Allocation) => a.matchScore!);
+      acc[resourceId].avgMatchScore = scores.length > 0
+        ? scores.reduce((sum: number, s: number) => sum + s, 0) / scores.length
+        : 0;
+    }
+
+    return acc;
+  }, {});
+
+  const overAllocatedResources = Object.values(resourceStats).filter(
+    (stat: any) => stat.totalAllocation > 100
+  );
+
+  const poorMatchAllocations = allocations.filter(
+    (a) => a.matchScore && a.matchScore < 60
+  );
 
   if (loading) {
     return (
@@ -224,101 +294,29 @@ const ResourceAllocation = () => {
     );
   }
 
-  // Calculate resource utilization
-  const resourceUtilization = resources.map((resource) => {
-    const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id);
-    const totalAllocation = resourceAllocations.reduce(
-      (sum, a) => sum + a.allocationPercentage,
-      0
-    );
-    return {
-      resource,
-      totalAllocation,
-      allocations: resourceAllocations,
-      isOverAllocated: totalAllocation > 100,
-    };
-  });
-
-  // Apply filters
-  let filteredAllocations = allocations;
-  if (filterFiscalYear) {
-    filteredAllocations = filteredAllocations.filter(
-      (a) => a.project?.fiscalYear === filterFiscalYear
-    );
-  }
-  if (filterDomain) {
-    filteredAllocations = filteredAllocations.filter(
-      (a) => a.project?.domain?.name === filterDomain
-    );
-  }
-  if (filterSkill) {
-    filteredAllocations = filteredAllocations.filter(
-      (a) => a.resource?.primarySkill === filterSkill
-    );
-  }
-
-  // Get unique values for filters
-  const fiscalYears = [...new Set(projects.map((p) => p.fiscalYear).filter(Boolean))];
-  const domains = [...new Set(projects.map((p) => p.domain?.name).filter(Boolean))];
-  const skills = [...new Set(resources.map((r) => r.primarySkill).filter(Boolean))];
-
-  // Count over-allocated resources
-  const overAllocatedCount = resourceUtilization.filter((r) => r.isOverAllocated).length;
-
   return (
-    <Box>
-      {/* Header */}
+    <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography variant="h4" gutterBottom fontWeight="bold">
             Resource Allocation Matrix
           </Typography>
-          <Typography color="text.secondary">
-            Manage resource allocation across projects and domains
+          <Typography variant="body1" color="text.secondary">
+            Capability-based resource allocation with smart matching scores
           </Typography>
         </Box>
-        <Box display="flex" gap={1}>
-          <Button
-            variant="outlined"
-            startIcon={<TemplateIcon />}
-            onClick={generateResourceTemplate}
-          >
-            Template
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={handleExport}
-          >
-            Export
-          </Button>
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<UploadIcon />}
-          >
-            Import
-            <input
-              type="file"
-              hidden
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImport}
-            />
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-          >
-            Add Allocation
-          </Button>
-        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add Allocation
+        </Button>
       </Box>
 
-      {/* Alert for over-allocation */}
-      {overAllocatedCount > 0 && (
-        <Alert severity="warning" icon={<Warning />} sx={{ mb: 3 }}>
-          {overAllocatedCount} resource(s) are over-allocated (&gt;100%)
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
         </Alert>
       )}
 
@@ -338,9 +336,11 @@ const ResourceAllocation = () => {
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom variant="body2">
-                Active Resources
+                Over-Allocated Resources
               </Typography>
-              <Typography variant="h4">{resources.length}</Typography>
+              <Typography variant="h4" color="error">
+                {overAllocatedResources.length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -348,9 +348,14 @@ const ResourceAllocation = () => {
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom variant="body2">
-                Active Projects
+                Poor Match Allocations
               </Typography>
-              <Typography variant="h4">{projects.length}</Typography>
+              <Typography variant="h4" color="warning.main">
+                {poorMatchAllocations.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Match score &lt; 60
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -358,111 +363,63 @@ const ResourceAllocation = () => {
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom variant="body2">
-                Over-Allocated
+                Avg Match Score
               </Typography>
-              <Typography variant="h4" color={overAllocatedCount > 0 ? 'error' : 'inherit'}>
-                {overAllocatedCount}
+              <Typography variant="h4" color="success.main">
+                {allocations.filter((a) => a.matchScore).length > 0
+                  ? Math.round(
+                      allocations
+                        .filter((a) => a.matchScore)
+                        .reduce((sum, a) => sum + (a.matchScore || 0), 0) /
+                        allocations.filter((a) => a.matchScore).length
+                    )
+                  : '-'}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Filters */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Filters
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Fiscal Year</InputLabel>
-                <Select
-                  value={filterFiscalYear}
-                  label="Fiscal Year"
-                  onChange={(e) => setFilterFiscalYear(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {fiscalYears.map((fy) => (
-                    <MenuItem key={fy} value={fy}>
-                      {fy}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Domain</InputLabel>
-                <Select
-                  value={filterDomain}
-                  label="Domain"
-                  onChange={(e) => setFilterDomain(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {domains.map((domain) => (
-                    <MenuItem key={domain} value={domain}>
-                      {domain}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Skill Type</InputLabel>
-                <Select
-                  value={filterSkill}
-                  label="Skill Type"
-                  onChange={(e) => setFilterSkill(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {skills.map((skill) => (
-                    <MenuItem key={skill} value={skill}>
-                      {skill}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Allocation Table */}
+      {/* Allocations Table */}
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Resource Allocations
+            Active Allocations
           </Typography>
-          <TableContainer>
+          <TableContainer component={Paper} variant="outlined">
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Resource</TableCell>
-                  <TableCell>Skill</TableCell>
                   <TableCell>Project</TableCell>
-                  <TableCell>Domain</TableCell>
+                  <TableCell>Resource Capability</TableCell>
+                  <TableCell>Project Requirement</TableCell>
+                  <TableCell>Match Score</TableCell>
                   <TableCell>Allocation %</TableCell>
-                  <TableCell>Hours/Month</TableCell>
                   <TableCell>Type</TableCell>
-                  <TableCell>Role</TableCell>
+                  <TableCell>Timeline</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredAllocations.map((allocation) => {
-                  const resourceUtil = resourceUtilization.find(
-                    (r) => r.resource.id === allocation.resourceId
-                  );
-                  const isOverAllocated = resourceUtil?.isOverAllocated || false;
-
-                  return (
+                {allocations.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center">
+                      <Typography variant="body2" color="text.secondary" py={3}>
+                        No allocations found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  allocations.map((allocation) => (
                     <TableRow
                       key={allocation.id}
+                      hover
                       sx={{
-                        backgroundColor: isOverAllocated ? 'error.lighter' : 'inherit',
+                        bgcolor:
+                          allocation.matchScore && allocation.matchScore < 60
+                            ? 'error.lighter'
+                            : 'inherit',
                       }}
                     >
                       <TableCell>
@@ -474,143 +431,254 @@ const ResourceAllocation = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
+                        <Typography variant="body2">{allocation.project?.name}</Typography>
                         <Chip
-                          label={allocation.resource?.primarySkill || 'N/A'}
+                          label={allocation.project?.status}
                           size="small"
+                          color="primary"
+                          variant="outlined"
+                          sx={{ mt: 0.5 }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{allocation.project?.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {allocation.project?.fiscalYear}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{allocation.project?.domain?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography
-                            variant="body2"
-                            color={isOverAllocated ? 'error' : 'inherit'}
-                          >
-                            {allocation.allocationPercentage}%
+                        {allocation.resourceCapability ? (
+                          <Box>
+                            <Chip
+                              label={`${allocation.resourceCapability.app.code}/${allocation.resourceCapability.technology.code}/${allocation.resourceCapability.role.code}`}
+                              size="small"
+                              color={
+                                allocation.resourceCapability.isPrimary ? 'primary' : 'default'
+                              }
+                            />
+                            <Typography variant="caption" display="block" mt={0.5}>
+                              {allocation.resourceCapability.proficiencyLevel}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            No capability linked
                           </Typography>
-                          {isOverAllocated && <Warning color="error" fontSize="small" />}
-                        </Box>
+                        )}
                       </TableCell>
-                      <TableCell>{allocation.allocatedHours || '-'}</TableCell>
+                      <TableCell>
+                        {allocation.projectRequirement ? (
+                          <Box>
+                            <Chip
+                              label={`${allocation.projectRequirement.app.code}/${allocation.projectRequirement.technology.code}/${allocation.projectRequirement.role.code}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                            <Typography variant="caption" display="block" mt={0.5}>
+                              Need: {allocation.projectRequirement.proficiencyLevel} ({allocation.projectRequirement.fulfilledCount}/{allocation.projectRequirement.requiredCount})
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            No requirement linked
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {allocation.matchScore ? (
+                          <Tooltip title={getMatchScoreLabel(allocation.matchScore)}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              {getMatchScoreIcon(allocation.matchScore)}
+                              <Box sx={{ width: 60 }}>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={allocation.matchScore}
+                                  color={getMatchScoreColor(allocation.matchScore) as any}
+                                  sx={{ height: 8, borderRadius: 1 }}
+                                />
+                              </Box>
+                              <Typography variant="caption" fontWeight="medium">
+                                {allocation.matchScore}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`${allocation.allocationPercentage}%`}
+                          size="small"
+                          color="info"
+                        />
+                      </TableCell>
                       <TableCell>
                         <Chip label={allocation.allocationType} size="small" variant="outlined" />
                       </TableCell>
-                      <TableCell>{allocation.roleOnProject || '-'}</TableCell>
+                      <TableCell>
+                        {allocation.startDate && allocation.endDate ? (
+                          <Typography variant="caption">
+                            {new Date(allocation.startDate).toLocaleDateString()} -{' '}
+                            {new Date(allocation.endDate).toLocaleDateString()}
+                          </Typography>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
                       <TableCell align="right">
-                        <Button
+                        <IconButton
                           size="small"
-                          startIcon={<EditIcon />}
                           onClick={() => handleOpenDialog(allocation)}
+                          color="primary"
                         >
-                          Edit
-                        </Button>
-                        <Button
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
                           size="small"
-                          color="error"
-                          startIcon={<DeleteIcon />}
                           onClick={() => handleDelete(allocation.id)}
+                          color="error"
                         >
-                          Delete
-                        </Button>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
-                  );
-                })}
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>
         </CardContent>
       </Card>
 
-      {/* Edit/Create Allocation Dialog */}
+      {/* Poor Matches Alert */}
+      {poorMatchAllocations.length > 0 && (
+        <Alert severity="warning" sx={{ mt: 3 }}>
+          <Typography variant="body2" fontWeight="medium">
+            {poorMatchAllocations.length} allocation(s) have match scores below 60
+          </Typography>
+          <Typography variant="caption">
+            Consider reviewing these allocations to ensure resources have the right capabilities for
+            project requirements.
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Over-allocation Alert */}
+      {overAllocatedResources.length > 0 && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          <Typography variant="body2" fontWeight="medium">
+            {overAllocatedResources.length} resource(s) are allocated over 100%
+          </Typography>
+          <Typography variant="caption">
+            {overAllocatedResources
+              .map(
+                (stat: any) =>
+                  `${stat.resource?.firstName} ${stat.resource?.lastName} (${Math.round(stat.totalAllocation)}%)`
+              )
+              .join(', ')}
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>{editMode ? 'Edit Allocation' : 'Add Allocation'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Resource</InputLabel>
-                <Select
-                  value={currentAllocation.resourceId || ''}
-                  label="Resource"
-                  onChange={(e) => {
-                    const selectedResource = resources.find(r => r.id === e.target.value);
-                    setCurrentAllocation({
-                      ...currentAllocation,
-                      resourceId: e.target.value as number,
-                      domainTeamId: selectedResource?.domainTeamId,
-                    });
-                  }}
-                >
-                  {resources.map((resource) => (
-                    <MenuItem key={resource.id} value={resource.id}>
-                      {resource.firstName} {resource.lastName} ({resource.primarySkill})
-                      {resource.domainTeam && ` - ${resource.domainTeam.name}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <TextField
+                select
+                fullWidth
+                label="Resource"
+                value={currentAllocation.resourceId || ''}
+                onChange={(e) => handleResourceChange(parseInt(e.target.value))}
+                required
+              >
+                {resources.map((resource) => (
+                  <MenuItem key={resource.id} value={resource.id}>
+                    {resource.firstName} {resource.lastName} ({resource.employeeId})
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Project</InputLabel>
-                <Select
-                  value={currentAllocation.projectId || ''}
-                  label="Project"
-                  onChange={(e) =>
-                    setCurrentAllocation({
-                      ...currentAllocation,
-                      projectId: e.target.value as number,
-                    })
-                  }
-                >
-                  {projects.map((project) => (
-                    <MenuItem key={project.id} value={project.id}>
-                      {project.name} ({project.fiscalYear})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography gutterBottom>
-                Allocation Percentage: {currentAllocation.allocationPercentage || 0}%
-              </Typography>
-              <Slider
-                value={currentAllocation.allocationPercentage || 0}
-                onChange={(_, value) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    allocationPercentage: value as number,
-                  })
-                }
-                step={5}
-                marks
-                min={0}
-                max={100}
-                valueLabelDisplay="auto"
-              />
-            </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
+                select
                 fullWidth
-                label="Allocated Hours (per month)"
-                type="number"
-                value={currentAllocation.allocatedHours || ''}
+                label="Project"
+                value={currentAllocation.projectId || ''}
+                onChange={(e) => handleProjectChange(parseInt(e.target.value))}
+                required
+              >
+                {projects.map((project) => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Resource Capability"
+                value={currentAllocation.resourceCapabilityId || ''}
                 onChange={(e) =>
                   setCurrentAllocation({
                     ...currentAllocation,
-                    allocatedHours: parseFloat(e.target.value) || 0,
+                    resourceCapabilityId: parseInt(e.target.value),
                   })
                 }
+                disabled={!currentAllocation.resourceId}
+                helperText={!currentAllocation.resourceId ? 'Select a resource first' : ''}
+              >
+                {selectedResourceCapabilities.map((capability) => (
+                  <MenuItem key={capability.id} value={capability.id}>
+                    {capability.app.code}/{capability.technology.code}/{capability.role.code} - {capability.proficiencyLevel}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Project Requirement"
+                value={currentAllocation.projectRequirementId || ''}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    projectRequirementId: parseInt(e.target.value),
+                  })
+                }
+                disabled={!currentAllocation.projectId}
+                helperText={!currentAllocation.projectId ? 'Select a project first' : ''}
+              >
+                {selectedProjectRequirements.map((requirement) => (
+                  <MenuItem key={requirement.id} value={requirement.id}>
+                    {requirement.app.code}/{requirement.technology.code}/{requirement.role.code} - {requirement.proficiencyLevel}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Allocation %"
+                value={currentAllocation.allocationPercentage || 50}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    allocationPercentage: parseInt(e.target.value),
+                  })
+                }
+                inputProps={{ min: 1, max: 100 }}
+                required
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -623,58 +691,40 @@ const ResourceAllocation = () => {
                     allocationType: e.target.value,
                   })
                 }
+                required
               >
-                <MenuItem value="Dedicated">Dedicated</MenuItem>
                 <MenuItem value="Shared">Shared</MenuItem>
+                <MenuItem value="Dedicated">Dedicated</MenuItem>
                 <MenuItem value="On-Demand">On-Demand</MenuItem>
               </TextField>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Role on Project"
-                value={currentAllocation.roleOnProject || ''}
-                onChange={(e) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    roleOnProject: e.target.value,
-                  })
-                }
-              />
-            </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Start Date"
                 type="date"
-                value={
-                  currentAllocation.startDate
-                    ? new Date(currentAllocation.startDate).toISOString().split('T')[0]
-                    : ''
-                }
+                label="Start Date"
+                value={currentAllocation.startDate?.split('T')[0] || ''}
                 onChange={(e) =>
                   setCurrentAllocation({
                     ...currentAllocation,
-                    startDate: new Date(e.target.value) as any,
+                    startDate: e.target.value,
                   })
                 }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="End Date"
                 type="date"
-                value={
-                  currentAllocation.endDate
-                    ? new Date(currentAllocation.endDate).toISOString().split('T')[0]
-                    : ''
-                }
+                label="End Date"
+                value={currentAllocation.endDate?.split('T')[0] || ''}
                 onChange={(e) =>
                   setCurrentAllocation({
                     ...currentAllocation,
-                    endDate: new Date(e.target.value) as any,
+                    endDate: e.target.value,
                   })
                 }
                 InputLabelProps={{ shrink: true }}
@@ -684,7 +734,11 @@ const ResourceAllocation = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={!currentAllocation.resourceId || !currentAllocation.projectId}
+          >
             Save
           </Button>
         </DialogActions>

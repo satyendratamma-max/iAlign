@@ -20,7 +20,6 @@ import notificationRoutes from './routes/notification.routes';
 import segmentFunctionRoutes from './routes/segmentFunction.routes';
 import projectRoutes from './routes/project.routes';
 import domainRoutes from './routes/domain.routes';
-import teamRoutes from './routes/team.routes';
 import resourceRoutes from './routes/resource.routes';
 import skillRoutes from './routes/skill.routes';
 import platformRoutes from './routes/platform.routes';
@@ -35,6 +34,11 @@ import milestoneRoutes from './routes/milestone.routes';
 import allocationRoutes from './routes/allocation.routes';
 import pipelineRoutes from './routes/pipeline.routes';
 import capacityRoutes from './routes/capacity.routes';
+import appRoutes from './routes/app.routes';
+import technologyRoutes from './routes/technology.routes';
+import roleRoutes from './routes/role.routes';
+import resourceCapabilityRoutes from './routes/resourceCapability.routes';
+import projectRequirementRoutes from './routes/projectRequirement.routes';
 
 const app: Application = express();
 
@@ -93,7 +97,6 @@ app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/segment-functions`, segmentFunctionRoutes);
 app.use(`/api/${API_VERSION}/projects`, projectRoutes);
 app.use(`/api/${API_VERSION}/domains`, domainRoutes);
-app.use(`/api/${API_VERSION}/teams`, teamRoutes);
 app.use(`/api/${API_VERSION}/resources`, resourceRoutes);
 app.use(`/api/${API_VERSION}/skills`, skillRoutes);
 app.use(`/api/${API_VERSION}/platforms`, platformRoutes);
@@ -109,6 +112,11 @@ app.use(`/api/${API_VERSION}/milestones`, milestoneRoutes);
 app.use(`/api/${API_VERSION}/allocations`, allocationRoutes);
 app.use(`/api/${API_VERSION}/pipelines`, pipelineRoutes);
 app.use(`/api/${API_VERSION}/capacity`, capacityRoutes);
+app.use(`/api/${API_VERSION}/apps`, appRoutes);
+app.use(`/api/${API_VERSION}/technologies`, technologyRoutes);
+app.use(`/api/${API_VERSION}/roles`, roleRoutes);
+app.use(`/api/${API_VERSION}/resource-capabilities`, resourceCapabilityRoutes);
+app.use(`/api/${API_VERSION}/project-requirements`, projectRequirementRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

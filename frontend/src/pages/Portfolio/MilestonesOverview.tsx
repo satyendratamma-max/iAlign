@@ -41,13 +41,20 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 interface Milestone {
   id: number;
   projectId: number;
+  ownerId?: number;
   name: string;
   description?: string;
   status: string;
+  plannedEndDate?: string;
   dueDate?: string;
   completedDate?: string;
   progress: number;
-  owner?: string;
+  owner?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
   dependencies?: string;
   project?: {
     id: number;
@@ -62,9 +69,18 @@ interface Project {
   fiscalYear?: string;
 }
 
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+}
+
 const MilestonesOverview = () => {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -84,13 +100,15 @@ const MilestonesOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [milestonesRes, projectsRes] = await Promise.all([
+      const [milestonesRes, projectsRes, usersRes] = await Promise.all([
         axios.get(`${API_URL}/milestones`, config),
         axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/users`, config),
       ]);
 
       setMilestones(milestonesRes.data.data);
       setProjects(projectsRes.data.data);
+      setUsers(usersRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -314,11 +332,14 @@ const MilestonesOverview = () => {
   }
 
   const filteredMilestones = milestones.filter((milestone) => {
+    const ownerName = milestone.owner
+      ? `${milestone.owner.firstName} ${milestone.owner.lastName}`.toLowerCase()
+      : '';
+
     return (
       (filters.project === '' || milestone.project?.name === filters.project) &&
       (filters.status === '' || milestone.status === filters.status) &&
-      (filters.owner === '' ||
-        milestone.owner?.toLowerCase().includes(filters.owner.toLowerCase()))
+      (filters.owner === '' || ownerName.includes(filters.owner.toLowerCase()))
     );
   });
 
@@ -526,15 +547,23 @@ const MilestonesOverview = () => {
                   </Box>
                 </TableCell>
                 <TableCell>
-                  {milestone.dueDate ? (
+                  {milestone.plannedEndDate ? (
                     <Typography variant="body2">
-                      {new Date(milestone.dueDate).toLocaleDateString()}
+                      {new Date(milestone.plannedEndDate).toLocaleDateString()}
                     </Typography>
                   ) : (
                     '-'
                   )}
                 </TableCell>
-                <TableCell>{milestone.owner || '-'}</TableCell>
+                <TableCell>
+                  {milestone.owner ? (
+                    <Typography variant="body2">
+                      {milestone.owner.firstName} {milestone.owner.lastName}
+                    </Typography>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"
@@ -643,14 +672,14 @@ const MilestonesOverview = () => {
                 label="Due Date"
                 type="date"
                 value={
-                  currentMilestone.dueDate
-                    ? new Date(currentMilestone.dueDate).toISOString().split('T')[0]
+                  currentMilestone.plannedEndDate
+                    ? new Date(currentMilestone.plannedEndDate).toISOString().split('T')[0]
                     : ''
                 }
                 onChange={(e) =>
                   setCurrentMilestone({
                     ...currentMilestone,
-                    dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+                    plannedEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
                   })
                 }
                 InputLabelProps={{ shrink: true }}
@@ -658,13 +687,21 @@ const MilestonesOverview = () => {
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
+                select
                 fullWidth
                 label="Owner"
-                value={currentMilestone.owner || ''}
+                value={currentMilestone.ownerId || ''}
                 onChange={(e) =>
-                  setCurrentMilestone({ ...currentMilestone, owner: e.target.value })
+                  setCurrentMilestone({ ...currentMilestone, ownerId: e.target.value as number })
                 }
-              />
+              >
+                <MenuItem value="">None</MenuItem>
+                {users.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName} ({user.role})
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12}>
               <TextField

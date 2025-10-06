@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import SegmentFunction from '../models/SegmentFunction';
+import Domain from '../models/Domain';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
@@ -8,6 +9,13 @@ export const getAllSegmentFunctions = async (_req: Request, res: Response, next:
     const segmentFunctions = await SegmentFunction.findAll({
       where: { isActive: true },
       order: [['createdDate', 'DESC']],
+      include: [
+        {
+          model: Domain,
+          as: 'domain',
+          attributes: ['id', 'name'],
+        },
+      ],
     });
 
     res.json({

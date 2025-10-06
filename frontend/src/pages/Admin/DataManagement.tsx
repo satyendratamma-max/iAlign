@@ -97,19 +97,6 @@ const DataManagement = () => {
       importing: false,
     },
     {
-      label: 'Domain Teams',
-      description: 'Import teams within domains',
-      entity: 'teams',
-      endpoint: '/teams',
-      requiredFields: ['Team Name', 'Domain Name'],
-      templateData: [
-        { 'Team Name': 'Backend Team', 'Domain Name': 'Engineering', 'Description': 'Backend development team' },
-      ],
-      templateColumns: { 'Team Name': 25, 'Domain Name': 20, 'Description': 40 },
-      completed: false,
-      importing: false,
-    },
-    {
       label: 'Projects',
       description: 'Import projects with portfolio mapping',
       entity: 'projects',
@@ -164,7 +151,6 @@ const DataManagement = () => {
           'Location': 'New York',
           'Domain': 'Engineering',
           'Segment Function': 'Digital Transformation',
-          'Domain Team': 'Backend Team',
           'Hourly Rate': 75,
           'Utilization Rate': 85,
         },
@@ -178,7 +164,6 @@ const DataManagement = () => {
         'Location': 15,
         'Domain': 20,
         'Segment Function': 25,
-        'Domain Team': 20,
         'Hourly Rate': 12,
         'Utilization Rate': 15,
       },
@@ -391,7 +376,7 @@ const DataManagement = () => {
           description: row['Description'],
         };
 
-      case 'portfolios': {
+      case 'segment-functions': {
         const domainResponse = await axios.get(
           `${API_URL}/domains?name=${encodeURIComponent(row['Domain Name'])}`,
           config
@@ -401,21 +386,6 @@ const DataManagement = () => {
         );
         return {
           name: row['Segment Function Name'],
-          domainId: domain?.id,
-          description: row['Description'],
-        };
-      }
-
-      case 'teams': {
-        const domainResponse = await axios.get(
-          `${API_URL}/domains?name=${encodeURIComponent(row['Domain Name'])}`,
-          config
-        );
-        const domain = domainResponse.data.data.find(
-          (d: any) => d.name === row['Domain Name']
-        );
-        return {
-          name: row['Team Name'],
           domainId: domain?.id,
           description: row['Description'],
         };
@@ -450,17 +420,15 @@ const DataManagement = () => {
       }
 
       case 'resources': {
-        const [domainResponse, segmentFunctionResponse, teamResponse] = await Promise.all([
+        const [domainResponse, segmentFunctionResponse] = await Promise.all([
           axios.get(`${API_URL}/domains`, config),
           axios.get(`${API_URL}/segment-functions`, config),
-          axios.get(`${API_URL}/teams`, config),
         ]);
 
         const domain = domainResponse.data.data.find((d: any) => d.name === row['Domain']);
         const segmentFunction = segmentFunctionResponse.data.data.find(
           (p: any) => p.name === row['Segment Function']
         );
-        const team = teamResponse.data.data.find((t: any) => t.name === row['Domain Team']);
 
         return {
           employeeId: row['Employee ID'],
@@ -471,7 +439,6 @@ const DataManagement = () => {
           location: row['Location'],
           domainId: domain?.id,
           segmentFunctionId: segmentFunction?.id,
-          domainTeamId: team?.id,
           hourlyRate: row['Hourly Rate'],
           utilizationRate: row['Utilization Rate'],
         };
@@ -780,7 +747,7 @@ const DataManagement = () => {
             </Typography>
             <List dense>
               <ListItem>
-                <ListItemText primary="• All domains and portfolios" />
+                <ListItemText primary="• All domains and segment functions" />
               </ListItem>
               <ListItem>
                 <ListItemText primary="• All projects and milestones" />
@@ -789,7 +756,10 @@ const DataManagement = () => {
                 <ListItemText primary="• All resources and allocations" />
               </ListItem>
               <ListItem>
-                <ListItemText primary="• All teams and pipelines" />
+                <ListItemText primary="• All apps, technologies, and roles" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="• All pipelines and capacity data" />
               </ListItem>
             </List>
           </Alert>
@@ -828,7 +798,7 @@ const DataManagement = () => {
                 <ListItemText primary="✓ Delete ALL existing data" />
               </ListItem>
               <ListItem>
-                <ListItemText primary="✓ Recreate sample users, domains, portfolios, projects, resources, teams, and allocations" />
+                <ListItemText primary="✓ Recreate sample users, domains, segment functions, projects, resources, and allocations" />
               </ListItem>
               <ListItem>
                 <ListItemText primary="✓ Reset admin password to Admin@123" />

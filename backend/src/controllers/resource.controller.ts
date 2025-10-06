@@ -2,7 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import Resource from '../models/Resource';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
-import Team from '../models/Team';
+import ResourceCapability from '../models/ResourceCapability';
+import App from '../models/App';
+import Technology from '../models/Technology';
+import Role from '../models/Role';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
@@ -23,9 +26,27 @@ export const getAllResources = async (_req: Request, res: Response, next: NextFu
           attributes: ['id', 'name'],
         },
         {
-          model: Team,
-          as: 'domainTeam',
-          attributes: ['id', 'name'],
+          model: ResourceCapability,
+          as: 'capabilities',
+          where: { isActive: true },
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
         },
       ],
     });
@@ -56,9 +77,27 @@ export const getResourceById = async (req: Request, res: Response, next: NextFun
           attributes: ['id', 'name'],
         },
         {
-          model: Team,
-          as: 'domainTeam',
-          attributes: ['id', 'name'],
+          model: ResourceCapability,
+          as: 'capabilities',
+          where: { isActive: true },
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
         },
       ],
     });

@@ -2,7 +2,6 @@ import User from './User';
 import SegmentFunction from './SegmentFunction';
 import Project from './Project';
 import Domain from './Domain';
-import Team from './Team';
 import Resource from './Resource';
 import Milestone from './Milestone';
 import ResourceAllocation from './ResourceAllocation';
@@ -11,6 +10,11 @@ import ProjectPipeline from './ProjectPipeline';
 import CapacityModel from './CapacityModel';
 import CapacityScenario from './CapacityScenario';
 import Notification from './notification.model';
+import App from './App';
+import Technology from './Technology';
+import Role from './Role';
+import ResourceCapability from './ResourceCapability';
+import ProjectRequirement from './ProjectRequirement';
 
 // SegmentFunction Associations
 SegmentFunction.hasMany(Project, { foreignKey: 'segmentFunctionId', as: 'projects' });
@@ -25,16 +29,7 @@ SegmentFunction.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 Domain.hasMany(Project, { foreignKey: 'domainId', as: 'projects' });
 Project.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 
-Domain.hasMany(Team, { foreignKey: 'domainId', as: 'teams' });
-Team.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
-
 Domain.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
-
-// Team Associations
-Team.hasMany(Resource, { foreignKey: 'domainTeamId', as: 'resources' });
-Resource.belongsTo(Team, { foreignKey: 'domainTeamId', as: 'domainTeam' });
-
-Team.belongsTo(User, { foreignKey: 'leadId', as: 'lead' });
 
 // Resource Associations
 Domain.hasMany(Resource, { foreignKey: 'domainId', as: 'resources' });
@@ -52,6 +47,8 @@ Project.belongsTo(User, { foreignKey: 'domainManagerId', as: 'domainManager' });
 Project.hasMany(Milestone, { foreignKey: 'projectId', as: 'milestones' });
 Milestone.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 
+Milestone.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+
 // Resource Allocation Associations (Many-to-Many with attributes)
 Project.hasMany(ResourceAllocation, { foreignKey: 'projectId', as: 'allocations' });
 ResourceAllocation.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
@@ -62,8 +59,11 @@ ResourceAllocation.belongsTo(Resource, { foreignKey: 'resourceId', as: 'resource
 Milestone.hasMany(ResourceAllocation, { foreignKey: 'milestoneId', as: 'allocations' });
 ResourceAllocation.belongsTo(Milestone, { foreignKey: 'milestoneId', as: 'milestone' });
 
-Team.hasMany(ResourceAllocation, { foreignKey: 'domainTeamId', as: 'allocations' });
-ResourceAllocation.belongsTo(Team, { foreignKey: 'domainTeamId', as: 'domainTeam' });
+ResourceCapability.hasMany(ResourceAllocation, { foreignKey: 'resourceCapabilityId', as: 'allocations' });
+ResourceAllocation.belongsTo(ResourceCapability, { foreignKey: 'resourceCapabilityId', as: 'resourceCapability' });
+
+ProjectRequirement.hasMany(ResourceAllocation, { foreignKey: 'projectRequirementId', as: 'allocations' });
+ResourceAllocation.belongsTo(ProjectRequirement, { foreignKey: 'projectRequirementId', as: 'projectRequirement' });
 
 // Pipeline Associations (Many-to-Many)
 Project.belongsToMany(Pipeline, {
@@ -94,18 +94,61 @@ CapacityScenario.belongsTo(CapacityModel, { foreignKey: 'capacityModelId', as: '
 CapacityModel.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
 CapacityScenario.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
-CapacityScenario.belongsTo(Team, { foreignKey: 'domainTeamId', as: 'domainTeam' });
+CapacityScenario.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+CapacityScenario.belongsTo(Technology, { foreignKey: 'technologyId', as: 'technology' });
+CapacityScenario.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
 // Notification Associations
 User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// ⭐ App, Technology, Role - Cascaded Associations
+// Technologies can be app-specific or global
+App.hasMany(Technology, { foreignKey: 'appId', as: 'technologies' });
+Technology.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+
+// Roles can be app-specific, tech-specific, or global
+App.hasMany(Role, { foreignKey: 'appId', as: 'roles' });
+Role.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+
+Technology.hasMany(Role, { foreignKey: 'technologyId', as: 'roles' });
+Role.belongsTo(Technology, { foreignKey: 'technologyId', as: 'technology' });
+
+// Role hierarchy (self-referencing)
+Role.hasMany(Role, { foreignKey: 'parentRoleId', as: 'childRoles' });
+Role.belongsTo(Role, { foreignKey: 'parentRoleId', as: 'parentRole' });
+
+// ⭐ ResourceCapability Associations (Junction Table)
+Resource.hasMany(ResourceCapability, { foreignKey: 'resourceId', as: 'capabilities' });
+ResourceCapability.belongsTo(Resource, { foreignKey: 'resourceId', as: 'resource' });
+
+App.hasMany(ResourceCapability, { foreignKey: 'appId', as: 'resourceCapabilities' });
+ResourceCapability.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+
+Technology.hasMany(ResourceCapability, { foreignKey: 'technologyId', as: 'resourceCapabilities' });
+ResourceCapability.belongsTo(Technology, { foreignKey: 'technologyId', as: 'technology' });
+
+Role.hasMany(ResourceCapability, { foreignKey: 'roleId', as: 'resourceCapabilities' });
+ResourceCapability.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
+
+// ⭐ ProjectRequirement Associations
+Project.hasMany(ProjectRequirement, { foreignKey: 'projectId', as: 'requirements' });
+ProjectRequirement.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+App.hasMany(ProjectRequirement, { foreignKey: 'appId', as: 'projectRequirements' });
+ProjectRequirement.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+
+Technology.hasMany(ProjectRequirement, { foreignKey: 'technologyId', as: 'projectRequirements' });
+ProjectRequirement.belongsTo(Technology, { foreignKey: 'technologyId', as: 'technology' });
+
+Role.hasMany(ProjectRequirement, { foreignKey: 'roleId', as: 'projectRequirements' });
+ProjectRequirement.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
 export {
   User,
   SegmentFunction,
   Project,
   Domain,
-  Team,
   Resource,
   Milestone,
   ResourceAllocation,
@@ -114,6 +157,11 @@ export {
   CapacityModel,
   CapacityScenario,
   Notification,
+  App,
+  Technology,
+  Role,
+  ResourceCapability,
+  ProjectRequirement,
 };
 
 export default {
@@ -121,7 +169,6 @@ export default {
   SegmentFunction,
   Project,
   Domain,
-  Team,
   Resource,
   Milestone,
   ResourceAllocation,
@@ -130,4 +177,9 @@ export default {
   CapacityModel,
   CapacityScenario,
   Notification,
+  App,
+  Technology,
+  Role,
+  ResourceCapability,
+  ProjectRequirement,
 };

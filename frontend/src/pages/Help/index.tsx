@@ -9,7 +9,6 @@ import {
   AccordionDetails,
   Grid,
   Alert,
-  Chip,
   List,
   ListItem,
   ListItemText,
@@ -21,15 +20,17 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Chip,
 } from '@mui/material';
 import {
   ExpandMore,
   Help,
-  Upload,
-  Download,
-  Description,
-  CheckCircle,
-  Warning,
+  TrendingUp,
+  Assessment,
+  Speed,
+  Groups,
+  AccountTree,
+  Info,
 } from '@mui/icons-material';
 
 const HelpPage = () => {
@@ -39,106 +40,753 @@ const HelpPage = () => {
     setExpanded(isExpanded ? panel : false);
   };
 
-  const faqs = [
+  const kpiFaqs = [
     {
-      question: 'How do I import data from external sources?',
-      answer: (
-        <Box>
-          <Typography paragraph>
-            iAlign supports importing data via Excel files (.xlsx, .xls, .csv). Each section
-            (Resources, Projects, Milestones) has its own import/export functionality:
-          </Typography>
-          <List>
-            <ListItem>
-              <ListItemText
-                primary="1. Download the template"
-                secondary="Click the 'Template' button to download a pre-formatted Excel template"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="2. Fill in your data"
-                secondary="Open the template in Excel and fill in your data following the column headers"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="3. Import the file"
-                secondary="Click the 'Import' button and select your filled template"
-              />
-            </ListItem>
-          </List>
-        </Box>
-      ),
+      category: 'Resource Management KPIs',
+      icon: <Groups />,
+      questions: [
+        {
+          question: 'How is Resource Utilization calculated?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                <strong>Formula:</strong> (Total Allocated Hours / Total Capacity Hours) × 100
+              </Typography>
+              <Typography paragraph>
+                Resource utilization measures how much of a resource's available capacity is being used across projects.
+              </Typography>
+              <Typography paragraph>
+                <strong>Interpretation:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="≥85% - High Utilization (Green)"
+                    secondary="Resource is efficiently allocated"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="70-84% - Medium Utilization (Blue)"
+                    secondary="Balanced allocation with some capacity available"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="<70% - Low Utilization (Orange)"
+                    secondary="Resource may be underutilized or has available capacity"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary=">100% - Over-allocated (Red)"
+                    secondary="Resource is over-committed and may need rebalancing"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What is Match Score and how is it calculated?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                Match Score measures how well a resource's capabilities align with project requirements on a scale of 0-100.
+              </Typography>
+              <Typography paragraph>
+                <strong>Score Components:</strong>
+              </Typography>
+              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Component</strong></TableCell>
+                      <TableCell><strong>Weight</strong></TableCell>
+                      <TableCell><strong>Criteria</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Exact Match</TableCell>
+                      <TableCell>40 points</TableCell>
+                      <TableCell>App + Technology + Role all match</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Proficiency Level</TableCell>
+                      <TableCell>30 points</TableCell>
+                      <TableCell>Resource proficiency meets or exceeds requirement</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Experience</TableCell>
+                      <TableCell>20 points</TableCell>
+                      <TableCell>Years of experience meets minimum requirement</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Primary Skill</TableCell>
+                      <TableCell>10 points</TableCell>
+                      <TableCell>Capability is resource's primary skill</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Typography paragraph>
+                <strong>Recommended Actions:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="90-100 - Excellent Match"
+                    secondary="Proceed with allocation"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="75-89 - Good Match"
+                    secondary="Consider for allocation with minor training"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="60-74 - Fair Match"
+                    secondary="Review alternatives or plan for skill gap training"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="<60 - Poor Match"
+                    secondary="Find alternative resources or invest in significant training"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What are Resource Capabilities and Project Requirements?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                <strong>Resource Capabilities</strong> define what a resource can do:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="App → Technology → Role"
+                    secondary="E.g., SAP → S/4HANA → Developer"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Proficiency Level"
+                    secondary="Beginner, Intermediate, Advanced, or Expert"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Years of Experience"
+                    secondary="Actual experience with this technology"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Primary Skill"
+                    secondary="Whether this is the resource's main expertise"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Project Requirements</strong> define what a project needs:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Required Skill Set"
+                    secondary="App + Technology + Role combination needed"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Minimum Proficiency"
+                    secondary="Minimum skill level required"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Minimum Experience"
+                    secondary="Minimum years of experience needed"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Required Count"
+                    secondary="Number of resources needed with this skill"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+      ],
     },
     {
-      question: 'What data formats are supported?',
-      answer: (
-        <Typography>
-          iAlign supports Excel files (.xlsx, .xls) and CSV files (.csv). The recommended format
-          is .xlsx as it preserves formatting and supports multiple sheets.
-        </Typography>
-      ),
+      category: 'Project & Portfolio KPIs',
+      icon: <AccountTree />,
+      questions: [
+        {
+          question: 'How is Project Health Status determined?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                Project Health Status is a visual indicator of overall project condition based on multiple factors:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="🟢 Green - On Track"
+                    secondary="Within budget, on schedule, no major risks"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="🟡 Yellow - At Risk"
+                    secondary="Minor delays, budget concerns, or manageable risks"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="🔴 Red - Critical"
+                    secondary="Significant delays, over budget, or high-impact risks"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Health Status Factors:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="Schedule variance (planned vs. actual dates)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Budget variance (planned vs. actual cost)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Resource availability and allocation" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Milestone completion rate" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Risk severity and mitigation status" />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What is ROI Index and how is it used?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                <strong>ROI (Return on Investment) Index</strong> is a percentage indicating the expected return from a segment function or project.
+              </Typography>
+              <Typography paragraph>
+                <strong>Formula:</strong> ((Expected Benefits - Total Investment) / Total Investment) × 100
+              </Typography>
+              <Typography paragraph>
+                <strong>Interpretation:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary=">30% - High ROI"
+                    secondary="Strong investment, high priority for funding"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="15-30% - Medium ROI"
+                    secondary="Acceptable return, evaluate against alternatives"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="<15% - Low ROI"
+                    secondary="Consider if strategic value justifies the investment"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Negative - Loss"
+                    secondary="Re-evaluate project viability or strategic importance"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Use Cases:</strong> Portfolio prioritization, budget allocation decisions, strategic planning
+              </Typography>
+            </Box>
+          ),
+        },
+        {
+          question: 'What is Risk Score and how should it be interpreted?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                Risk Score measures the overall risk level of a segment function or project on a scale of 0-100.
+              </Typography>
+              <Typography paragraph>
+                <strong>Risk Factors Considered:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="Technical complexity and innovation level" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Resource availability and skill gaps" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Dependencies on other projects or systems" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Regulatory or compliance requirements" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Organizational change impact" />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Risk Categories:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="20-40 - Low Risk"
+                    secondary="Standard projects with proven approaches"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="41-60 - Medium Risk"
+                    secondary="Some complexity, requires active monitoring"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="61-80 - High Risk"
+                    secondary="Significant challenges, dedicated risk management needed"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary=">80 - Critical Risk"
+                    secondary="Extensive mitigation planning and executive oversight required"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What is the difference between Budget, Actual Cost, and Forecasted Cost?',
+          answer: (
+            <Box>
+              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Metric</strong></TableCell>
+                      <TableCell><strong>Definition</strong></TableCell>
+                      <TableCell><strong>When Used</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Budget</TableCell>
+                      <TableCell>Total approved funding for the project</TableCell>
+                      <TableCell>Project planning and approval</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Actual Cost</TableCell>
+                      <TableCell>Total expenses incurred to date</TableCell>
+                      <TableCell>Current financial status tracking</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Forecasted Cost</TableCell>
+                      <TableCell>Projected total cost at completion</TableCell>
+                      <TableCell>Early warning of budget overruns</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Typography paragraph>
+                <strong>Budget Variance Analysis:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Under Budget (Actual/Forecast < Budget)"
+                    secondary="Project is performing well financially or may be behind schedule"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="On Budget (Actual/Forecast ≈ Budget)"
+                    secondary="Project is on track financially"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Over Budget (Actual/Forecast > Budget)"
+                    secondary="Requires immediate attention and corrective action"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+      ],
     },
     {
-      question: 'How do I export my data?',
-      answer: (
-        <Typography>
-          Navigate to the relevant page (Resources, Projects, Milestones, etc.) and click the
-          'Export' button. Your data will be downloaded as an Excel file with all current
-          filters applied.
-        </Typography>
-      ),
+      category: 'Capacity Planning KPIs',
+      icon: <Speed />,
+      questions: [
+        {
+          question: 'How is Capacity Utilization calculated?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                <strong>Formula:</strong> (Total Demand Hours / Total Supply Hours) × 100
+              </Typography>
+              <Typography paragraph>
+                Capacity utilization measures how much of your available resource capacity is being consumed by project demands.
+              </Typography>
+              <Typography paragraph>
+                <strong>Components:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Total Supply Hours"
+                    secondary="Available capacity from all resources with specific skills"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Total Demand Hours"
+                    secondary="Required hours from all project requirements"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Over-Allocation Hours"
+                    secondary="Demand exceeding supply (when utilization > 100%)"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Capacity Planning Actions:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="<70% - Excess Capacity"
+                    secondary="Consider taking on new projects or reducing resources"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="70-95% - Optimal Range"
+                    secondary="Balanced capacity utilization"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary=">95% - Near Capacity"
+                    secondary="Limited flexibility, plan for contingencies"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary=">100% - Over-Capacity"
+                    secondary="Hire additional resources, defer projects, or adjust scope"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What are Capacity Scenarios and Models?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                <strong>Capacity Models</strong> represent different planning assumptions for resource capacity:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Baseline Model"
+                    secondary="Current state with existing resources and commitments"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Optimistic Model"
+                    secondary="Best-case scenario with planned hiring and low attrition"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Pessimistic Model"
+                    secondary="Worst-case scenario with higher attrition and hiring delays"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Capacity Scenarios</strong> analyze capacity for specific:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="Domain (e.g., Engineering, Finance)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Application (e.g., SAP, Salesforce)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Technology (e.g., S/4HANA, React)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Role (e.g., Developer, Architect)" />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                Use scenarios to identify skill gaps and plan hiring or training initiatives.
+              </Typography>
+            </Box>
+          ),
+        },
+      ],
     },
     {
-      question: 'What happens if my import fails?',
-      answer: (
-        <Typography>
-          If an import fails, you'll see an error message indicating how many rows succeeded
-          and how many failed. Common issues include: missing required fields, invalid data
-          types, or references to non-existent entities (e.g., a project that doesn't exist).
-          Check your data and try again.
-        </Typography>
-      ),
-    },
-    {
-      question: 'Can I undo an import?',
-      answer: (
-        <Typography>
-          Currently, imports cannot be undone automatically. However, you can manually delete
-          the imported records or restore from a previous export. We recommend exporting your
-          current data before performing large imports.
-        </Typography>
-      ),
-    },
-    {
-      question: 'How do I track resource utilization?',
-      answer: (
-        <Typography>
-          Navigate to Resources → Allocation Matrix to see resource utilization across
-          projects. The dashboard also shows average utilization, over-allocated resources,
-          and available capacity.
-        </Typography>
-      ),
-    },
-    {
-      question: 'What is the difference between Domain and Portfolio?',
-      answer: (
-        <Typography>
-          Domains represent organizational units (e.g., Engineering, Marketing). Portfolios
-          are collections of projects within a domain. A domain can have multiple portfolios,
-          and each portfolio contains related projects.
-        </Typography>
-      ),
-    },
-    {
-      question: 'How do I enable dark mode?',
-      answer: (
-        <Typography>
-          Click the sun/moon icon in the top-right corner of the header to toggle between
-          light and dark modes. Your preference will be saved automatically.
-        </Typography>
-      ),
+      category: 'System Features',
+      icon: <Assessment />,
+      questions: [
+        {
+          question: 'How does the Resource Allocation Matrix work?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                The Resource Allocation Matrix provides a comprehensive view of how resources are allocated across projects with AI-powered matching capabilities.
+              </Typography>
+              <Typography paragraph>
+                <strong>Key Features:</strong>
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Smart Matching"
+                    secondary="Automatically calculates match scores based on resource capabilities and project requirements"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Allocation Management"
+                    secondary="Create, edit, and delete resource allocations with allocation percentages, dates, and roles"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Capability Selection"
+                    secondary="Choose specific resource capabilities to match against project requirements"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Match Score Display"
+                    secondary="Visual indicators show how well each allocation matches project needs"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Allocation Types"
+                    secondary="Dedicated (100%), Shared (multiple projects), or On-Demand (as-needed basis)"
+                  />
+                </ListItem>
+              </List>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Best Practice:</strong> Review match scores regularly and reallocate resources with low scores (&lt;75) to more suitable projects.
+              </Typography>
+            </Box>
+          ),
+        },
+        {
+          question: 'What is the hierarchy: Apps → Technologies → Roles?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                iAlign uses a three-tier capability hierarchy to precisely define skills and requirements:
+              </Typography>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Level 1: Apps</strong> (Application Systems)
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Top-level categorization of enterprise applications
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Examples: SAP, Salesforce, Oracle, Custom Applications
+              </Typography>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Level 2: Technologies</strong>
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Specific technologies or platforms within each app
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Examples: SAP → S/4HANA, Salesforce → Sales Cloud, Custom → React
+              </Typography>
+              <Typography paragraph sx={{ mt: 2 }}>
+                <strong>Level 3: Roles</strong>
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Specific job functions or positions for each technology
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Examples: S/4HANA → Developer, Sales Cloud → Administrator, React → Full Stack Developer
+              </Typography>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                This hierarchy ensures precise skill matching and helps identify specific skill gaps in your organization.
+              </Alert>
+            </Box>
+          ),
+        },
+        {
+          question: 'How do I use the Data Management page?',
+          answer: (
+            <Box>
+              <Typography paragraph>
+                The Data Management page (Admin Tools → Data Management) provides comprehensive data control:
+              </Typography>
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                1. Reset All Data
+              </Typography>
+              <Typography paragraph>
+                Deletes all projects, resources, allocations, and related data while preserving the admin user.
+              </Typography>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <strong>Warning:</strong> This action cannot be undone. Use with caution!
+              </Alert>
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                2. Reset and Reseed with Sample Data
+              </Typography>
+              <Typography paragraph>
+                Resets the database and populates it with comprehensive sample data including:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="48 Users (Admins, Domain Managers, Project Managers, Team Leads)" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="4 Apps, 20 Technologies, 16 Roles" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="12 Domains and 15 Segment Functions" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="~200 Resources with capabilities and domain/segment function assignments" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="~35 Projects with requirements, owners, and deadlines" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="~245 Milestones with owners and due dates" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="~213 Resource Allocations with match scores" />
+                </ListItem>
+              </List>
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                3. Manual Data Import
+              </Typography>
+              <Typography paragraph>
+                Import data from Excel/CSV files in the correct order:
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="1. Apps → 2. Technologies → 3. Roles" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="4. Domains → 5. Segment Functions" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="6. Resources → 7. Resource Capabilities" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="8. Projects → 9. Project Requirements" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="10. Resource Allocations → 11. Milestones" />
+                </ListItem>
+              </List>
+            </Box>
+          ),
+        },
+        {
+          question: 'What data is displayed on each page?',
+          answer: (
+            <Box>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Page</strong></TableCell>
+                      <TableCell><strong>Key Information</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Dashboard</TableCell>
+                      <TableCell>Overall metrics, active projects, resource utilization, budget tracking</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Domains</TableCell>
+                      <TableCell>Organizational units, managers, locations, segment functions</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Segment Function Overview</TableCell>
+                      <TableCell>Portfolios, domain, ROI index, risk score, total value, projects</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Projects</TableCell>
+                      <TableCell>Project #, name, domain, segment function, owner, deadline, budget, status, health</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Milestones</TableCell>
+                      <TableCell>Phase, project, owner, due date, status, progress, deliverables</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Resource Overview</TableCell>
+                      <TableCell>Employee ID, name, domain, segment function, capabilities, utilization</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Allocation Matrix</TableCell>
+                      <TableCell>Resource, project, capability, requirement, match score, allocation %, dates</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Pipeline Overview</TableCell>
+                      <TableCell>Applications/systems, vendor, platform, environment, project dependencies</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Capacity Dashboard</TableCell>
+                      <TableCell>Total resources, utilization, monthly cost, capacity breakdown, scenarios</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          ),
+        },
+      ],
     },
   ];
 
@@ -149,322 +797,110 @@ const HelpPage = () => {
           Help & Documentation
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Find answers to common questions and learn how to use iAlign effectively
+          Comprehensive guide to iAlign features, KPIs, and business logic
         </Typography>
       </Box>
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Alert severity="info" icon={<Help />}>
-            Need additional help? Check the FAQ section below or refer to the detailed data
-            import instructions.
+          <Alert severity="info" icon={<Info />}>
+            <strong>Quick Start:</strong> Use the Admin Tools → Data Management page to reset and reseed
+            the database with sample data to explore all features. Password for all users: Admin@123
           </Alert>
         </Grid>
 
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                Frequently Asked Questions
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              {faqs.map((faq, index) => (
-                <Accordion
-                  key={index}
-                  expanded={expanded === `panel${index + 1}`}
-                  onChange={handleChange(`panel${index + 1}`)}
-                  sx={{ mb: 1 }}
-                >
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography fontWeight="500">{faq.question}</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Box sx={{ color: 'text.secondary' }}>{faq.answer}</Box>
-                  </AccordionDetails>
-                </Accordion>
-              ))}
-            </CardContent>
-          </Card>
-        </Grid>
+        {kpiFaqs.map((section, sectionIndex) => (
+          <Grid item xs={12} key={sectionIndex}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  {section.icon}
+                  <Typography variant="h5" fontWeight="bold" ml={1}>
+                    {section.category}
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+                {section.questions.map((faq, index) => (
+                  <Accordion
+                    key={`section${sectionIndex}-panel${index}`}
+                    expanded={expanded === `section${sectionIndex}-panel${index}`}
+                    onChange={handleChange(`section${sectionIndex}-panel${index}`)}
+                    sx={{ mb: 1 }}
+                  >
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography fontWeight="500">{faq.question}</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Box sx={{ color: 'text.secondary' }}>{faq.answer}</Box>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
 
         <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                <Upload sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Data Import Instructions
-              </Typography>
+              <Box display="flex" alignItems="center" mb={2}>
+                <TrendingUp />
+                <Typography variant="h5" fontWeight="bold" ml={1}>
+                  Key Performance Indicators (KPIs) Summary
+                </Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
-
-              <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mt: 3 }}>
-                1. Importing Resources
-              </Typography>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Navigate to: Resources → Resource Overview
-              </Alert>
-              <Typography paragraph>
-                <strong>Required Fields:</strong> Employee ID, First Name, Last Name
-              </Typography>
-              <Typography paragraph>
-                <strong>Optional Fields:</strong> Email, Role, Location, Hourly Rate,
-                Utilization Rate, Domain, Portfolio, Domain Team
-              </Typography>
-              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Column</strong></TableCell>
-                      <TableCell><strong>Format</strong></TableCell>
-                      <TableCell><strong>Example</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>Employee ID</TableCell>
-                      <TableCell>Text</TableCell>
-                      <TableCell>EMP001</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>First Name</TableCell>
-                      <TableCell>Text</TableCell>
-                      <TableCell>John</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Last Name</TableCell>
-                      <TableCell>Text</TableCell>
-                      <TableCell>Doe</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Email</TableCell>
-                      <TableCell>Email</TableCell>
-                      <TableCell>john.doe@example.com</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Hourly Rate</TableCell>
-                      <TableCell>Number</TableCell>
-                      <TableCell>75</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mt: 3 }}>
-                2. Importing Projects
-              </Typography>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Navigate to: Portfolio → Projects
-              </Alert>
-              <Typography paragraph>
-                <strong>Required Fields:</strong> Project Name, Status, Priority
-              </Typography>
-              <Typography paragraph>
-                <strong>Optional Fields:</strong> Project Number, Type, Fiscal Year,
-                Description, Budget, Start Date, End Date, Current Phase, Health Status
-              </Typography>
-              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Column</strong></TableCell>
-                      <TableCell><strong>Format</strong></TableCell>
-                      <TableCell><strong>Example</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>Project Name</TableCell>
-                      <TableCell>Text</TableCell>
-                      <TableCell>Digital Transformation FY25</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Planning, In Progress, Completed, On Hold, Cancelled</TableCell>
-                      <TableCell>In Progress</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Priority</TableCell>
-                      <TableCell>Low, Medium, High, Critical</TableCell>
-                      <TableCell>High</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Budget</TableCell>
-                      <TableCell>Number</TableCell>
-                      <TableCell>500000</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Start Date</TableCell>
-                      <TableCell>YYYY-MM-DD</TableCell>
-                      <TableCell>2025-01-15</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mt: 3 }}>
-                3. Importing Milestones
-              </Typography>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Navigate to: Portfolio → Milestones
-              </Alert>
-              <Typography paragraph>
-                <strong>Required Fields:</strong> Milestone Name, Project Name
-              </Typography>
-              <Typography paragraph>
-                <strong>Optional Fields:</strong> Description, Status, Progress, Due Date,
-                Owner, Dependencies
-              </Typography>
-              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Column</strong></TableCell>
-                      <TableCell><strong>Format</strong></TableCell>
-                      <TableCell><strong>Example</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>Milestone Name</TableCell>
-                      <TableCell>Text</TableCell>
-                      <TableCell>Phase 1 Completion</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Project Name</TableCell>
-                      <TableCell>Text (must match existing project)</TableCell>
-                      <TableCell>Digital Transformation FY25</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Not Started, In Progress, Completed, At Risk, Delayed</TableCell>
-                      <TableCell>In Progress</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Progress (%)</TableCell>
-                      <TableCell>Number (0-100)</TableCell>
-                      <TableCell>65</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Due Date</TableCell>
-                      <TableCell>YYYY-MM-DD</TableCell>
-                      <TableCell>2025-03-31</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mt: 4 }}>
-                <CheckCircle sx={{ mr: 1, verticalAlign: 'middle', color: 'success.main' }} />
-                Best Practices
-              </Typography>
-              <List>
-                <ListItem>
-                  <ListItemText
-                    primary="Always download the template first"
-                    secondary="Templates ensure correct column names and formats"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Export before large imports"
-                    secondary="Create a backup of your current data before importing"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Start with small batches"
-                    secondary="Test with 5-10 rows first to ensure data format is correct"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Validate dates and numbers"
-                    secondary="Use YYYY-MM-DD format for dates and plain numbers (no currency symbols)"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Import in the right order"
-                    secondary="Import Domains/Portfolios → Projects → Resources → Allocations → Milestones"
-                  />
-                </ListItem>
-              </List>
-
-              <Alert severity="warning" icon={<Warning />} sx={{ mt: 3 }}>
-                <strong>Important:</strong> When referencing other entities (e.g., Project Name
-                for milestones), make sure the referenced entity exists in the system. Otherwise,
-                the import will fail for those rows.
-              </Alert>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                <Download sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Data Export
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Typography paragraph>
-                You can export data from any page that has an "Export" button. The exported
-                file will include all visible data based on your current filters.
-              </Typography>
-              <Typography variant="h6" fontWeight="600" gutterBottom>
-                Available Exports:
-              </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Resources"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
+                <Grid item xs={12} md={6}>
+                  <Typography variant="h6" gutterBottom>
+                    Resource KPIs
+                  </Typography>
+                  <List dense>
+                    <ListItem>
+                      <Chip label="Utilization Rate" size="small" color="primary" sx={{ mr: 1 }} />
+                      <Typography variant="body2">70-100% optimal range</Typography>
+                    </ListItem>
+                    <ListItem>
+                      <Chip label="Match Score" size="small" color="secondary" sx={{ mr: 1 }} />
+                      <Typography variant="body2">≥90 excellent, 75-89 good, 60-74 fair</Typography>
+                    </ListItem>
+                    <ListItem>
+                      <Chip label="Allocation %" size="small" color="info" sx={{ mr: 1 }} />
+                      <Typography variant="body2">Resource time commitment per project</Typography>
+                    </ListItem>
+                  </List>
                 </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Projects"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Milestones"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Resource Allocations"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Domains"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Chip
-                    icon={<Description />}
-                    label="Portfolios"
-                    variant="outlined"
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                  />
+                <Grid item xs={12} md={6}>
+                  <Typography variant="h6" gutterBottom>
+                    Project KPIs
+                  </Typography>
+                  <List dense>
+                    <ListItem>
+                      <Chip label="Health Status" size="small" color="success" sx={{ mr: 1 }} />
+                      <Typography variant="body2">Green/Yellow/Red indicator</Typography>
+                    </ListItem>
+                    <ListItem>
+                      <Chip label="ROI Index" size="small" color="warning" sx={{ mr: 1 }} />
+                      <Typography variant="body2">&gt;30% high, 15-30% medium, &lt;15% low</Typography>
+                    </ListItem>
+                    <ListItem>
+                      <Chip label="Risk Score" size="small" color="error" sx={{ mr: 1 }} />
+                      <Typography variant="body2">20-40 low, 41-60 medium, &gt;60 high</Typography>
+                    </ListItem>
+                  </List>
                 </Grid>
               </Grid>
             </CardContent>
           </Card>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Alert severity="success">
+            <Typography variant="body2">
+              <strong>Need More Help?</strong> Contact your system administrator or refer to the Data Management
+              page for sample data and import templates.
+            </Typography>
+          </Alert>
         </Grid>
       </Grid>
     </Box>
