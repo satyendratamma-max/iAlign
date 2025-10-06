@@ -733,7 +733,11 @@ const DataManagement = () => {
       )}
 
       {/* Reset Confirmation Dialog */}
-      <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
+      <Dialog
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        disableEnforceFocus
+      >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
             <Warning color="error" />
@@ -781,7 +785,11 @@ const DataManagement = () => {
       </Dialog>
 
       {/* Reset and Reseed Confirmation Dialog */}
-      <Dialog open={reseedDialogOpen} onClose={() => setReseedDialogOpen(false)}>
+      <Dialog
+        open={reseedDialogOpen}
+        onClose={() => setReseedDialogOpen(false)}
+        disableEnforceFocus
+      >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
             <Warning color="warning" />
