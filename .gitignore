@@ -11,6 +11,10 @@ pnpm-lock.yaml
 .env.production
 .env.test
 
+# Database files
+*.sqlite
+*.db
+
 # Build outputs
 dist/
 build/
