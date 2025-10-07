@@ -22,6 +22,8 @@ import {
   MenuItem,
   Checkbox,
   IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -147,6 +149,7 @@ const ProjectManagement = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
+  const [dialogTab, setDialogTab] = useState(0);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
@@ -207,6 +210,7 @@ const ProjectManagement = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setCurrentProject({});
+    setDialogTab(0);
   };
 
   const handleSave = async () => {
@@ -1345,160 +1349,600 @@ const ProjectManagement = () => {
         </Paper>
       )}
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
+        <Tabs value={dialogTab} onChange={(_e, newValue) => setDialogTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
+          <Tab label="Basic Info" />
+          <Tab label="Business Details" />
+          <Tab label="Financial" />
+          <Tab label="Dates & Timeline" />
+          <Tab label="Management" />
+        </Tabs>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Project Name"
-                value={currentProject.name || ''}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, name: e.target.value })
-                }
-              />
+          {/* Tab 0: Basic Info */}
+          {dialogTab === 0 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Project Name"
+                  value={currentProject.name || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, name: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Project Number"
+                  value={currentProject.projectNumber || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, projectNumber: e.target.value })
+                  }
+                  helperText="Unique project identifier"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  multiline
+                  rows={3}
+                  value={currentProject.description || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, description: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Domain"
+                  value={currentProject.domainId || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, domainId: e.target.value ? Number(e.target.value) : undefined })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.id}>
+                      {domain.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Segment Function"
+                  value={currentProject.segmentFunctionId || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {segmentFunctions.map((segmentFunction) => (
+                    <MenuItem key={segmentFunction.id} value={segmentFunction.id}>
+                      {segmentFunction.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Status"
+                  value={currentProject.status || 'Planning'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, status: e.target.value })
+                  }
+                >
+                  <MenuItem value="Planning">Planning</MenuItem>
+                  <MenuItem value="In Progress">In Progress</MenuItem>
+                  <MenuItem value="On Hold">On Hold</MenuItem>
+                  <MenuItem value="Completed">Completed</MenuItem>
+                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Priority"
+                  value={currentProject.priority || 'Medium'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, priority: e.target.value })
+                  }
+                >
+                  <MenuItem value="Low">Low</MenuItem>
+                  <MenuItem value="Medium">Medium</MenuItem>
+                  <MenuItem value="High">High</MenuItem>
+                  <MenuItem value="Critical">Critical</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Fiscal Year"
+                  value={currentProject.fiscalYear || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, fiscalYear: e.target.value })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="FY24">FY24</MenuItem>
+                  <MenuItem value="FY25">FY25</MenuItem>
+                  <MenuItem value="FY26">FY26</MenuItem>
+                  <MenuItem value="FY27">FY27</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Progress (%)"
+                  type="number"
+                  value={currentProject.progress || 0}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      progress: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  inputProps={{ min: 0, max: 100 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Health Status"
+                  value={currentProject.healthStatus || 'Green'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, healthStatus: e.target.value })
+                  }
+                >
+                  <MenuItem value="Green">Green</MenuItem>
+                  <MenuItem value="Yellow">Yellow</MenuItem>
+                  <MenuItem value="Red">Red</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Current Phase"
+                  value={currentProject.currentPhase || 'Requirements'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, currentPhase: e.target.value })
+                  }
+                >
+                  <MenuItem value="Requirements">Requirements</MenuItem>
+                  <MenuItem value="Design">Design</MenuItem>
+                  <MenuItem value="Build">Build</MenuItem>
+                  <MenuItem value="Test">Test</MenuItem>
+                  <MenuItem value="UAT">UAT</MenuItem>
+                  <MenuItem value="Go-Live">Go-Live</MenuItem>
+                  <MenuItem value="Hypercare">Hypercare</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Project Type"
+                  value={currentProject.type || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, type: e.target.value })
+                  }
+                  placeholder="e.g., Infrastructure, Application, Enhancement"
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                multiline
-                rows={3}
-                value={currentProject.description || ''}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, description: e.target.value })
-                }
-              />
+          )}
+
+          {/* Tab 1: Business Details */}
+          {dialogTab === 1 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Business Process"
+                  value={currentProject.businessProcess || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, businessProcess: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Division"
+                  value={currentProject.division || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, division: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Functionality"
+                  multiline
+                  rows={3}
+                  value={currentProject.functionality || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, functionality: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Business Decision"
+                  value={currentProject.businessDecision || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, businessDecision: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Business Priority"
+                  value={currentProject.businessPriority || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, businessPriority: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Needle Mover"
+                  value={currentProject.needleMover || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, needleMover: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="DOW"
+                  value={currentProject.dow || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, dow: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="New or Carry Over"
+                  value={currentProject.newOrCarryOver || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, newOrCarryOver: e.target.value })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="New">New</MenuItem>
+                  <MenuItem value="Carry Over">Carry Over</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Technology Choice"
+                  value={currentProject.technologyChoice || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, technologyChoice: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Project Infrastructure Needed"
+                  value={currentProject.projectInfrastructureNeeded !== undefined ? (currentProject.projectInfrastructureNeeded ? 'true' : 'false') : 'false'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, projectInfrastructureNeeded: e.target.value === 'true' })
+                  }
+                >
+                  <MenuItem value="false">No</MenuItem>
+                  <MenuItem value="true">Yes</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Co-Creation"
+                  value={currentProject.coCreation !== undefined ? (currentProject.coCreation ? 'true' : 'false') : 'false'}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, coCreation: e.target.value === 'true' })
+                  }
+                >
+                  <MenuItem value="false">No</MenuItem>
+                  <MenuItem value="true">Yes</MenuItem>
+                </TextField>
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Domain"
-                value={currentProject.domainId || ''}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, domainId: e.target.value ? Number(e.target.value) : undefined })
-                }
-              >
-                <MenuItem value="">None</MenuItem>
-                {domains.map((domain) => (
-                  <MenuItem key={domain.id} value={domain.id}>
-                    {domain.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+          )}
+
+          {/* Tab 2: Financial */}
+          {dialogTab === 2 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Budget"
+                  type="number"
+                  value={currentProject.budget || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      budget: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Actual Cost"
+                  type="number"
+                  value={currentProject.actualCost || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      actualCost: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Forecasted Cost"
+                  type="number"
+                  value={currentProject.forecastedCost || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      forecastedCost: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Financial Benefit"
+                  type="number"
+                  value={currentProject.financialBenefit || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      financialBenefit: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Planned OPEX"
+                  type="number"
+                  value={currentProject.plannedOpex || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      plannedOpex: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Planned CAPEX"
+                  type="number"
+                  value={currentProject.plannedCapex || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      plannedCapex: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Total Planned Cost"
+                  type="number"
+                  value={currentProject.totalPlannedCost || ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      totalPlannedCost: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  InputProps={{ startAdornment: '$' }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Segment Function"
-                value={currentProject.segmentFunctionId || ''}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
-                }
-              >
-                <MenuItem value="">None</MenuItem>
-                {segmentFunctions.map((segmentFunction) => (
-                  <MenuItem key={segmentFunction.id} value={segmentFunction.id}>
-                    {segmentFunction.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+          )}
+
+          {/* Tab 3: Dates & Timeline */}
+          {dialogTab === 3 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Start Date"
+                  type="date"
+                  value={currentProject.startDate ? new Date(currentProject.startDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      startDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="End Date"
+                  type="date"
+                  value={currentProject.endDate ? new Date(currentProject.endDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      endDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Desired Start Date"
+                  type="date"
+                  value={currentProject.desiredStartDate ? new Date(currentProject.desiredStartDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      desiredStartDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Desired Completion Date"
+                  type="date"
+                  value={currentProject.desiredCompletionDate ? new Date(currentProject.desiredCompletionDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      desiredCompletionDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Actual Start Date"
+                  type="date"
+                  value={currentProject.actualStartDate ? new Date(currentProject.actualStartDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      actualStartDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Actual End Date"
+                  type="date"
+                  value={currentProject.actualEndDate ? new Date(currentProject.actualEndDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      actualEndDate: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Deadline"
+                  type="date"
+                  value={currentProject.deadline ? new Date(currentProject.deadline).toISOString().split('T')[0] : ''}
+                  onChange={(e) =>
+                    setCurrentProject({
+                      ...currentProject,
+                      deadline: e.target.value ? new Date(e.target.value) as any : undefined,
+                    })
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Status"
-                value={currentProject.status || 'Planning'}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, status: e.target.value })
-                }
-              >
-                <MenuItem value="Planning">Planning</MenuItem>
-                <MenuItem value="In Progress">In Progress</MenuItem>
-                <MenuItem value="On Hold">On Hold</MenuItem>
-                <MenuItem value="Completed">Completed</MenuItem>
-                <MenuItem value="Cancelled">Cancelled</MenuItem>
-              </TextField>
+          )}
+
+          {/* Tab 4: Management & Classification */}
+          {dialogTab === 4 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Investment Class"
+                  value={currentProject.investmentClass || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, investmentClass: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Benefit Area"
+                  value={currentProject.benefitArea || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, benefitArea: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Technology Area"
+                  value={currentProject.technologyArea || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, technologyArea: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Enterprise Category"
+                  value={currentProject.enterpriseCategory || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, enterpriseCategory: e.target.value })
+                  }
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Priority"
-                value={currentProject.priority || 'Medium'}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, priority: e.target.value })
-                }
-              >
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
-                <MenuItem value="Critical">Critical</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Progress (%)"
-                type="number"
-                value={currentProject.progress || 0}
-                onChange={(e) =>
-                  setCurrentProject({
-                    ...currentProject,
-                    progress: parseInt(e.target.value) || 0,
-                  })
-                }
-                inputProps={{ min: 0, max: 100 }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Health Status"
-                value={currentProject.healthStatus || 'Green'}
-                onChange={(e) =>
-                  setCurrentProject({ ...currentProject, healthStatus: e.target.value })
-                }
-              >
-                <MenuItem value="Green">Green</MenuItem>
-                <MenuItem value="Yellow">Yellow</MenuItem>
-                <MenuItem value="Red">Red</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Budget"
-                type="number"
-                value={currentProject.budget || ''}
-                onChange={(e) =>
-                  setCurrentProject({
-                    ...currentProject,
-                    budget: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Actual Cost"
-                type="number"
-                value={currentProject.actualCost || ''}
-                onChange={(e) =>
-                  setCurrentProject({
-                    ...currentProject,
-                    actualCost: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
-            </Grid>
-          </Grid>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
