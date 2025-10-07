@@ -39,6 +39,7 @@ import technologyRoutes from './routes/technology.routes';
 import roleRoutes from './routes/role.routes';
 import resourceCapabilityRoutes from './routes/resourceCapability.routes';
 import projectRequirementRoutes from './routes/projectRequirement.routes';
+import projectDomainImpactRoutes from './routes/projectDomainImpact.routes';
 
 const app: Application = express();
 
@@ -119,6 +120,7 @@ app.use(`/api/${API_VERSION}/technologies`, technologyRoutes);
 app.use(`/api/${API_VERSION}/roles`, roleRoutes);
 app.use(`/api/${API_VERSION}/resource-capabilities`, resourceCapabilityRoutes);
 app.use(`/api/${API_VERSION}/project-requirements`, projectRequirementRoutes);
+app.use(`/api/${API_VERSION}/project-domain-impacts`, projectDomainImpactRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

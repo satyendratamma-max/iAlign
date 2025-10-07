@@ -15,6 +15,8 @@ import Technology from './Technology';
 import Role from './Role';
 import ResourceCapability from './ResourceCapability';
 import ProjectRequirement from './ProjectRequirement';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import ProjectDomainImpact from './ProjectDomainImpact';
 
 // SegmentFunction Associations
 SegmentFunction.hasMany(Project, { foreignKey: 'segmentFunctionId', as: 'projects' });
@@ -144,6 +146,13 @@ ProjectRequirement.belongsTo(Technology, { foreignKey: 'technologyId', as: 'tech
 Role.hasMany(ProjectRequirement, { foreignKey: 'roleId', as: 'projectRequirements' });
 ProjectRequirement.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
+// ⭐ ProjectDomainImpact Associations (Cross-Domain Impact Tracking)
+Project.hasMany(ProjectDomainImpact, { foreignKey: 'projectId', as: 'domainImpacts' });
+ProjectDomainImpact.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+Domain.hasMany(ProjectDomainImpact, { foreignKey: 'domainId', as: 'impactedProjects' });
+ProjectDomainImpact.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
+
 export {
   User,
   SegmentFunction,
@@ -162,6 +171,7 @@ export {
   Role,
   ResourceCapability,
   ProjectRequirement,
+  ProjectDomainImpact,
 };
 
 export default {
@@ -182,4 +192,5 @@ export default {
   Role,
   ResourceCapability,
   ProjectRequirement,
+  ProjectDomainImpact,
 };

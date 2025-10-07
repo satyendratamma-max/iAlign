@@ -27,6 +27,7 @@ import {
   ExpandMore,
   Visibility,
   People as PeopleIcon,
+  Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -68,11 +69,24 @@ interface Resource {
   roleOnProject?: string;
 }
 
+interface DomainImpact {
+  id: number;
+  projectId: number;
+  domainId: number;
+  impactType: string;
+  impactLevel: string;
+  domain?: {
+    id: number;
+    name: string;
+  };
+}
+
 const PortfolioProjects = () => {
   const { segmentFunctionId } = useParams<{ segmentFunctionId: string }>();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [segmentFunction, setSegmentFunction] = useState<SegmentFunction | null>(null);
+  const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [loading, setLoading] = useState(true);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -88,9 +102,10 @@ const PortfolioProjects = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [segmentFunctionRes, projectsRes] = await Promise.all([
+      const [segmentFunctionRes, projectsRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions/${segmentFunctionId}`, config),
         axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setSegmentFunction(segmentFunctionRes.data.data);
@@ -99,6 +114,7 @@ const PortfolioProjects = () => {
         (p: Project) => p.segmentFunctionId === parseInt(segmentFunctionId!)
       );
       setProjects(segmentFunctionProjects);
+      setDomainImpacts(impactsRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -177,6 +193,10 @@ const PortfolioProjects = () => {
     return colors[health || ''] || undefined;
   };
 
+  const getProjectDomainImpacts = (projectId: number) => {
+    return domainImpacts.filter(impact => impact.projectId === projectId);
+  };
+
   // Group projects by fiscal year
   const projectsByFY = projects.reduce((acc: Record<string, Project[]>, project) => {
     const fy = project.fiscalYear || 'Unknown';
@@ -236,6 +256,7 @@ const PortfolioProjects = () => {
                       <TableCell>Progress</TableCell>
                       <TableCell>Budget</TableCell>
                       <TableCell>Health</TableCell>
+                      <TableCell>Cross-Domain</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -282,6 +303,24 @@ const PortfolioProjects = () => {
                             size="small"
                             color={getHealthColor(project.healthStatus)}
                           />
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const impacts = getProjectDomainImpacts(project.id);
+                            return impacts.length > 0 ? (
+                              <Box display="flex" alignItems="center" gap={0.5}>
+                                <Hub sx={{ fontSize: 16, color: 'info.main' }} />
+                                <Chip
+                                  label={`${impacts.length} domain${impacts.length > 1 ? 's' : ''}`}
+                                  size="small"
+                                  color="info"
+                                  variant="outlined"
+                                />
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">-</Typography>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell align="right">
                           <IconButton

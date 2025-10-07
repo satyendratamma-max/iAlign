@@ -16,6 +16,7 @@ import Technology from '../models/Technology';
 import Role from '../models/Role';
 import ResourceCapability from '../models/ResourceCapability';
 import ProjectRequirement from '../models/ProjectRequirement';
+import ProjectDomainImpact from '../models/ProjectDomainImpact';
 
 const DOMAIN_NAMES = [
   'Engineering', 'VC', 'Make', 'Buy', 'Quality',
@@ -457,8 +458,39 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${requirementCount} project requirements\n`);
 
-    // 9. Create Milestones with owners
-    console.log('9️⃣  Creating milestones...');
+    // 9. Create Project Domain Impacts (Cross-Domain Impact Tracking)
+    console.log('9️⃣  Creating project domain impacts...');
+    let domainImpactCount = 0;
+    const impactTypes: Array<'Primary' | 'Secondary' | 'Tertiary'> = ['Primary', 'Secondary', 'Tertiary'];
+    const impactLevels: Array<'High' | 'Medium' | 'Low'> = ['High', 'Medium', 'Low'];
+
+    for (const project of projects) {
+      // 30% of projects have cross-domain impacts
+      if (Math.random() > 0.7) {
+        const numImpacts = Math.floor(Math.random() * 2) + 1; // 1-2 cross-domain impacts
+        const availableDomains = domains.filter(d => d.id !== project.domainId);
+
+        for (let i = 0; i < numImpacts && i < availableDomains.length; i++) {
+          const impactedDomain = availableDomains[Math.floor(Math.random() * availableDomains.length)];
+
+          await ProjectDomainImpact.create({
+            projectId: project.id,
+            domainId: impactedDomain.id,
+            impactType: impactTypes[Math.floor(Math.random() * impactTypes.length)],
+            impactLevel: impactLevels[Math.floor(Math.random() * impactLevels.length)],
+            description: `${project.name} impacts ${impactedDomain.name} domain processes`,
+            isActive: true,
+          });
+
+          domainImpactCount++;
+        }
+      }
+    }
+
+    console.log(`   ✅ Created ${domainImpactCount} project domain impacts\n`);
+
+    // 10. Create Milestones with owners
+    console.log('🔟 Creating milestones...');
     let milestoneCount = 0;
 
     for (const project of projects) {
@@ -502,8 +534,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${milestoneCount} milestones\n`);
 
-    // 10. Create Pipelines
-    console.log('🔟 Creating pipelines...');
+    // 11. Create Pipelines
+    console.log('1️⃣1️⃣ Creating pipelines...');
     const pipelineTypes = ['Application', 'Infrastructure', 'Integration'];
     const vendors = ['SAP', 'Oracle', 'Salesforce', 'Microsoft', 'AWS', 'Custom'];
     const pipelines: any[] = [];
@@ -532,8 +564,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${pipelines.length} pipelines\n`);
 
-    // 11. Create Project-Pipeline relationships
-    console.log('1️⃣1️⃣  Creating project-pipeline relationships...');
+    // 12. Create Project-Pipeline relationships
+    console.log('1️⃣2️⃣ Creating project-pipeline relationships...');
     let ppCount = 0;
 
     for (const project of projects) {
@@ -559,8 +591,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${ppCount} project-pipeline relationships\n`);
 
-    // 12. Create Resource Allocations with match scores
-    console.log('1️⃣2️⃣  Creating resource allocations...');
+    // 13. Create Resource Allocations with match scores
+    console.log('1️⃣3️⃣ Creating resource allocations...');
     let allocationCount = 0;
 
     for (const project of projects) {
@@ -610,8 +642,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${allocationCount} resource allocations\n`);
 
-    // 13. Create Capacity Models
-    console.log('1️⃣3️⃣  Creating capacity models...');
+    // 14. Create Capacity Models
+    console.log('1️⃣4️⃣ Creating capacity models...');
     const models: any[] = [];
 
     const modelTypes = ['Baseline', 'Optimistic', 'Pessimistic'];
@@ -641,8 +673,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${models.length} capacity models\n`);
 
-    // 14. Create Capacity Scenarios
-    console.log('1️⃣4️⃣  Creating capacity scenarios...');
+    // 15. Create Capacity Scenarios
+    console.log('1️⃣5️⃣ Creating capacity scenarios...');
     let scenarioCount = 0;
 
     for (const model of models) {
@@ -709,6 +741,7 @@ const seedDatabase = async () => {
     console.log(`   - Resource Capabilities: ${capabilityCount}`);
     console.log(`   - Projects: ${projects.length}`);
     console.log(`   - Project Requirements: ${requirementCount}`);
+    console.log(`   - Project Domain Impacts: ${domainImpactCount}`);
     console.log(`   - Milestones: ${milestoneCount}`);
     console.log(`   - Pipelines: ${pipelines.length}`);
     console.log(`   - Project-Pipeline Links: ${ppCount}`);

@@ -20,6 +20,7 @@ import {
   Folder,
   Add as AddIcon,
   ArrowBack,
+  Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -48,6 +49,17 @@ interface Project {
   budget?: number;
   actualCost?: number;
   forecastedCost?: number;
+  name?: string;
+  status?: string;
+}
+
+interface DomainImpact {
+  id: number;
+  projectId: number;
+  domainId: number;
+  impactType: string;
+  impactLevel: string;
+  project?: Project;
 }
 
 const SegmentFunctionList = () => {
@@ -55,6 +67,7 @@ const SegmentFunctionList = () => {
   const navigate = useNavigate();
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [domain, setDomain] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -73,14 +86,16 @@ const SegmentFunctionList = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainRes, segmentFunctionsRes, projectsRes] = await Promise.all([
+      const [domainRes, segmentFunctionsRes, projectsRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/project-domain-impacts?domainId=${domainId}`, config),
       ]);
 
       setDomain(domainRes.data.data);
       setProjects(projectsRes.data.data);
+      setDomainImpacts(impactsRes.data.data || []);
       // Filter segment functions by domainId
       const domainSegmentFunctions = segmentFunctionsRes.data.data.filter(
         (p: SegmentFunction) => p.domainId === parseInt(domainId!)
@@ -108,6 +123,27 @@ const SegmentFunctionList = () => {
     return projects.filter(
       (project) => project.segmentFunctionId === segmentFunctionId
     ).length;
+  };
+
+  const getCrossDomainStats = (segmentFunctionId: number) => {
+    // Get projects in this segment function
+    const sfProjects = projects.filter(p => p.segmentFunctionId === segmentFunctionId);
+    const sfProjectIds = sfProjects.map(p => p.id);
+
+    // Count how many unique projects from this segment function impact other domains (outgoing)
+    const impactingProjects = new Set(
+      domainImpacts
+        .filter(impact => sfProjectIds.includes(impact.projectId))
+        .map(impact => impact.projectId)
+    );
+    const impactingCount = impactingProjects.size;
+
+    // Count how many times this segment function's domain is impacted by other projects (incoming)
+    const impactedCount = domainImpacts.filter(
+      impact => impact.domainId === parseInt(domainId!)
+    ).length;
+
+    return { impactingCount, impactedCount };
   };
 
   const handleOpenDialog = () => {
@@ -259,6 +295,84 @@ const SegmentFunctionList = () => {
                       </Typography>
                     </Box>
                   )}
+
+                  {(() => {
+                    const crossDomainStats = getCrossDomainStats(segmentFunction.id);
+                    return (crossDomainStats.impactingCount > 0 || crossDomainStats.impactedCount > 0) ? (
+                      <Box mt={2} display="flex" gap={1.5}>
+                        {crossDomainStats.impactingCount > 0 && (
+                          <Box
+                            flex={1}
+                            sx={{
+                              bgcolor: 'info.lighter',
+                              borderRadius: 1.5,
+                              p: 1.5,
+                              border: '1px solid',
+                              borderColor: 'info.light',
+                            }}
+                          >
+                            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                              <Hub sx={{ fontSize: 16, color: 'info.main' }} />
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'text.secondary',
+                                  fontWeight: 600,
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                Impacting
+                              </Typography>
+                            </Box>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: 700,
+                                color: 'info.main',
+                              }}
+                            >
+                              {crossDomainStats.impactingCount}
+                            </Typography>
+                          </Box>
+                        )}
+                        {crossDomainStats.impactedCount > 0 && (
+                          <Box
+                            flex={1}
+                            sx={{
+                              bgcolor: 'warning.lighter',
+                              borderRadius: 1.5,
+                              p: 1.5,
+                              border: '1px solid',
+                              borderColor: 'warning.light',
+                            }}
+                          >
+                            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                              <Hub sx={{ fontSize: 16, color: 'warning.main' }} />
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'text.secondary',
+                                  fontWeight: 600,
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                Impacted
+                              </Typography>
+                            </Box>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: 700,
+                                color: 'warning.main',
+                              }}
+                            >
+                              {crossDomainStats.impactedCount}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    ) : null;
+                  })()}
                 </CardContent>
               </CardActionArea>
             </Card>

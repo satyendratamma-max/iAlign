@@ -35,6 +35,8 @@ import {
   People as PeopleIcon,
   ViewList as ViewListIcon,
   Timeline as TimelineIcon,
+  Clear as ClearIcon,
+  Hub as HubIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
@@ -140,6 +142,20 @@ interface Milestone {
   };
 }
 
+interface DomainImpact {
+  id?: number;
+  projectId?: number;
+  domainId: number;
+  domainName?: string;
+  impactType: 'Primary' | 'Secondary' | 'Tertiary';
+  impactLevel: 'High' | 'Medium' | 'Low';
+  description?: string;
+  domain?: {
+    id: number;
+    name: string;
+  };
+}
+
 const ProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -156,6 +172,8 @@ const ProjectManagement = () => {
   const [loadingResources, setLoadingResources] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list');
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
+  const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
+  const [allDomainImpacts, setAllDomainImpacts] = useState<DomainImpact[]>([]);
   const [filters, setFilters] = useState({
     projectNumber: '',
     name: '',
@@ -167,6 +185,7 @@ const ProjectManagement = () => {
     priority: '',
     currentPhase: '',
     health: [] as string[],
+    impactedDomain: [] as string[],
   });
 
   const fetchData = async () => {
@@ -174,17 +193,19 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes] = await Promise.all([
+      const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/projects`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/milestones`, config),
+        axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setProjects(projectsRes.data.data);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setMilestones(milestonesRes.data.data || []);
+      setAllDomainImpacts(impactsRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -196,13 +217,36 @@ const ProjectManagement = () => {
     fetchData();
   }, []);
 
-  const handleOpenDialog = (project?: Project) => {
+  const handleOpenDialog = async (project?: Project) => {
     if (project) {
       setEditMode(true);
       setCurrentProject(project);
+
+      // Fetch domain impacts for this project
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/project-domain-impacts?projectId=${project.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const impacts = response.data.data.map((impact: any) => ({
+          id: impact.id,
+          domainId: impact.domainId,
+          domainName: impact.domain?.name,
+          impactType: impact.impactType,
+          impactLevel: impact.impactLevel,
+          description: impact.description,
+        }));
+
+        setDomainImpacts(impacts);
+      } catch (error) {
+        console.error('Error fetching domain impacts:', error);
+        setDomainImpacts([]);
+      }
     } else {
       setEditMode(false);
       setCurrentProject({ progress: 0, status: 'Planning', priority: 'Medium' });
+      setDomainImpacts([]);
     }
     setOpenDialog(true);
   };
@@ -210,6 +254,7 @@ const ProjectManagement = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setCurrentProject({});
+    setDomainImpacts([]);
     setDialogTab(0);
   };
 
@@ -218,16 +263,57 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Validate domain impacts for duplicates
+      const domainIds = domainImpacts.map(impact => impact.domainId);
+      const uniqueDomainIds = new Set(domainIds);
+      if (domainIds.length !== uniqueDomainIds.size) {
+        alert('Error: You have selected the same domain multiple times. Each domain can only be added once.');
+        return;
+      }
+
+      // Validate all domain impacts have a valid domain selected
+      const hasInvalidDomain = domainImpacts.some(impact => !impact.domainId || impact.domainId === 0);
+      if (hasInvalidDomain) {
+        alert('Error: Please select a domain for all impact entries or remove empty entries.');
+        return;
+      }
+
+      let projectId = currentProject.id;
+
       if (editMode && currentProject.id) {
         await axios.put(`${API_URL}/projects/${currentProject.id}`, currentProject, config);
       } else {
-        await axios.post(`${API_URL}/projects`, currentProject, config);
+        const response = await axios.post(`${API_URL}/projects`, currentProject, config);
+        projectId = response.data.data.id;
+      }
+
+      // Save domain impacts if project ID exists
+      if (projectId && domainImpacts.length > 0) {
+        // Filter out invalid entries
+        const validImpacts = domainImpacts.filter(impact => impact.domainId && impact.domainId !== 0);
+
+        if (validImpacts.length > 0) {
+          await axios.post(
+            `${API_URL}/project-domain-impacts/bulk-upsert`,
+            {
+              projectId,
+              impacts: validImpacts.map(impact => ({
+                domainId: impact.domainId,
+                impactType: impact.impactType,
+                impactLevel: impact.impactLevel,
+                description: impact.description,
+              })),
+            },
+            config
+          );
+        }
       }
 
       fetchData();
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving project:', error);
+      alert('Error saving project: ' + ((error as any).response?.data?.message || 'An unexpected error occurred'));
     }
   };
 
@@ -373,11 +459,26 @@ const ProjectManagement = () => {
     return colors[health || ''] || 'default';
   };
 
+  const getCrossDomainCount = (projectId: number) => {
+    return allDomainImpacts.filter(impact => impact.projectId === projectId).length;
+  };
+
+  const getImpactedDomains = (projectId: number) => {
+    return allDomainImpacts
+      .filter(impact => impact.projectId === projectId)
+      .map(impact => impact.domain?.name)
+      .filter(Boolean) as string[];
+  };
+
   // Get unique fiscal years from projects
   const uniqueFiscalYears = Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
 
   // Filter projects based on current filters
   const filteredProjects = projects.filter((project) => {
+    const impactedDomains = getImpactedDomains(project.id);
+    const matchesImpactedDomain = filters.impactedDomain.length === 0 ||
+      filters.impactedDomain.some(domain => impactedDomains.includes(domain));
+
     return (
       (project.projectNumber || '').toLowerCase().includes(filters.projectNumber.toLowerCase()) &&
       project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
@@ -388,7 +489,8 @@ const ProjectManagement = () => {
       (filters.status.length === 0 || filters.status.includes(project.status)) &&
       (filters.priority === '' || project.priority === filters.priority) &&
       (filters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(filters.currentPhase.toLowerCase())) &&
-      (filters.health.length === 0 || filters.health.includes(project.healthStatus || ''))
+      (filters.health.length === 0 || filters.health.includes(project.healthStatus || '')) &&
+      matchesImpactedDomain
     );
   });
 
@@ -614,6 +716,7 @@ const ProjectManagement = () => {
               <TableCell sx={{ minWidth: 110 }}>Start Date</TableCell>
               <TableCell sx={{ minWidth: 110 }}>End Date</TableCell>
               <TableCell sx={{ minWidth: 90 }}>Health</TableCell>
+              <TableCell sx={{ minWidth: 150 }}>Impacted Domains</TableCell>
               <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
@@ -803,6 +906,28 @@ const ProjectManagement = () => {
                   </MenuItem>
                 </TextField>
               </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  select
+                  placeholder="All"
+                  value={filters.impactedDomain}
+                  onChange={(e) => setFilters({ ...filters, impactedDomain: e.target.value as unknown as string[] })}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) =>
+                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                  }}
+                  fullWidth
+                >
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.name}>
+                      <Checkbox checked={filters.impactedDomain.indexOf(domain.name) > -1} size="small" />
+                      {domain.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
@@ -815,12 +940,27 @@ const ProjectManagement = () => {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body1" fontWeight="medium">
-                    {project.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {project.description}
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Box flex={1}>
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <Typography variant="body1" fontWeight="medium">
+                          {project.name}
+                        </Typography>
+                        {getCrossDomainCount(project.id) > 0 && (
+                          <Chip
+                            icon={<HubIcon sx={{ fontSize: 14 }} />}
+                            label={`${getCrossDomainCount(project.id)} domains`}
+                            size="small"
+                            color="info"
+                            sx={{ height: 20, fontSize: '0.7rem' }}
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {project.description}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </TableCell>
                 <TableCell>
                   {project.domain?.name || '-'}
@@ -869,6 +1009,27 @@ const ProjectManagement = () => {
                     size="small"
                     color={getHealthColor(project.healthStatus) as any}
                   />
+                </TableCell>
+                <TableCell>
+                  {(() => {
+                    const impactedDomains = getImpactedDomains(project.id);
+                    return impactedDomains.length > 0 ? (
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {impactedDomains.map((domainName, index) => (
+                          <Chip
+                            key={index}
+                            label={domainName}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ fontSize: '0.7rem' }}
+                          />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">-</Typography>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell align="right">
                   <IconButton
@@ -1357,6 +1518,7 @@ const ProjectManagement = () => {
           <Tab label="Financial" />
           <Tab label="Dates & Timeline" />
           <Tab label="Management" />
+          <Tab label="Cross-Domain Impact" />
         </Tabs>
         <DialogContent>
           {/* Tab 0: Basic Info */}
@@ -1942,6 +2104,206 @@ const ProjectManagement = () => {
                 />
               </Grid>
             </Grid>
+          )}
+
+          {/* Tab 5: Cross-Domain Impact */}
+          {dialogTab === 5 && (
+            <Box sx={{ mt: 1 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Additional Domain Impacts
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setDomainImpacts([
+                      ...domainImpacts,
+                      {
+                        domainId: 0,
+                        impactType: 'Secondary',
+                        impactLevel: 'Medium',
+                        description: '',
+                      },
+                    ]);
+                  }}
+                  size="small"
+                >
+                  Add Domain Impact
+                </Button>
+              </Box>
+
+              {domainImpacts.length === 0 ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 200,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    No additional domain impacts specified
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Add domain impacts to track cross-domain project dependencies
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  {domainImpacts.map((impact, index) => (
+                    <Paper
+                      key={index}
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="subtitle2" fontWeight="bold">
+                          Domain Impact #{index + 1}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setDomainImpacts(domainImpacts.filter((_, i) => i !== index));
+                          }}
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            select
+                            fullWidth
+                            required
+                            label="Domain"
+                            value={impact.domainId || ''}
+                            onChange={(e) => {
+                              const newImpacts = [...domainImpacts];
+                              const selectedDomain = domains.find(d => d.id === Number(e.target.value));
+                              newImpacts[index] = {
+                                ...newImpacts[index],
+                                domainId: Number(e.target.value),
+                                domainName: selectedDomain?.name,
+                              };
+                              setDomainImpacts(newImpacts);
+                            }}
+                          >
+                            <MenuItem value={0} disabled>
+                              Select a domain
+                            </MenuItem>
+                            {domains
+                              .filter(domain => {
+                                // Exclude the primary domain
+                                if (domain.id === currentProject.domainId) return false;
+
+                                // Exclude domains that are already selected in other impacts
+                                // (but allow the current impact's selected domain to remain visible)
+                                const isAlreadySelected = domainImpacts.some((imp, impIndex) =>
+                                  impIndex !== index && imp.domainId === domain.id
+                                );
+
+                                return !isAlreadySelected;
+                              })
+                              .map((domain) => (
+                                <MenuItem key={domain.id} value={domain.id}>
+                                  {domain.name}
+                                </MenuItem>
+                              ))}
+                          </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={3}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Impact Type"
+                            value={impact.impactType}
+                            onChange={(e) => {
+                              const newImpacts = [...domainImpacts];
+                              newImpacts[index] = {
+                                ...newImpacts[index],
+                                impactType: e.target.value as 'Primary' | 'Secondary' | 'Tertiary',
+                              };
+                              setDomainImpacts(newImpacts);
+                            }}
+                          >
+                            <MenuItem value="Primary">Primary</MenuItem>
+                            <MenuItem value="Secondary">Secondary</MenuItem>
+                            <MenuItem value="Tertiary">Tertiary</MenuItem>
+                          </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={3}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Impact Level"
+                            value={impact.impactLevel}
+                            onChange={(e) => {
+                              const newImpacts = [...domainImpacts];
+                              newImpacts[index] = {
+                                ...newImpacts[index],
+                                impactLevel: e.target.value as 'High' | 'Medium' | 'Low',
+                              };
+                              setDomainImpacts(newImpacts);
+                            }}
+                          >
+                            <MenuItem value="High">High</MenuItem>
+                            <MenuItem value="Medium">Medium</MenuItem>
+                            <MenuItem value="Low">Low</MenuItem>
+                          </TextField>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            multiline
+                            rows={2}
+                            label="Description"
+                            placeholder="Describe the impact on this domain..."
+                            value={impact.description || ''}
+                            onChange={(e) => {
+                              const newImpacts = [...domainImpacts];
+                              newImpacts[index] = {
+                                ...newImpacts[index],
+                                description: e.target.value,
+                              };
+                              setDomainImpacts(newImpacts);
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 1.5,
+                  bgcolor: 'info.lighter',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'info.light',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Note:</strong> The primary domain for this project is set in the Basic Info tab.
+                  Use this section to track additional domains that are impacted by or involved in this project.
+                </Typography>
+              </Box>
+            </Box>
           )}
         </DialogContent>
         <DialogActions>

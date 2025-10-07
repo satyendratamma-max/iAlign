@@ -32,6 +32,7 @@ import {
   Groups,
   AccountBalance,
   Cloud,
+  Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -60,10 +61,19 @@ interface Project {
   };
 }
 
+interface DomainImpact {
+  id: number;
+  projectId: number;
+  domainId: number;
+  impactType: string;
+  impactLevel: string;
+}
+
 const DomainsList = () => {
   const navigate = useNavigate();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [newDomain, setNewDomain] = useState({
@@ -107,13 +117,15 @@ const DomainsList = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainsResponse, projectsResponse] = await Promise.all([
+      const [domainsResponse, projectsResponse, impactsResponse] = await Promise.all([
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setDomains(domainsResponse.data.data);
       setProjects(projectsResponse.data.data);
+      setDomainImpacts(impactsResponse.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -137,7 +149,22 @@ const DomainsList = () => {
       0
     );
 
-    return { activeProjects, totalBudget };
+    // Count how many projects from this domain impact other domains (outgoing)
+    const domainProjectIds = domainProjects.map(p => p.id);
+    const impactingOtherDomains = new Set(
+      domainImpacts
+        .filter(impact => domainProjectIds.includes(impact.projectId))
+        .map(impact => impact.projectId)
+    );
+    const impactingCount = impactingOtherDomains.size;
+
+    // Count how many projects from other domains impact this domain (incoming)
+    const impactedByOtherDomains = domainImpacts.filter(
+      impact => impact.domainId === domainId
+    );
+    const impactedCount = impactedByOtherDomains.length;
+
+    return { activeProjects, totalBudget, impactingCount, impactedCount };
   };
 
   const handleOpenDialog = () => {
@@ -272,89 +299,181 @@ const DomainsList = () => {
                       </Box>
                     </Box>
 
-                    <Box display="flex" gap={2} mt={2.5}>
-                      <Box
-                        flex={1}
-                        sx={{
-                          bgcolor: 'background.default',
-                          borderRadius: 2,
-                          p: { xs: 1.5, sm: 1.5 },
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          transition: 'all 0.2s',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            bgcolor: (theme) => theme.palette.mode === 'dark'
-                              ? 'rgba(25, 118, 210, 0.08)'
-                              : 'primary.lighter',
-                          }
-                        }}
-                      >
-                        <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <Folder sx={{ fontSize: 18, color: 'primary.main' }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: 'text.secondary',
-                              fontWeight: 600,
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                            }}
-                          >
-                            Projects
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="h5"
+                    <Box display="flex" flexDirection="column" gap={2} mt={2.5}>
+                      <Box display="flex" gap={2}>
+                        <Box
+                          flex={1}
                           sx={{
-                            fontWeight: 700,
-                            color: 'text.primary',
-                            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                            bgcolor: 'background.default',
+                            borderRadius: 2,
+                            p: { xs: 1.5, sm: 1.5 },
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              bgcolor: (theme) => theme.palette.mode === 'dark'
+                                ? 'rgba(25, 118, 210, 0.08)'
+                                : 'primary.lighter',
+                            }
                           }}
                         >
-                          {stats.activeProjects}
-                        </Typography>
-                      </Box>
-                      <Box
-                        flex={1}
-                        sx={{
-                          bgcolor: 'background.default',
-                          borderRadius: 2,
-                          p: { xs: 1.5, sm: 1.5 },
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          transition: 'all 0.2s',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            bgcolor: (theme) => theme.palette.mode === 'dark'
-                              ? 'rgba(25, 118, 210, 0.08)'
-                              : 'primary.lighter',
-                          }
-                        }}
-                      >
-                        <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                          <AttachMoney sx={{ fontSize: 18, color: 'primary.main' }} />
+                          <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                            <Folder sx={{ fontSize: 18, color: 'primary.main' }} />
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                              }}
+                            >
+                              Projects
+                            </Typography>
+                          </Box>
                           <Typography
-                            variant="caption"
+                            variant="h5"
                             sx={{
-                              color: 'text.secondary',
-                              fontWeight: 600,
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                              fontWeight: 700,
+                              color: 'text.primary',
+                              fontSize: { xs: '1.25rem', sm: '1.5rem' },
                             }}
                           >
-                            Budget
+                            {stats.activeProjects}
                           </Typography>
                         </Box>
-                        <Typography
-                          variant="h5"
+                        <Box
+                          flex={1}
                           sx={{
-                            fontWeight: 700,
-                            color: 'text.primary',
-                            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                            bgcolor: 'background.default',
+                            borderRadius: 2,
+                            p: { xs: 1.5, sm: 1.5 },
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              bgcolor: (theme) => theme.palette.mode === 'dark'
+                                ? 'rgba(25, 118, 210, 0.08)'
+                                : 'primary.lighter',
+                            }
                           }}
                         >
-                          ${(stats.totalBudget / 1000000).toFixed(1)}M
-                        </Typography>
+                          <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                            <AttachMoney sx={{ fontSize: 18, color: 'primary.main' }} />
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                              }}
+                            >
+                              Budget
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="h5"
+                            sx={{
+                              fontWeight: 700,
+                              color: 'text.primary',
+                              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                            }}
+                          >
+                            ${(stats.totalBudget / 1000000).toFixed(1)}M
+                          </Typography>
+                        </Box>
                       </Box>
+                      {(stats.impactingCount > 0 || stats.impactedCount > 0) && (
+                        <Box display="flex" gap={2}>
+                          {stats.impactingCount > 0 && (
+                            <Box
+                              flex={1}
+                              sx={{
+                                bgcolor: 'info.lighter',
+                                borderRadius: 2,
+                                p: { xs: 1.5, sm: 1.5 },
+                                border: '1px solid',
+                                borderColor: 'info.light',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  borderColor: 'info.main',
+                                  bgcolor: (theme) => theme.palette.mode === 'dark'
+                                    ? 'rgba(2, 136, 209, 0.12)'
+                                    : 'info.lighter',
+                                }
+                              }}
+                            >
+                              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                <Hub sx={{ fontSize: 18, color: 'info.main' }} />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'text.secondary',
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  }}
+                                >
+                                  Impacting Others
+                                </Typography>
+                              </Box>
+                              <Typography
+                                variant="h5"
+                                sx={{
+                                  fontWeight: 700,
+                                  color: 'info.main',
+                                  fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                                }}
+                              >
+                                {stats.impactingCount}
+                              </Typography>
+                            </Box>
+                          )}
+                          {stats.impactedCount > 0 && (
+                            <Box
+                              flex={1}
+                              sx={{
+                                bgcolor: 'warning.lighter',
+                                borderRadius: 2,
+                                p: { xs: 1.5, sm: 1.5 },
+                                border: '1px solid',
+                                borderColor: 'warning.light',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  borderColor: 'warning.main',
+                                  bgcolor: (theme) => theme.palette.mode === 'dark'
+                                    ? 'rgba(255, 167, 38, 0.12)'
+                                    : 'warning.lighter',
+                                }
+                              }}
+                            >
+                              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                <Hub sx={{ fontSize: 18, color: 'warning.main' }} />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'text.secondary',
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  }}
+                                >
+                                  Impacted By Others
+                                </Typography>
+                              </Box>
+                              <Typography
+                                variant="h5"
+                                sx={{
+                                  fontWeight: 700,
+                                  color: 'warning.main',
+                                  fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                                }}
+                              >
+                                {stats.impactedCount}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                     </Box>
 
                     {domain.manager && (
