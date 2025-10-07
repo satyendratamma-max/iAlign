@@ -12,17 +12,28 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
   try {
     logger.warn('Database reset initiated by admin');
 
-    // Delete data in reverse dependency order
+    // Delete data in correct reverse dependency order
+    // 1. Delete junction/association tables first
     await sequelize.query('DELETE FROM ResourceAllocations', { transaction });
-    await sequelize.query('DELETE FROM Milestones', { transaction });
     await sequelize.query('DELETE FROM ProjectPipelines', { transaction });
+
+    // 2. Delete dependent entities
+    await sequelize.query('DELETE FROM Milestones', { transaction });
     await sequelize.query('DELETE FROM ProjectRequirements', { transaction });
     await sequelize.query('DELETE FROM ResourceCapabilities', { transaction });
-    await sequelize.query('DELETE FROM Resources', { transaction });
+
+    // 3. Delete main entities that reference others
     await sequelize.query('DELETE FROM Projects', { transaction });
+    await sequelize.query('DELETE FROM Resources', { transaction });
     await sequelize.query('DELETE FROM Pipelines', { transaction });
+
+    // 4. Delete SegmentFunctions (references Domains)
     await sequelize.query('DELETE FROM SegmentFunctions', { transaction });
+
+    // 5. Delete Domains
     await sequelize.query('DELETE FROM Domains', { transaction });
+
+    // 6. Delete hierarchy tables (Roles -> Technologies -> Apps)
     await sequelize.query('DELETE FROM Roles', { transaction });
     await sequelize.query('DELETE FROM Technologies', { transaction });
     await sequelize.query('DELETE FROM Apps', { transaction });

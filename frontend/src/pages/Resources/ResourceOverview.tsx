@@ -23,7 +23,6 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Upload as UploadIcon,
   Download as DownloadIcon,
   Description as TemplateIcon,
@@ -67,10 +66,17 @@ interface Resource {
   firstName?: string;
   lastName?: string;
   email?: string;
+  primarySkill?: string;
+  secondarySkills?: string;
   role?: string;
   location?: string;
+  timezone?: string;
   hourlyRate?: number;
+  monthlyCost?: number;
+  totalCapacityHours?: number;
   utilizationRate?: number;
+  homeLocation?: string;
+  isRemote?: boolean;
   isActive: boolean;
   domain?: {
     id: number;
@@ -169,19 +175,6 @@ const ResourceOverview = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this resource?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`${API_URL}/resources/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        fetchResources();
-      } catch (error) {
-        console.error('Error deleting resource:', error);
-      }
-    }
-  };
 
   const handleExport = () => {
     exportToExcel(resources, 'resources_export');
@@ -475,14 +468,6 @@ const ResourceOverview = () => {
                   >
                     Edit
                   </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(resource.id)}
-                  >
-                    Delete
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -490,18 +475,21 @@ const ResourceOverview = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Resource' : 'Add Resource'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                required
                 label="Employee ID"
                 value={currentResource.employeeId || ''}
                 onChange={(e) =>
                   setCurrentResource({ ...currentResource, employeeId: e.target.value })
                 }
+                disabled={editMode}
+                helperText={editMode ? 'Employee ID cannot be changed' : 'Unique identifier for the employee'}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -619,6 +607,90 @@ const ResourceOverview = () => {
                 }
                 inputProps={{ min: 0, max: 100 }}
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Primary Skill"
+                value={currentResource.primarySkill || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, primarySkill: e.target.value })
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Secondary Skills"
+                value={currentResource.secondarySkills || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, secondarySkills: e.target.value })
+                }
+                placeholder="Comma separated skills"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Timezone"
+                value={currentResource.timezone || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, timezone: e.target.value })
+                }
+                placeholder="e.g., EST, PST, UTC"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Monthly Cost"
+                type="number"
+                value={currentResource.monthlyCost || ''}
+                onChange={(e) =>
+                  setCurrentResource({
+                    ...currentResource,
+                    monthlyCost: parseFloat(e.target.value) || 0,
+                  })
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Total Capacity Hours"
+                type="number"
+                value={currentResource.totalCapacityHours || 160}
+                onChange={(e) =>
+                  setCurrentResource({
+                    ...currentResource,
+                    totalCapacityHours: parseInt(e.target.value) || 160,
+                  })
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Home Location"
+                value={currentResource.homeLocation || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, homeLocation: e.target.value })
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Is Remote"
+                value={currentResource.isRemote !== undefined ? (currentResource.isRemote ? 'true' : 'false') : 'false'}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, isRemote: e.target.value === 'true' })
+                }
+              >
+                <MenuItem value="false">No</MenuItem>
+                <MenuItem value="true">Yes</MenuItem>
+              </TextField>
             </Grid>
           </Grid>
         </DialogContent>
