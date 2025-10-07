@@ -11,9 +11,6 @@
 import sequelize from '../config/database';
 import Resource from '../models/Resource';
 import ResourceCapability from '../models/ResourceCapability';
-import App from '../models/App';
-import Technology from '../models/Technology';
-import Role from '../models/Role';
 import logger from '../config/logger';
 
 interface SkillMapping {
@@ -85,13 +82,14 @@ function findSkillMapping(skill: string): SkillMapping | null {
 
 /**
  * Estimate proficiency level based on years of experience
+ * (Currently unused but kept for future enhancements)
  */
-function estimateProficiency(yearsExp?: number): 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' {
-  if (!yearsExp || yearsExp < 2) return 'Beginner';
-  if (yearsExp < 5) return 'Intermediate';
-  if (yearsExp < 10) return 'Advanced';
-  return 'Expert';
-}
+// function estimateProficiency(yearsExp?: number): 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' {
+//   if (!yearsExp || yearsExp < 2) return 'Beginner';
+//   if (yearsExp < 5) return 'Intermediate';
+//   if (yearsExp < 10) return 'Advanced';
+//   return 'Expert';
+// }
 
 /**
  * Main migration function

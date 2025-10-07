@@ -916,7 +916,7 @@ const ProjectManagement = () => {
           </Box>
 
           {/* Gantt Filters */}
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
             <Grid container spacing={1.5}>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
@@ -926,7 +926,7 @@ const ProjectManagement = () => {
                   placeholder="Search..."
                   value={filters.projectNumber}
                   onChange={(e) => setFilters({ ...filters, projectNumber: e.target.value })}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
@@ -937,7 +937,7 @@ const ProjectManagement = () => {
                   placeholder="Search..."
                   value={filters.name}
                   onChange={(e) => setFilters({ ...filters, name: e.target.value })}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
@@ -958,7 +958,7 @@ const ProjectManagement = () => {
                       </Box>
                     ),
                   }}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 >
                   {domains.map((domain) => (
                     <MenuItem key={domain.id} value={domain.name}>
@@ -986,7 +986,7 @@ const ProjectManagement = () => {
                       </Box>
                     ),
                   }}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 >
                   {segmentFunctions.map((sf) => (
                     <MenuItem key={sf.id} value={sf.name}>
@@ -1014,7 +1014,7 @@ const ProjectManagement = () => {
                       </Box>
                     ),
                   }}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 >
                   <MenuItem value="Planning">
                     <Checkbox checked={filters.status.indexOf('Planning') > -1} size="small" />
@@ -1056,7 +1056,7 @@ const ProjectManagement = () => {
                       </Box>
                     ),
                   }}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 >
                   <MenuItem value="Green">
                     <Checkbox checked={filters.health.indexOf('Green') > -1} size="small" />
@@ -1090,7 +1090,7 @@ const ProjectManagement = () => {
                       </Box>
                     ),
                   }}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.paper' }}
                 >
                   {uniqueFiscalYears.map((year) => (
                     <MenuItem key={year} value={year}>
