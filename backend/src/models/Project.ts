@@ -49,6 +49,7 @@ export interface ProjectAttributes {
   newOrCarryOver?: string;
   submittedById?: number;
   domainManagerId?: number;
+  rank?: number;
   createdDate?: Date;
   modifiedDate?: Date;
   isActive?: boolean;
@@ -102,6 +103,7 @@ class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare newOrCarryOver?: string;
   declare submittedById?: number;
   declare domainManagerId?: number;
+  declare rank?: number;
   declare createdDate: Date;
   declare modifiedDate: Date;
   declare isActive: boolean;
@@ -309,6 +311,11 @@ Project.init(
     domainManagerId: {
       type: DataTypes.INTEGER,
       allowNull: true,
+    },
+    rank: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0,
     },
     createdDate: {
       type: DataTypes.DATE,

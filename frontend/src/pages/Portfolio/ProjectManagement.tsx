@@ -24,6 +24,8 @@ import {
   IconButton,
   Tabs,
   Tab,
+  Card,
+  CardContent,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,9 +39,26 @@ import {
   Timeline as TimelineIcon,
   Clear as ClearIcon,
   Hub as HubIcon,
+  ViewKanban as ViewKanbanIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -91,6 +110,7 @@ interface Project {
   newOrCarryOver?: string;
   submittedById?: number;
   domainManagerId?: number;
+  rank?: number;
   isActive: boolean;
   domain?: {
     id: number;
@@ -156,6 +176,173 @@ interface DomainImpact {
   };
 }
 
+// Kanban Card Component
+interface KanbanCardProps {
+  project: Project;
+  onEdit: (project: Project) => void;
+}
+
+const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      'Planning': '#2196f3',
+      'In Progress': '#ff9800',
+      'On Hold': '#9e9e9e',
+      'Completed': '#4caf50',
+      'Cancelled': '#f44336',
+    };
+    return colors[status] || '#757575';
+  };
+
+  const getPriorityColor = (priority: string) => {
+    const colors: Record<string, string> = {
+      'Critical': '#d32f2f',
+      'High': '#f57c00',
+      'Medium': '#fbc02d',
+      'Low': '#388e3c',
+    };
+    return colors[priority] || '#757575';
+  };
+
+  const getHealthColor = (health?: string) => {
+    const colors: Record<string, string> = {
+      'Green': '#4caf50',
+      'Yellow': '#fbc02d',
+      'Red': '#f44336',
+    };
+    return colors[health || 'Green'] || '#757575';
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      sx={{
+        cursor: 'grab',
+        '&:active': { cursor: 'grabbing' },
+        '&:hover': { boxShadow: 3 },
+        bgcolor: 'white',
+      }}
+    >
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1, mr: 1 }}>
+            {project.name}
+          </Typography>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(project); }}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        {project.projectNumber && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            #{project.projectNumber}
+          </Typography>
+        )}
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+          <Chip
+            label={project.status}
+            size="small"
+            sx={{
+              bgcolor: getStatusColor(project.status),
+              color: 'white',
+              fontSize: '0.7rem',
+              height: 20,
+            }}
+          />
+          <Chip
+            label={project.priority}
+            size="small"
+            sx={{
+              bgcolor: getPriorityColor(project.priority),
+              color: 'white',
+              fontSize: '0.7rem',
+              height: 20,
+            }}
+          />
+          {project.healthStatus && (
+            <Chip
+              label={project.healthStatus}
+              size="small"
+              sx={{
+                bgcolor: getHealthColor(project.healthStatus),
+                color: 'white',
+                fontSize: '0.7rem',
+                height: 20,
+              }}
+            />
+          )}
+        </Box>
+
+        {project.currentPhase && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Phase: {project.currentPhase}
+          </Typography>
+        )}
+
+        {project.fiscalYear && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            FY: {project.fiscalYear}
+          </Typography>
+        )}
+
+        {project.domain && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Domain: {project.domain.name}
+          </Typography>
+        )}
+
+        <Box sx={{ mt: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              Progress
+            </Typography>
+            <Typography variant="caption" fontWeight="bold">
+              {project.progress}%
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={project.progress}
+            sx={{
+              height: 6,
+              borderRadius: 1,
+              bgcolor: 'grey.200',
+              '& .MuiLinearProgress-bar': {
+                bgcolor: project.progress >= 75 ? '#4caf50' : project.progress >= 50 ? '#ff9800' : '#2196f3',
+              },
+            }}
+          />
+        </Box>
+
+        {project.budget && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+            Budget: ${project.budget.toLocaleString()}
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const ProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -170,7 +357,9 @@ const ProjectManagement = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'gantt' | 'kanban'>('list');
+  const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'domain' | 'fiscalYear' | 'priority' | 'healthStatus' | 'currentPhase'>('status');
+  const [activeId, setActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [allDomainImpacts, setAllDomainImpacts] = useState<DomainImpact[]>([]);
@@ -592,6 +781,127 @@ const ProjectManagement = () => {
     return markers;
   };
 
+  // Kanban Helper Functions
+  const getKanbanGroupValue = (project: Project): string => {
+    switch (kanbanGroupBy) {
+      case 'status':
+        return project.status || 'No Status';
+      case 'domain':
+        return project.domain?.name || 'No Domain';
+      case 'fiscalYear':
+        return project.fiscalYear || 'No Fiscal Year';
+      case 'priority':
+        return project.priority || 'No Priority';
+      case 'healthStatus':
+        return project.healthStatus || 'No Health Status';
+      case 'currentPhase':
+        return project.currentPhase || 'No Phase';
+      default:
+        return 'Ungrouped';
+    }
+  };
+
+  const groupedProjects = filteredProjects.reduce((groups, project) => {
+    const groupValue = getKanbanGroupValue(project);
+    if (!groups[groupValue]) {
+      groups[groupValue] = [];
+    }
+    groups[groupValue].push(project);
+    return groups;
+  }, {} as Record<string, Project[]>);
+
+  // Sort projects within each group by rank
+  Object.keys(groupedProjects).forEach(group => {
+    groupedProjects[group].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const activeId = active.id as number;
+    const overId = over.id as number;
+
+    if (activeId === overId) return;
+
+    const activeProject = projects.find(p => p.id === activeId);
+    const overProject = projects.find(p => p.id === overId);
+
+    if (!activeProject || !overProject) return;
+
+    const activeGroup = getKanbanGroupValue(activeProject);
+    const overGroup = getKanbanGroupValue(overProject);
+
+    // Reorder projects
+    const updatedProjects = [...projects];
+    const activeIndex = updatedProjects.findIndex(p => p.id === activeId);
+    const overIndex = updatedProjects.findIndex(p => p.id === overId);
+
+    const [removed] = updatedProjects.splice(activeIndex, 1);
+
+    // If moving to different group, update the project's group field
+    if (activeGroup !== overGroup) {
+      switch (kanbanGroupBy) {
+        case 'status':
+          removed.status = overGroup;
+          break;
+        case 'priority':
+          removed.priority = overGroup;
+          break;
+        case 'healthStatus':
+          removed.healthStatus = overGroup;
+          break;
+        case 'currentPhase':
+          removed.currentPhase = overGroup;
+          break;
+        // domain and fiscalYear are typically not changed via drag-and-drop
+      }
+    }
+
+    updatedProjects.splice(overIndex, 0, removed);
+
+    // Update ranks based on new positions within the group
+    const groupProjects = updatedProjects.filter(p => getKanbanGroupValue(p) === overGroup);
+    const rankedProjects = groupProjects.map((project, index) => ({
+      id: project.id,
+      rank: index,
+    }));
+
+    setProjects(updatedProjects);
+
+    // Persist changes to backend
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Update rank
+      await axios.put(`${API_URL}/projects/bulk-update-ranks`, { projects: rankedProjects }, config);
+
+      // Update group field if changed
+      if (activeGroup !== overGroup) {
+        await axios.put(`${API_URL}/projects/${activeId}`, removed, config);
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      // Revert on error
+      fetchData();
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -653,6 +963,15 @@ const ProjectManagement = () => {
             Gantt
           </Button>
           <Button
+            variant={viewMode === 'kanban' ? 'contained' : 'outlined'}
+            startIcon={<ViewKanbanIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            onClick={() => setViewMode('kanban')}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
+          >
+            Kanban
+          </Button>
+          <Button
             variant="outlined"
             startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={generateProjectTemplate}
@@ -697,7 +1016,7 @@ const ProjectManagement = () => {
         </Box>
       </Box>
 
-      {viewMode === 'list' ? (
+      {viewMode === 'list' && (
         <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
@@ -1061,7 +1380,77 @@ const ProjectManagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
-      ) : (
+      )}
+
+      {viewMode === 'kanban' && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <Box>
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">Kanban Board</Typography>
+              <TextField
+                select
+                size="small"
+                label="Group By"
+                value={kanbanGroupBy}
+                onChange={(e) => setKanbanGroupBy(e.target.value as any)}
+                sx={{ minWidth: 200 }}
+              >
+                <MenuItem value="status">Status</MenuItem>
+                <MenuItem value="domain">Domain</MenuItem>
+                <MenuItem value="fiscalYear">Fiscal Year</MenuItem>
+                <MenuItem value="priority">Priority</MenuItem>
+                <MenuItem value="healthStatus">Health Status</MenuItem>
+                <MenuItem value="currentPhase">Current Phase</MenuItem>
+              </TextField>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+              {Object.entries(groupedProjects).map(([groupName, groupProjects]) => (
+                <Paper
+                  key={groupName}
+                  sx={{
+                    minWidth: 320,
+                    maxWidth: 320,
+                    p: 2,
+                    bgcolor: 'grey.50',
+                    flex: '0 0 auto',
+                  }}
+                >
+                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {groupName}
+                    </Typography>
+                    <Chip label={groupProjects.length} size="small" color="primary" />
+                  </Box>
+
+                  <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {groupProjects.map((project) => (
+                        <KanbanCard key={project.id} project={project} onEdit={handleOpenDialog} />
+                      ))}
+                    </Box>
+                  </SortableContext>
+                </Paper>
+              ))}
+            </Box>
+          </Box>
+
+          <DragOverlay>
+            {activeId ? (
+              <Box sx={{ opacity: 0.8 }}>
+                <KanbanCard project={projects.find(p => p.id === activeId)!} onEdit={handleOpenDialog} />
+              </Box>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
+
+      {viewMode === 'gantt' && (
         <Paper sx={{ p: 2, overflowX: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">

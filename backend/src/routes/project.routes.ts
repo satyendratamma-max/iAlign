@@ -7,6 +7,7 @@ import {
   deleteProject,
   getProjectStats,
   getDashboardMetrics,
+  bulkUpdateProjectRanks,
 } from '../controllers/project.controller';
 
 const router = Router();
@@ -16,6 +17,7 @@ router.get('/stats', getProjectStats);
 router.get('/dashboard/metrics', getDashboardMetrics);
 router.get('/:id', getProjectById);
 router.post('/', createProject);
+router.put('/bulk-update-ranks', bulkUpdateProjectRanks);
 router.put('/:id', updateProject);
 router.delete('/:id', deleteProject);
 

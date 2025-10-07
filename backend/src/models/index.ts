@@ -15,7 +15,6 @@ import Technology from './Technology';
 import Role from './Role';
 import ResourceCapability from './ResourceCapability';
 import ProjectRequirement from './ProjectRequirement';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import ProjectDomainImpact from './ProjectDomainImpact';
 
 // SegmentFunction Associations

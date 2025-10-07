@@ -229,3 +229,30 @@ export const getDashboardMetrics = async (_req: Request, res: Response, next: Ne
     next(error);
   }
 };
+
+export const bulkUpdateProjectRanks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { projects } = req.body;
+
+    if (!Array.isArray(projects)) {
+      throw new ValidationError('projects must be an array');
+    }
+
+    // Update each project's rank
+    await Promise.all(
+      projects.map((project: { id: number; rank: number }) =>
+        Project.update(
+          { rank: project.rank },
+          { where: { id: project.id } }
+        )
+      )
+    );
+
+    res.json({
+      success: true,
+      message: 'Project ranks updated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
