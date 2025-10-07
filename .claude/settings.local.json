@@ -29,7 +29,15 @@
       "Bash(git commit:*)",
       "Bash(python3:*)",
       "Bash(awk:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git tag:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(lsof:*)",
+      "Bash(ps:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

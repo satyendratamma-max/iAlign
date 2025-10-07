@@ -584,6 +584,18 @@ const MilestonesOverview = () => {
             ))}
           </TableBody>
         </Table>
+        {filteredMilestones.length === 0 && (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h6" color="text.secondary">
+              No milestones found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {milestones.length === 0
+                ? 'Click "Add Milestone" to create one'
+                : 'Try adjusting your filters'}
+            </Typography>
+          </Box>
+        )}
       </TableContainer>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>

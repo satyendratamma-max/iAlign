@@ -18,7 +18,7 @@ export const getAllMilestones = async (req: Request, res: Response) => {
         {
           model: Project,
           as: 'project',
-          attributes: ['id', 'name', 'status'],
+          attributes: ['id', 'name', 'status', 'fiscalYear'],
         },
         {
           model: User,

@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import app from './app';
 import sequelize, { testConnection, syncDatabase } from './config/database';
 import logger from './config/logger';
+// Import models to initialize associations
+import './models/index';
 
 // Load environment variables
 dotenv.config();

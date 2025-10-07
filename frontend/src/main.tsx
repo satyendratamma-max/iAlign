@@ -7,6 +7,8 @@ import App from './App';
 import store from './store';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './index.css';
+// Configure global axios interceptors for auto-logout on 401
+import './config/axiosConfig';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
