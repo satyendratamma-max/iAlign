@@ -42,10 +42,19 @@ interface Domain {
   description?: string;
 }
 
+interface Project {
+  id: number;
+  segmentFunctionId?: number;
+  budget?: number;
+  actualCost?: number;
+  forecastedCost?: number;
+}
+
 const SegmentFunctionList = () => {
   const { domainId } = useParams<{ domainId: string }>();
   const navigate = useNavigate();
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [domain, setDomain] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -64,12 +73,14 @@ const SegmentFunctionList = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainRes, segmentFunctionsRes] = await Promise.all([
+      const [domainRes, segmentFunctionsRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
         axios.get(`${API_URL}/segment-functions`, config),
+        axios.get(`${API_URL}/projects`, config),
       ]);
 
       setDomain(domainRes.data.data);
+      setProjects(projectsRes.data.data);
       // Filter segment functions by domainId
       const domainSegmentFunctions = segmentFunctionsRes.data.data.filter(
         (p: SegmentFunction) => p.domainId === parseInt(domainId!)
@@ -80,6 +91,17 @@ const SegmentFunctionList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateTotalValue = (segmentFunctionId: number) => {
+    const segmentProjects = projects.filter(
+      (project) => project.segmentFunctionId === segmentFunctionId
+    );
+
+    return segmentProjects.reduce(
+      (sum, project) => sum + (project.budget || project.forecastedCost || project.actualCost || 0),
+      0
+    );
   };
 
   const handleOpenDialog = () => {
@@ -207,7 +229,7 @@ const SegmentFunctionList = () => {
                       Total Value
                     </Typography>
                     <Typography variant="h6">
-                      {formatCurrency(segmentFunction.totalValue)}
+                      {formatCurrency(calculateTotalValue(segmentFunction.id))}
                     </Typography>
                   </Box>
 
