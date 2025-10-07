@@ -104,6 +104,12 @@ const SegmentFunctionList = () => {
     );
   };
 
+  const getProjectCount = (segmentFunctionId: number) => {
+    return projects.filter(
+      (project) => project.segmentFunctionId === segmentFunctionId
+    ).length;
+  };
+
   const handleOpenDialog = () => {
     setOpenDialog(true);
   };
@@ -224,13 +230,23 @@ const SegmentFunctionList = () => {
                     </Typography>
                   )}
 
-                  <Box mt={2}>
-                    <Typography variant="caption" color="text.secondary">
-                      Total Value
-                    </Typography>
-                    <Typography variant="h6">
-                      {formatCurrency(calculateTotalValue(segmentFunction.id))}
-                    </Typography>
+                  <Box display="flex" gap={2} mt={2}>
+                    <Box flex={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        Projects
+                      </Typography>
+                      <Typography variant="h6">
+                        {getProjectCount(segmentFunction.id)}
+                      </Typography>
+                    </Box>
+                    <Box flex={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Value
+                      </Typography>
+                      <Typography variant="h6">
+                        {formatCurrency(calculateTotalValue(segmentFunction.id))}
+                      </Typography>
+                    </Box>
                   </Box>
 
                   {segmentFunction.roiIndex !== undefined && (
