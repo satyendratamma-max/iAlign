@@ -18,7 +18,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+        <Header onMenuClick={toggleSidebar} />
         <Box
           component="main"
           sx={{

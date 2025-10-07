@@ -24,7 +24,6 @@ import {
   People,
   PersonAdd,
   Login,
-  TrendingUp,
 } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';

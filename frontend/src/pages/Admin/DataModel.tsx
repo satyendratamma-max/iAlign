@@ -41,6 +41,29 @@ interface TabPanelProps {
   value: number;
 }
 
+interface Field {
+  name: string;
+  type: string;
+  required: boolean;
+  primaryKey?: boolean;
+  unique?: boolean;
+  foreignKey?: string;
+  default?: any;
+  description: string;
+}
+
+interface Entity {
+  name: string;
+  table: string;
+  description: string;
+  fields: Field[];
+  relationships: Array<{
+    type: string;
+    target: string;
+    description: string;
+  }>;
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
   return (
@@ -62,7 +85,7 @@ const DataModel = () => {
     setExpanded(isExpanded ? panel : '');
   };
 
-  const entities = [
+  const entities: Entity[] = [
     {
       name: 'Users',
       table: 'Users',
@@ -593,7 +616,7 @@ const DataModel = () => {
       {/* Tab 3: Architecture */}
       <TabPanel value={tabValue} index={2}>
         <Grid container spacing={3}>
-          {architectureLayers.map((layer, index) => (
+          {architectureLayers.map((layer, _index) => (
             <Grid item xs={12} md={6} key={layer.name}>
               <Card
                 sx={{

@@ -31,7 +31,6 @@ import {
   Delete as DeleteIcon,
   Upload as UploadIcon,
   Download as DownloadIcon,
-  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';

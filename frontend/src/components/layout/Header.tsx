@@ -9,11 +9,7 @@ import {
   Chip,
   Tooltip,
   Badge,
-  useTheme,
   Typography,
-  Divider,
-  ListItemIcon,
-  ListItemText,
 } from '@mui/material';
 import {
   Notifications,
@@ -47,17 +43,15 @@ interface Notification {
 
 interface HeaderProps {
   onMenuClick: () => void;
-  sidebarOpen: boolean;
 }
 
-const Header = ({ onMenuClick, sidebarOpen }: HeaderProps) => {
+const Header = ({ onMenuClick }: HeaderProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { mode, toggleColorMode } = useThemeMode();
-  const theme = useTheme();
 
   useEffect(() => {
     // Only fetch notifications if user is authenticated

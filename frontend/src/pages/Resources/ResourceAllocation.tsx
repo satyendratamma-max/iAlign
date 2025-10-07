@@ -108,6 +108,12 @@ const ResourceAllocation = () => {
   });
   const [selectedResourceCapabilities, setSelectedResourceCapabilities] = useState<Capability[]>([]);
   const [selectedProjectRequirements, setSelectedProjectRequirements] = useState<Requirement[]>([]);
+  const [filters, setFilters] = useState({
+    resource: '',
+    project: [] as string[],
+    allocationType: [] as string[],
+    matchScore: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -138,6 +144,16 @@ const ResourceAllocation = () => {
     if (allocation) {
       setEditMode(true);
       setCurrentAllocation(allocation);
+
+      // Pre-populate with existing capability/requirement if available
+      if (allocation.resourceCapability) {
+        setSelectedResourceCapabilities([allocation.resourceCapability]);
+      }
+      if (allocation.projectRequirement) {
+        setSelectedProjectRequirements([allocation.projectRequirement]);
+      }
+
+      // Load all capabilities/requirements for the resource/project
       if (allocation.resourceId) {
         loadResourceCapabilities(allocation.resourceId);
       }
@@ -170,8 +186,15 @@ const ResourceAllocation = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get(`${API_URL}/resource-capabilities/resource/${resourceId}`, config);
-      setSelectedResourceCapabilities(res.data.data || []);
+      const res = await axios.get(`${API_URL}/resource-capabilities?resourceId=${resourceId}`, config);
+      const capabilities = res.data.data || [];
+
+      // Merge with existing capabilities to avoid duplicates
+      setSelectedResourceCapabilities((prev) => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const newCapabilities = capabilities.filter((c: Capability) => !existingIds.has(c.id));
+        return [...prev, ...newCapabilities];
+      });
     } catch (err) {
       console.error('Error loading resource capabilities:', err);
     }
@@ -182,7 +205,14 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const res = await axios.get(`${API_URL}/project-requirements/project/${projectId}`, config);
-      setSelectedProjectRequirements(res.data.data || []);
+      const requirements = res.data.data || [];
+
+      // Merge with existing requirements to avoid duplicates
+      setSelectedProjectRequirements((prev) => {
+        const existingIds = new Set(prev.map(r => r.id));
+        const newRequirements = requirements.filter((r: Requirement) => !existingIds.has(r.id));
+        return [...prev, ...newRequirements];
+      });
     } catch (err) {
       console.error('Error loading project requirements:', err);
     }
@@ -190,11 +220,13 @@ const ResourceAllocation = () => {
 
   const handleResourceChange = (resourceId: number) => {
     setCurrentAllocation({ ...currentAllocation, resourceId, resourceCapabilityId: undefined });
+    setSelectedResourceCapabilities([]); // Clear previous capabilities
     loadResourceCapabilities(resourceId);
   };
 
   const handleProjectChange = (projectId: number) => {
     setCurrentAllocation({ ...currentAllocation, projectId, projectRequirementId: undefined });
+    setSelectedProjectRequirements([]); // Clear previous requirements
     loadProjectRequirements(projectId);
   };
 
@@ -285,6 +317,24 @@ const ResourceAllocation = () => {
   const poorMatchAllocations = allocations.filter(
     (a) => a.matchScore && a.matchScore < 60
   );
+
+  // Filter allocations based on current filters
+  const filteredAllocations = allocations.filter((allocation) => {
+    const resourceName = `${allocation.resource?.firstName || ''} ${allocation.resource?.lastName || ''}`.toLowerCase();
+    const projectName = (allocation.project?.name || '').toLowerCase();
+
+    return (
+      resourceName.includes(filters.resource.toLowerCase()) &&
+      (filters.project.length === 0 || filters.project.includes(allocation.project?.name || '')) &&
+      (filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType)) &&
+      (filters.matchScore === '' ||
+        (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
+        (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
+        (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
+        (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40)
+      )
+    );
+  });
 
   if (loading) {
     return (
@@ -400,9 +450,81 @@ const ResourceAllocation = () => {
                   <TableCell>Timeline</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
+                {/* Filter Row */}
+                <TableRow>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      placeholder="Filter by name"
+                      value={filters.resource}
+                      onChange={(e) => setFilters({ ...filters, resource: e.target.value })}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      placeholder="All"
+                      value={filters.project}
+                      onChange={(e) => setFilters({ ...filters, project: e.target.value as unknown as string[] })}
+                      SelectProps={{
+                        multiple: true,
+                        renderValue: (selected) =>
+                          (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                      }}
+                      fullWidth
+                    >
+                      {projects.map((project) => (
+                        <MenuItem key={project.id} value={project.name}>
+                          {project.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      value={filters.matchScore}
+                      onChange={(e) => setFilters({ ...filters, matchScore: e.target.value })}
+                      fullWidth
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      <MenuItem value="excellent">Excellent (80+)</MenuItem>
+                      <MenuItem value="good">Good (60-79)</MenuItem>
+                      <MenuItem value="fair">Fair (40-59)</MenuItem>
+                      <MenuItem value="poor">Poor (&lt;40)</MenuItem>
+                    </TextField>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      placeholder="All"
+                      value={filters.allocationType}
+                      onChange={(e) => setFilters({ ...filters, allocationType: e.target.value as unknown as string[] })}
+                      SelectProps={{
+                        multiple: true,
+                        renderValue: (selected) =>
+                          (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                      }}
+                      fullWidth
+                    >
+                      <MenuItem value="Shared">Shared</MenuItem>
+                      <MenuItem value="Dedicated">Dedicated</MenuItem>
+                      <MenuItem value="On-Demand">On-Demand</MenuItem>
+                    </TextField>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell />
+                </TableRow>
               </TableHead>
               <TableBody>
-                {allocations.length === 0 ? (
+                {filteredAllocations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} align="center">
                       <Typography variant="body2" color="text.secondary" py={3}>
@@ -411,7 +533,7 @@ const ResourceAllocation = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  allocations.map((allocation) => (
+                  filteredAllocations.map((allocation) => (
                     <TableRow
                       key={allocation.id}
                       hover
@@ -621,7 +743,12 @@ const ResourceAllocation = () => {
                 select
                 fullWidth
                 label="Resource Capability"
-                value={currentAllocation.resourceCapabilityId || ''}
+                value={
+                  currentAllocation.resourceCapabilityId &&
+                  selectedResourceCapabilities.some(c => c.id === currentAllocation.resourceCapabilityId)
+                    ? currentAllocation.resourceCapabilityId
+                    : ''
+                }
                 onChange={(e) =>
                   setCurrentAllocation({
                     ...currentAllocation,
@@ -644,7 +771,12 @@ const ResourceAllocation = () => {
                 select
                 fullWidth
                 label="Project Requirement"
-                value={currentAllocation.projectRequirementId || ''}
+                value={
+                  currentAllocation.projectRequirementId &&
+                  selectedProjectRequirements.some(r => r.id === currentAllocation.projectRequirementId)
+                    ? currentAllocation.projectRequirementId
+                    : ''
+                }
                 onChange={(e) =>
                   setCurrentAllocation({
                     ...currentAllocation,

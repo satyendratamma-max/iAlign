@@ -14,8 +14,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Divider,
   Alert,
 } from '@mui/material';
 import {
@@ -161,8 +159,8 @@ const Dashboard = () => {
           return { ...resource, totalAllocation };
         });
 
-        const overAllocated = resourceUtilization.filter(r => r.totalAllocation > 100).length;
-        const available = resourceUtilization.filter(r => r.totalAllocation < 80).length;
+        const overAllocated = resourceUtilization.filter((r: any) => r.totalAllocation > 100).length;
+        const available = resourceUtilization.filter((r: any) => r.totalAllocation < 80).length;
         const avgUtil = resourceUtilization.length > 0
           ? resourceUtilization.reduce((sum: number, r: any) => sum + r.totalAllocation, 0) / resourceUtilization.length
           : 0;
@@ -196,7 +194,7 @@ const Dashboard = () => {
             avgProgress: Math.round(avgProg),
             healthScore: Math.round(healthScore),
           };
-        }).filter(d => d.projectCount > 0);
+        }).filter((d: DomainPerformance) => d.projectCount > 0);
 
         setDomainPerformance(domainPerf);
 

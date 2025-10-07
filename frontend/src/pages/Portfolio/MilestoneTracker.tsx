@@ -20,7 +20,6 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Tooltip,
 } from '@mui/material';
 import {
   Edit as EditIcon,

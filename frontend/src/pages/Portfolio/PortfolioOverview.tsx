@@ -266,7 +266,7 @@ const PortfolioOverview = () => {
                 label="Domain"
                 value={currentSegmentFunction.domainId || ''}
                 onChange={(e) =>
-                  setCurrentSegmentFunction({ ...currentSegmentFunction, domainId: e.target.value as number })
+                  setCurrentSegmentFunction({ ...currentSegmentFunction, domainId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>

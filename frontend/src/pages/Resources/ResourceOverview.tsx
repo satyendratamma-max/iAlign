@@ -522,7 +522,7 @@ const ResourceOverview = () => {
                 label="Domain"
                 value={currentResource.domainId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, domainId: e.target.value as number })
+                  setCurrentResource({ ...currentResource, domainId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -540,7 +540,7 @@ const ResourceOverview = () => {
                 label="Segment Function"
                 value={currentResource.segmentFunctionId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, segmentFunctionId: e.target.value as number })
+                  setCurrentResource({ ...currentResource, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>

@@ -11,8 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
   CircularProgress,
   LinearProgress,
 } from '@mui/material';
@@ -105,13 +103,6 @@ const CapacityDashboard = () => {
     high: resources.filter(r => (r.utilizationRate || 0) >= 85).length,
     medium: resources.filter(r => (r.utilizationRate || 0) >= 70 && (r.utilizationRate || 0) < 85).length,
     low: resources.filter(r => (r.utilizationRate || 0) < 70).length,
-  };
-
-  const getUtilizationColor = (rate?: number) => {
-    if (!rate) return 'default';
-    if (rate >= 85) return 'success';
-    if (rate >= 70) return 'primary';
-    return 'warning';
   };
 
   const formatCurrency = (value: number) => {

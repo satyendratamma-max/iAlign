@@ -23,7 +23,7 @@ export const getAllResourceCapabilities = async (req: Request, res: Response, ne
         {
           model: Resource,
           as: 'resource',
-          attributes: ['id', 'name', 'employeeId'],
+          attributes: ['id', 'firstName', 'lastName', 'employeeId'],
           required: false,
         },
         {
@@ -66,7 +66,7 @@ export const getResourceCapabilityById = async (req: Request, res: Response, nex
         {
           model: Resource,
           as: 'resource',
-          attributes: ['id', 'name', 'employeeId'],
+          attributes: ['id', 'firstName', 'lastName', 'employeeId'],
           required: false,
         },
         {

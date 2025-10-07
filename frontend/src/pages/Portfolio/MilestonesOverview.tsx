@@ -612,7 +612,7 @@ const MilestonesOverview = () => {
                 onChange={(e) =>
                   setCurrentMilestone({
                     ...currentMilestone,
-                    projectId: e.target.value as number,
+                    projectId: e.target.value ? Number(e.target.value) : undefined,
                   })
                 }
               >
@@ -704,7 +704,7 @@ const MilestonesOverview = () => {
                 label="Owner"
                 value={currentMilestone.ownerId || ''}
                 onChange={(e) =>
-                  setCurrentMilestone({ ...currentMilestone, ownerId: e.target.value as number })
+                  setCurrentMilestone({ ...currentMilestone, ownerId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>

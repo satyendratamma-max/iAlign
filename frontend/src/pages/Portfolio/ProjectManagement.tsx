@@ -20,9 +20,6 @@ import {
   Grid,
   LinearProgress,
   MenuItem,
-  Tabs,
-  Tab,
-  FormControlLabel,
   Checkbox,
   IconButton,
 } from '@mui/material';
@@ -112,6 +109,7 @@ interface SegmentFunction {
 }
 
 interface Resource {
+  allocationId: number;
   id: number;
   employeeId: string;
   firstName?: string;
@@ -149,7 +147,6 @@ const ProjectManagement = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
-  const [dialogTab, setDialogTab] = useState(0);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
@@ -255,23 +252,44 @@ const ProjectManagement = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Filter allocations by project ID and map to resources
+      // Filter allocations by project ID
       const projectAllocations = response.data.data.filter(
         (allocation: any) => allocation.projectId === project.id
       );
 
-      const resources = projectAllocations.map((allocation: any) => ({
-        id: allocation.resource?.id,
-        employeeId: allocation.resource?.employeeId,
-        firstName: allocation.resource?.firstName,
-        lastName: allocation.resource?.lastName,
-        email: allocation.resource?.email,
-        role: allocation.resource?.role,
-        primarySkill: allocation.resource?.primarySkill,
-        allocationPercentage: allocation.allocationPercentage,
-        roleOnProject: allocation.roleOnProject,
-      }));
+      // Group allocations by resource ID to avoid duplicates
+      const resourceMap = new Map();
+      projectAllocations.forEach((allocation: any) => {
+        const resourceId = allocation.resource?.id;
+        if (!resourceId) return;
 
+        if (resourceMap.has(resourceId)) {
+          // Resource already exists, sum allocation percentage
+          const existing = resourceMap.get(resourceId);
+          existing.allocationPercentage += allocation.allocationPercentage || 0;
+
+          // Collect multiple roles if different
+          if (allocation.roleOnProject && !existing.roleOnProject.includes(allocation.roleOnProject)) {
+            existing.roleOnProject += `, ${allocation.roleOnProject}`;
+          }
+        } else {
+          // First time seeing this resource
+          resourceMap.set(resourceId, {
+            allocationId: allocation.id,
+            id: allocation.resource?.id,
+            employeeId: allocation.resource?.employeeId,
+            firstName: allocation.resource?.firstName,
+            lastName: allocation.resource?.lastName,
+            email: allocation.resource?.email,
+            role: allocation.resource?.role,
+            primarySkill: allocation.resource?.primarySkill,
+            allocationPercentage: allocation.allocationPercentage || 0,
+            roleOnProject: allocation.roleOnProject || '-',
+          });
+        }
+      });
+
+      const resources = Array.from(resourceMap.values());
       setProjectResources(resources);
     } catch (error) {
       console.error('Error fetching project resources:', error);
@@ -619,7 +637,7 @@ const ProjectManagement = () => {
                   select
                   placeholder="All"
                   value={filters.domain}
-                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) =>
@@ -641,7 +659,7 @@ const ProjectManagement = () => {
                   select
                   placeholder="All"
                   value={filters.segmentFunction}
-                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) =>
@@ -672,7 +690,7 @@ const ProjectManagement = () => {
                   select
                   placeholder="All"
                   value={filters.fiscalYear}
-                  onChange={(e) => setFilters({ ...filters, fiscalYear: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, fiscalYear: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) =>
@@ -694,7 +712,7 @@ const ProjectManagement = () => {
                   select
                   placeholder="All"
                   value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) =>
@@ -759,7 +777,7 @@ const ProjectManagement = () => {
                   select
                   placeholder="All"
                   value={filters.health}
-                  onChange={(e) => setFilters({ ...filters, health: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, health: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) =>
@@ -947,7 +965,7 @@ const ProjectManagement = () => {
                   fullWidth
                   label="Domain"
                   value={filters.domain}
-                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) => (
@@ -975,7 +993,7 @@ const ProjectManagement = () => {
                   fullWidth
                   label="Segment Function"
                   value={filters.segmentFunction}
-                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) => (
@@ -1003,7 +1021,7 @@ const ProjectManagement = () => {
                   fullWidth
                   label="Status"
                   value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) => (
@@ -1045,7 +1063,7 @@ const ProjectManagement = () => {
                   fullWidth
                   label="Health Status"
                   value={filters.health}
-                  onChange={(e) => setFilters({ ...filters, health: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, health: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) => (
@@ -1079,7 +1097,7 @@ const ProjectManagement = () => {
                   fullWidth
                   label="Fiscal Year"
                   value={filters.fiscalYear}
-                  onChange={(e) => setFilters({ ...filters, fiscalYear: e.target.value as string[] })}
+                  onChange={(e) => setFilters({ ...filters, fiscalYear: e.target.value as unknown as string[] })}
                   SelectProps={{
                     multiple: true,
                     renderValue: (selected) => (
@@ -1360,7 +1378,7 @@ const ProjectManagement = () => {
                 label="Domain"
                 value={currentProject.domainId || ''}
                 onChange={(e) =>
-                  setCurrentProject({ ...currentProject, domainId: e.target.value as number })
+                  setCurrentProject({ ...currentProject, domainId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -1378,7 +1396,7 @@ const ProjectManagement = () => {
                 label="Segment Function"
                 value={currentProject.segmentFunctionId || ''}
                 onChange={(e) =>
-                  setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value as number })
+                  setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -1525,7 +1543,7 @@ const ProjectManagement = () => {
                 </TableHead>
                 <TableBody>
                   {projectResources.map((resource) => (
-                    <TableRow key={resource.id}>
+                    <TableRow key={resource.allocationId}>
                       <TableCell>{resource.employeeId}</TableCell>
                       <TableCell>
                         {resource.firstName} {resource.lastName}

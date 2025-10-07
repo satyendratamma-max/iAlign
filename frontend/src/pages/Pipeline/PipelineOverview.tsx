@@ -11,7 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Chip,
   CircularProgress,
   LinearProgress,
@@ -241,7 +240,7 @@ const PipelineOverview = () => {
                       <Typography>{health}</Typography>
                     </Box>
                     <Chip
-                      label={count}
+                      label={String(count)}
                       size="small"
                       color={getHealthColor(health) as any}
                     />

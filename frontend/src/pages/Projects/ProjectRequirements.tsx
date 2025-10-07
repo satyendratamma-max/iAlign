@@ -361,9 +361,11 @@ const ProjectRequirements = () => {
               </Typography>
               <CapabilityBuilder
                 value={{
-                  appId: currentRequirement.appId,
-                  technologyId: currentRequirement.technologyId,
-                  roleId: currentRequirement.roleId,
+                  appId: currentRequirement.appId || 0,
+                  technologyId: currentRequirement.technologyId || 0,
+                  roleId: currentRequirement.roleId || 0,
+                  proficiencyLevel: 'Intermediate',
+                  isPrimary: true,
                 }}
                 onChange={(capability) => {
                   setCurrentRequirement({

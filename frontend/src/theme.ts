@@ -145,7 +145,7 @@ export const getDesignTokens = (mode: PaletteMode) => ({
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: 'none' as const,
           borderRadius: 10,
           fontWeight: 600,
           padding: '10px 20px',
@@ -153,16 +153,16 @@ export const getDesignTokens = (mode: PaletteMode) => ({
           '&:hover': {
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           },
-        },
+        } as any,
         sizeSmall: {
           padding: '6px 12px',
           fontSize: '0.8125rem',
-        },
+        } as any,
         contained: {
           '&:hover': {
             boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
           },
-        },
+        } as any,
       },
     },
     MuiCard: {
