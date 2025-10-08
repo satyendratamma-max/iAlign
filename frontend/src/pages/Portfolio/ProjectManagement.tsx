@@ -1160,10 +1160,11 @@ const ProjectManagement = () => {
     const relevantMilestones = milestones.filter(m => filteredProjectIds.includes(m.projectId));
 
     filteredProjects.forEach(project => {
-      if (project.startDate) allDates.push(new Date(project.startDate));
-      if (project.endDate) allDates.push(new Date(project.endDate));
-      if (project.desiredStartDate) allDates.push(new Date(project.desiredStartDate));
-      if (project.desiredCompletionDate) allDates.push(new Date(project.desiredCompletionDate));
+      // Only use actual dates, not desired dates, to avoid empty timeline space
+      const projectStart = project.startDate || project.desiredStartDate;
+      const projectEnd = project.endDate || project.desiredCompletionDate;
+      if (projectStart) allDates.push(new Date(projectStart));
+      if (projectEnd) allDates.push(new Date(projectEnd));
     });
 
     relevantMilestones.forEach(milestone => {
@@ -2959,7 +2960,13 @@ const ProjectManagement = () => {
               <Box>
                 {/* Timeline Header */}
                 <Box sx={{ display: 'flex' }}>
-                  <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1 }} />
+                  <Box sx={{
+                    width: swimlaneConfig.enabled
+                      ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                      : ganttSidebarWidth,
+                    flexShrink: 0,
+                    pr: 1
+                  }} />
                   <Box sx={{ flex: 1, position: 'relative', height: 35, mb: 1, borderBottom: '2px solid #e0e0e0' }}>
                     {monthMarkers.map((marker, idx) => (
                       <Box
@@ -3321,6 +3328,21 @@ const ProjectManagement = () => {
                                   >
                                     {level2Key}
                                   </Typography>
+
+                                  {/* Grid line overlays to match project rows */}
+                                  {projects.slice(0, -1).map((_, idx) => (
+                                    <Box
+                                      key={`level2-grid-${idx}`}
+                                      sx={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        right: 0,
+                                        top: (idx + 1) * 32,
+                                        height: 0,
+                                        borderTop: '1px dotted #e0e0e0',
+                                      }}
+                                    />
+                                  ))}
                                 </Box>
 
                                 {/* Level 3 Project Names Column */}
