@@ -470,9 +470,11 @@ const seedDatabase = async () => {
         const numImpacts = Math.floor(Math.random() * 2) + 1; // 1-2 cross-domain impacts
         const availableDomains = domains.filter(d => d.id !== project.domainId);
 
-        for (let i = 0; i < numImpacts && i < availableDomains.length; i++) {
-          const impactedDomain = availableDomains[Math.floor(Math.random() * availableDomains.length)];
+        // Shuffle and take unique domains to avoid duplicates
+        const shuffled = availableDomains.sort(() => 0.5 - Math.random());
+        const selectedDomains = shuffled.slice(0, Math.min(numImpacts, shuffled.length));
 
+        for (const impactedDomain of selectedDomains) {
           await ProjectDomainImpact.create({
             projectId: project.id,
             domainId: impactedDomain.id,

@@ -16,6 +16,7 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
     // 1. Delete junction/association tables first
     await sequelize.query('DELETE FROM ResourceAllocations', { transaction });
     await sequelize.query('DELETE FROM ProjectPipelines', { transaction });
+    await sequelize.query('DELETE FROM ProjectDomainImpacts', { transaction });
 
     // 2. Delete dependent entities
     await sequelize.query('DELETE FROM Milestones', { transaction });
