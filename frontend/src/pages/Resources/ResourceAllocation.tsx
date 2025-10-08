@@ -68,13 +68,24 @@ interface Resource {
   employeeId: string;
   firstName?: string;
   lastName?: string;
+  domainId?: number;
   capabilities?: Capability[];
+  domain?: {
+    id: number;
+    name: string;
+  };
 }
 
 interface Project {
   id: number;
   name: string;
   status: string;
+  domainId?: number;
+  businessDecision?: string;
+  domain?: {
+    id: number;
+    name: string;
+  };
 }
 
 interface Allocation {
@@ -94,10 +105,16 @@ interface Allocation {
   projectRequirement?: Requirement;
 }
 
+interface Domain {
+  id: number;
+  name: string;
+}
+
 const ResourceAllocation = () => {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
@@ -113,6 +130,8 @@ const ResourceAllocation = () => {
     project: [] as string[],
     allocationType: [] as string[],
     matchScore: '',
+    domainId: '',
+    businessDecision: '',
   });
 
   useEffect(() => {
@@ -124,15 +143,17 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [allocationsRes, resourcesRes, projectsRes] = await Promise.all([
+      const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/allocations`, config),
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/domains`, config),
       ]);
 
       setAllocations(allocationsRes.data.data || []);
       setResources(resourcesRes.data.data || []);
       setProjects(projectsRes.data.data || []);
+      setDomains(domainsRes.data.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
@@ -318,22 +339,97 @@ const ResourceAllocation = () => {
     (a) => a.matchScore && a.matchScore < 60
   );
 
-  // Filter allocations based on current filters
+  // Calculate cross-domain metrics
+  const calculateCrossDomainMetrics = () => {
+    if (filters.domainId === '' && filters.businessDecision === '') {
+      return { outboundCrossDomain: 0, inboundCrossDomain: 0 };
+    }
+
+    // Resources from selected domain working in other domains (outbound)
+    const outboundCrossDomain = allocations.filter((allocation) => {
+      const resourceInSelectedDomain = filters.domainId !== '' &&
+        allocation.resource?.domainId?.toString() === filters.domainId;
+      const projectInDifferentDomain = allocation.project?.domainId?.toString() !== filters.domainId;
+
+      const resourceMatchesBusinessDecision = filters.businessDecision !== '' &&
+        allocation.resource?.domainId !== undefined &&
+        projects.find(p => p.domainId === allocation.resource?.domainId)?.businessDecision === filters.businessDecision;
+      const projectDifferentBusinessDecision = allocation.project?.businessDecision !== filters.businessDecision;
+
+      if (filters.domainId !== '' && filters.businessDecision !== '') {
+        return (resourceInSelectedDomain && projectInDifferentDomain) ||
+               (resourceMatchesBusinessDecision && projectDifferentBusinessDecision);
+      } else if (filters.domainId !== '') {
+        return resourceInSelectedDomain && projectInDifferentDomain;
+      } else {
+        return resourceMatchesBusinessDecision && projectDifferentBusinessDecision;
+      }
+    });
+
+    // Resources from other domains working in selected domain (inbound)
+    const inboundCrossDomain = allocations.filter((allocation) => {
+      const projectInSelectedDomain = filters.domainId !== '' &&
+        allocation.project?.domainId?.toString() === filters.domainId;
+      const resourceFromDifferentDomain = allocation.resource?.domainId?.toString() !== filters.domainId;
+
+      const projectMatchesBusinessDecision = filters.businessDecision !== '' &&
+        allocation.project?.businessDecision === filters.businessDecision;
+      const resourceFromDifferentBusinessDecision = allocation.resource?.domainId !== undefined &&
+        projects.find(p => p.domainId === allocation.resource?.domainId)?.businessDecision !== filters.businessDecision;
+
+      if (filters.domainId !== '' && filters.businessDecision !== '') {
+        return (projectInSelectedDomain && resourceFromDifferentDomain) ||
+               (projectMatchesBusinessDecision && resourceFromDifferentBusinessDecision);
+      } else if (filters.domainId !== '') {
+        return projectInSelectedDomain && resourceFromDifferentDomain;
+      } else {
+        return projectMatchesBusinessDecision && resourceFromDifferentBusinessDecision;
+      }
+    });
+
+    return {
+      outboundCrossDomain: new Set(outboundCrossDomain.map(a => a.resourceId)).size,
+      inboundCrossDomain: new Set(inboundCrossDomain.map(a => a.resourceId)).size,
+    };
+  };
+
+  const { outboundCrossDomain, inboundCrossDomain } = calculateCrossDomainMetrics();
+
+  // Filter allocations based on current filters with cross-domain logic
   const filteredAllocations = allocations.filter((allocation) => {
     const resourceName = `${allocation.resource?.firstName || ''} ${allocation.resource?.lastName || ''}`.toLowerCase();
-    const projectName = (allocation.project?.name || '').toLowerCase();
 
-    return (
-      resourceName.includes(filters.resource.toLowerCase()) &&
-      (filters.project.length === 0 || filters.project.includes(allocation.project?.name || '')) &&
-      (filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType)) &&
-      (filters.matchScore === '' ||
-        (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
-        (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
-        (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
-        (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40)
-      )
-    );
+    // Basic filters
+    const matchesResourceName = resourceName.includes(filters.resource.toLowerCase());
+    const matchesProject = filters.project.length === 0 || filters.project.includes(allocation.project?.name || '');
+    const matchesAllocationType = filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType);
+    const matchesScore = filters.matchScore === '' ||
+      (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
+      (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
+      (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
+      (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40);
+
+    // Cross-domain filtering logic
+    let matchesDomain = true;
+    let matchesBusinessDecision = true;
+
+    if (filters.domainId !== '' || filters.businessDecision !== '') {
+      const projectMatchesDomain = filters.domainId === '' || allocation.project?.domainId?.toString() === filters.domainId;
+      const projectMatchesBusinessDecision = filters.businessDecision === '' || allocation.project?.businessDecision === filters.businessDecision;
+
+      // Show allocation if:
+      // 1. Project matches the filter (normal case)
+      // 2. OR resource from selected domain is working on other domain projects (cross-domain outbound)
+      // 3. OR resource from other domain is working on selected domain projects (cross-domain inbound)
+
+      const projectMatchesFilter = projectMatchesDomain && projectMatchesBusinessDecision;
+      const resourceMatchesDomain = filters.domainId === '' || allocation.resource?.domainId?.toString() === filters.domainId;
+
+      matchesDomain = projectMatchesFilter || resourceMatchesDomain;
+      matchesBusinessDecision = projectMatchesBusinessDecision || resourceMatchesDomain;
+    }
+
+    return matchesResourceName && matchesProject && matchesAllocationType && matchesScore && matchesDomain && matchesBusinessDecision;
   });
 
   if (loading) {
@@ -428,6 +524,42 @@ const ResourceAllocation = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Cross-Domain Metrics - Only show when domain or business decision filter is active */}
+        {(filters.domainId !== '' || filters.businessDecision !== '') && (
+          <>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'info.lighter' }}>
+                <CardContent>
+                  <Typography color="text.secondary" gutterBottom variant="body2">
+                    Resources Working Cross-Domain
+                  </Typography>
+                  <Typography variant="h4" color="info.main">
+                    {outboundCrossDomain}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    From selected filter working in other domains
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'secondary.lighter' }}>
+                <CardContent>
+                  <Typography color="text.secondary" gutterBottom variant="body2">
+                    External Resources Contributing
+                  </Typography>
+                  <Typography variant="h4" color="secondary.main">
+                    {inboundCrossDomain}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    From other domains working in selected filter
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
       </Grid>
 
       {/* Allocations Table */}
@@ -441,7 +573,10 @@ const ResourceAllocation = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Resource</TableCell>
+                  <TableCell>Resource Domain</TableCell>
                   <TableCell>Project</TableCell>
+                  <TableCell>Project Domain</TableCell>
+                  <TableCell>Business Decision</TableCell>
                   <TableCell>Resource Capability</TableCell>
                   <TableCell>Project Requirement</TableCell>
                   <TableCell>Match Score</TableCell>
@@ -466,6 +601,23 @@ const ResourceAllocation = () => {
                       select
                       size="small"
                       placeholder="All"
+                      value={filters.domainId}
+                      onChange={(e) => setFilters({ ...filters, domainId: e.target.value })}
+                      fullWidth
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      {domains.map((domain) => (
+                        <MenuItem key={domain.id} value={domain.id.toString()}>
+                          {domain.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      placeholder="All"
                       value={filters.project}
                       onChange={(e) => setFilters({ ...filters, project: e.target.value as unknown as string[] })}
                       SelectProps={{
@@ -478,6 +630,24 @@ const ResourceAllocation = () => {
                       {projects.map((project) => (
                         <MenuItem key={project.id} value={project.name}>
                           {project.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      placeholder="All"
+                      value={filters.businessDecision}
+                      onChange={(e) => setFilters({ ...filters, businessDecision: e.target.value })}
+                      fullWidth
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                        <MenuItem key={decision} value={decision!}>
+                          {decision}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -526,14 +696,18 @@ const ResourceAllocation = () => {
               <TableBody>
                 {filteredAllocations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={12} align="center">
                       <Typography variant="body2" color="text.secondary" py={3}>
                         No allocations found
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAllocations.map((allocation) => (
+                  filteredAllocations.map((allocation) => {
+                    // Check if this is a cross-domain allocation
+                    const isCrossDomain = allocation.resource?.domainId !== allocation.project?.domainId;
+
+                    return (
                     <TableRow
                       key={allocation.id}
                       hover
@@ -541,6 +715,8 @@ const ResourceAllocation = () => {
                         bgcolor:
                           allocation.matchScore && allocation.matchScore < 60
                             ? 'error.lighter'
+                            : isCrossDomain
+                            ? 'info.lighter'
                             : 'inherit',
                       }}
                     >
@@ -553,6 +729,20 @@ const ResourceAllocation = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
+                        <Typography variant="body2">
+                          {allocation.resource?.domain?.name || '-'}
+                        </Typography>
+                        {isCrossDomain && (
+                          <Chip
+                            label="Cross-Domain"
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ mt: 0.5 }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2">{allocation.project?.name}</Typography>
                         <Chip
                           label={allocation.project?.status}
@@ -561,6 +751,16 @@ const ResourceAllocation = () => {
                           variant="outlined"
                           sx={{ mt: 0.5 }}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {allocation.project?.domain?.name || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {allocation.project?.businessDecision || '-'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         {allocation.resourceCapability ? (
@@ -661,7 +861,8 @@ const ResourceAllocation = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

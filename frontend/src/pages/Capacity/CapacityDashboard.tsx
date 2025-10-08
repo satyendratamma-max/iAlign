@@ -13,11 +13,9 @@ import {
   TableRow,
   CircularProgress,
   LinearProgress,
-  FormControl,
-  Select,
-  MenuItem,
-  InputLabel,
 } from '@mui/material';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector } from '../../hooks/redux';
 import {
   People,
   TrendingUp,
@@ -53,10 +51,9 @@ interface Domain {
 }
 
 const CapacityDashboard = () => {
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [resources, setResources] = useState<Resource[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
-  const [domains, setDomains] = useState<Domain[]>([]);
-  const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,25 +62,22 @@ const CapacityDashboard = () => {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [resourcesRes, allocationsRes, domainsRes] = await Promise.all([
+        const [resourcesRes, allocationsRes] = await Promise.all([
           axios.get(`${API_URL}/resources`, config),
           axios.get(`${API_URL}/allocations`, config),
-          axios.get(`${API_URL}/domains`, config),
         ]);
 
         const allResources = resourcesRes.data.data || [];
         const allAllocations = allocationsRes.data.data || [];
 
-        setDomains(domainsRes.data.data || []);
-
         // Filter resources by domain if selected
-        const filteredResources = selectedDomainId === 'all'
+        const filteredResources = selectedDomainIds.length === 0
           ? allResources
-          : allResources.filter((r: Resource) => r.domainId === selectedDomainId);
+          : allResources.filter((r: Resource) => selectedDomainIds.includes(r.domainId || 0));
 
         // Filter allocations to match filtered resources
         const filteredResourceIds = filteredResources.map((r: Resource) => r.id);
-        const filteredAllocations = selectedDomainId === 'all'
+        const filteredAllocations = selectedDomainIds.length === 0
           ? allAllocations
           : allAllocations.filter((a: Allocation) => filteredResourceIds.includes(a.resourceId));
 
@@ -97,7 +91,7 @@ const CapacityDashboard = () => {
     };
 
     fetchData();
-  }, [selectedDomainId]);
+  }, [selectedDomainIds, selectedBusinessDecisions]);
 
   if (loading) {
     return (
@@ -153,22 +147,7 @@ const CapacityDashboard = () => {
             Unified capacity planning with predictive analytics
           </Typography>
         </Box>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="capacity-domain-filter-label">Filter by Domain</InputLabel>
-          <Select
-            labelId="capacity-domain-filter-label"
-            value={selectedDomainId}
-            label="Filter by Domain"
-            onChange={(e) => setSelectedDomainId(e.target.value as number | 'all')}
-          >
-            <MenuItem value="all">All Domains</MenuItem>
-            {domains.map((domain) => (
-              <MenuItem key={domain.id} value={domain.id}>
-                {domain.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SharedFilters />
       </Box>
 
       {/* Summary Cards */}

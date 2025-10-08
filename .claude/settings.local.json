@@ -37,7 +37,12 @@
       "Bash(git ls-tree:*)",
       "Bash(lsof:*)",
       "Bash(ps:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(pkill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

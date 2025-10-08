@@ -12,7 +12,7 @@ export interface ProjectAttributes {
   functionality?: string;
   status: string;
   priority: string;
-  businessDecision?: string;
+  businessDecision: string;
   businessPriority?: string;
   type?: string;
   fiscalYear?: string;
@@ -66,7 +66,7 @@ class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare functionality?: string;
   declare status: string;
   declare priority: string;
-  declare businessDecision?: string;
+  declare businessDecision: string;
   declare businessPriority?: string;
   declare type?: string;
   declare fiscalYear?: string;
@@ -157,7 +157,8 @@ Project.init(
     },
     businessDecision: {
       type: DataTypes.STRING(100),
-      allowNull: true,
+      allowNull: false,
+      defaultValue: 'Pending',
     },
     businessPriority: {
       type: DataTypes.STRING(50),

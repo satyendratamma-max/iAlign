@@ -67,6 +67,12 @@ interface Project {
   id: number;
   name: string;
   fiscalYear?: string;
+  domainId?: number;
+  businessDecision?: string;
+  domain?: {
+    id: number;
+    name: string;
+  };
 }
 
 interface User {
@@ -77,10 +83,16 @@ interface User {
   role: string;
 }
 
+interface Domain {
+  id: number;
+  name: string;
+}
+
 const MilestonesOverview = () => {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -89,6 +101,8 @@ const MilestonesOverview = () => {
     project: '',
     status: '',
     owner: '',
+    domainId: '',
+    businessDecision: '',
   });
 
   useEffect(() => {
@@ -100,15 +114,17 @@ const MilestonesOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [milestonesRes, projectsRes, usersRes] = await Promise.all([
+      const [milestonesRes, projectsRes, usersRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/milestones`, config),
         axios.get(`${API_URL}/projects`, config),
         axios.get(`${API_URL}/users`, config),
+        axios.get(`${API_URL}/domains`, config),
       ]);
 
       setMilestones(milestonesRes.data.data);
       setProjects(projectsRes.data.data);
       setUsers(usersRes.data.data || []);
+      setDomains(domainsRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -336,10 +352,14 @@ const MilestonesOverview = () => {
       ? `${milestone.owner.firstName} ${milestone.owner.lastName}`.toLowerCase()
       : '';
 
+    const project = projects.find(p => p.id === milestone.projectId);
+
     return (
       (filters.project === '' || milestone.project?.name === filters.project) &&
       (filters.status === '' || milestone.status === filters.status) &&
-      (filters.owner === '' || ownerName.includes(filters.owner.toLowerCase()))
+      (filters.owner === '' || ownerName.includes(filters.owner.toLowerCase())) &&
+      (filters.domainId === '' || project?.domainId?.toString() === filters.domainId) &&
+      (filters.businessDecision === '' || project?.businessDecision === filters.businessDecision)
     );
   });
 
@@ -441,6 +461,8 @@ const MilestonesOverview = () => {
             <TableRow>
               <TableCell sx={{ minWidth: 180 }}>Milestone Name</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Project</TableCell>
+              <TableCell sx={{ minWidth: 130 }}>Domain</TableCell>
+              <TableCell sx={{ minWidth: 140 }}>Business Decision</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Status</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Due Date</TableCell>
@@ -462,6 +484,40 @@ const MilestonesOverview = () => {
                   {projects.map((project) => (
                     <MenuItem key={project.id} value={project.name}>
                       {project.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  select
+                  placeholder="All"
+                  value={filters.domainId}
+                  onChange={(e) => setFilters({ ...filters, domainId: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.id.toString()}>
+                      {domain.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  select
+                  placeholder="All"
+                  value={filters.businessDecision}
+                  onChange={(e) => setFilters({ ...filters, businessDecision: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                    <MenuItem key={decision} value={decision!}>
+                      {decision}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -514,6 +570,23 @@ const MilestonesOverview = () => {
                   <Typography variant="body2">{milestone.project?.name}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {milestone.project?.fiscalYear}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {(() => {
+                      const project = projects.find(p => p.id === milestone.projectId);
+                      const domain = domains.find(d => d.id === project?.domainId);
+                      return domain?.name || '-';
+                    })()}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {(() => {
+                      const project = projects.find(p => p.id === milestone.projectId);
+                      return project?.businessDecision || '-';
+                    })()}
                   </Typography>
                 </TableCell>
                 <TableCell>

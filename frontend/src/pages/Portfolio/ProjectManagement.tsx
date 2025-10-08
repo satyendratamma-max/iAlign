@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Typography,
   Box,
@@ -26,6 +26,9 @@ import {
   Tab,
   Card,
   CardContent,
+  Snackbar,
+  Alert,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,9 +43,21 @@ import {
   Clear as ClearIcon,
   Hub as HubIcon,
   ViewKanban as ViewKanbanIcon,
+  Undo as UndoIcon,
+  AccountTree as DependencyIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector, useAppDispatch } from '../../hooks/redux';
+import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
+import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
+import {
+  getAllDependencies,
+  createDependency,
+  deleteDependency,
+  ProjectDependency
+} from '../../services/dependencyService';
 import {
   DndContext,
   DragEndEvent,
@@ -344,6 +359,9 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
 };
 
 const ProjectManagement = () => {
+  // Redux state
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
@@ -357,7 +375,10 @@ const ProjectManagement = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'gantt' | 'kanban'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'gantt' | 'kanban'>(() => {
+    const saved = localStorage.getItem('projectManagementViewMode');
+    return (saved as 'list' | 'gantt' | 'kanban') || 'list';
+  });
   const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'domain' | 'fiscalYear' | 'priority' | 'healthStatus' | 'currentPhase'>('status');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
@@ -366,7 +387,6 @@ const ProjectManagement = () => {
   const [filters, setFilters] = useState({
     projectNumber: '',
     name: '',
-    domain: [] as string[],
     segmentFunction: [] as string[],
     type: '',
     fiscalYear: [] as string[],
@@ -376,6 +396,52 @@ const ProjectManagement = () => {
     health: [] as string[],
     impactedDomain: [] as string[],
   });
+
+  // Drag and Drop State
+  const [draggingItem, setDraggingItem] = useState<{
+    type: 'project' | 'milestone';
+    operation?: 'move' | 'resize-left' | 'resize-right';
+    id: number;
+    projectId?: number;
+    initialX: number;
+    initialDates: {
+      startDate?: Date;
+      endDate?: Date;
+      plannedEndDate?: Date;
+    };
+    dateRange?: { start: Date; end: Date };
+    containerWidth?: number;
+  } | null>(null);
+  const [tempPositions, setTempPositions] = useState<{
+    [key: string]: { left: string; width?: string };
+  }>({});
+
+  // Undo State
+  const [lastAction, setLastAction] = useState<{
+    type: 'project-move' | 'project-resize' | 'milestone-move';
+    entityId: number;
+    entityType: 'project' | 'milestone';
+    beforeState: {
+      projectDates?: { startDate: Date; endDate: Date };
+      milestoneDates?: { [milestoneId: number]: { startDate?: Date; endDate: Date } };
+      milestoneDate?: Date;
+    };
+    afterState: {
+      projectDates?: { startDate: Date; endDate: Date };
+      milestoneDates?: { [milestoneId: number]: { startDate?: Date; endDate: Date } };
+      milestoneDate?: Date;
+    };
+    description: string;
+  } | null>(null);
+  const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
+
+  // Dependencies State
+  const [dependencies, setDependencies] = useState<ProjectDependency[]>([]);
+  const [openDependencyManagerDialog, setOpenDependencyManagerDialog] = useState(false);
+  const [openDependencyCreateDialog, setOpenDependencyCreateDialog] = useState(false);
+  const [cpmData, setCpmData] = useState<{ nodes: Map<string, any>; criticalPath: string[] }>({ nodes: new Map(), criticalPath: [] });
+  const [timelineWidth, setTimelineWidth] = useState<number>(1000);
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
     try {
@@ -395,6 +461,10 @@ const ProjectManagement = () => {
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setMilestones(milestonesRes.data.data || []);
       setAllDomainImpacts(impactsRes.data.data || []);
+
+      // Fetch dependencies
+      const dependenciesData = await getAllDependencies();
+      setDependencies(dependenciesData);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -405,6 +475,223 @@ const ProjectManagement = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Calculate Critical Path when data changes
+  useEffect(() => {
+    if (projects.length > 0 && dependencies.length > 0) {
+      const result = calculateCriticalPath();
+      setCpmData(result);
+    }
+  }, [projects, milestones, dependencies]);
+
+  // Measure timeline width after render using ResizeObserver
+  useEffect(() => {
+    const measureWidth = () => {
+      const containers = document.querySelectorAll('[id^="timeline-container-"]');
+      if (containers.length > 0) {
+        const firstContainer = containers[0] as HTMLElement;
+        const width = firstContainer.offsetWidth;
+        if (width > 0) {
+          setTimelineWidth(width);
+        }
+      }
+    };
+
+    // Initial measurement with multiple attempts
+    const timeouts = [
+      setTimeout(measureWidth, 50),
+      setTimeout(measureWidth, 150),
+      setTimeout(measureWidth, 300),
+    ];
+
+    // Use ResizeObserver to track changes
+    const resizeObserver = new ResizeObserver(() => {
+      measureWidth();
+    });
+
+    if (ganttContainerRef.current) {
+      resizeObserver.observe(ganttContainerRef.current);
+    }
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+      resizeObserver.disconnect();
+    };
+  }, [projects, filters, selectedDomainIds, selectedBusinessDecisions]);
+
+  // Keyboard listener for undo (Ctrl+Z / Cmd+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && lastAction && viewMode === 'gantt') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lastAction, viewMode]);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('projectManagementViewMode', viewMode);
+  }, [viewMode]);
+
+  // Drag Event Handlers useEffect
+  useEffect(() => {
+    if (!draggingItem) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingItem.dateRange || !draggingItem.containerWidth) return;
+
+      const deltaX = e.clientX - draggingItem.initialX;
+      const { dateRange, containerWidth } = draggingItem;
+
+      if (draggingItem.type === 'project') {
+        const totalMs = dateRange.end.getTime() - dateRange.start.getTime();
+        const pixelPerMs = containerWidth / totalMs;
+        const msDelta = deltaX / pixelPerMs;
+
+        if (draggingItem.operation === 'resize-left') {
+          // Resize from left - adjust start date only
+          const newStartDate = new Date(draggingItem.initialDates.startDate!.getTime() + msDelta);
+          const newEndDate = draggingItem.initialDates.endDate!;
+
+          // Prevent start date from going past end date
+          if (newStartDate >= newEndDate) return;
+
+          const newLeft = calculatePosition(newStartDate, dateRange.start, dateRange.end);
+          const newWidth = calculateWidth(newStartDate, newEndDate, dateRange.start, dateRange.end);
+
+          setTempPositions({
+            [`project-${draggingItem.id}`]: { left: `${newLeft}%`, width: `${newWidth}%` }
+          });
+        } else if (draggingItem.operation === 'resize-right') {
+          // Resize from right - adjust end date only
+          const newStartDate = draggingItem.initialDates.startDate!;
+          const newEndDate = new Date(draggingItem.initialDates.endDate!.getTime() + msDelta);
+
+          // Prevent end date from going before start date
+          if (newEndDate <= newStartDate) return;
+
+          const newLeft = calculatePosition(newStartDate, dateRange.start, dateRange.end);
+          const newWidth = calculateWidth(newStartDate, newEndDate, dateRange.start, dateRange.end);
+
+          setTempPositions({
+            [`project-${draggingItem.id}`]: { left: `${newLeft}%`, width: `${newWidth}%` }
+          });
+        } else {
+          // Move operation - shift both dates
+          const newStartDate = new Date(draggingItem.initialDates.startDate!.getTime() + msDelta);
+          const newEndDate = new Date(draggingItem.initialDates.endDate!.getTime() + msDelta);
+
+          const newLeft = calculatePosition(newStartDate, dateRange.start, dateRange.end);
+          const newWidth = calculateWidth(newStartDate, newEndDate, dateRange.start, dateRange.end);
+
+          setTempPositions({
+            [`project-${draggingItem.id}`]: { left: `${newLeft}%`, width: `${newWidth}%` }
+          });
+        }
+      } else if (draggingItem.type === 'milestone') {
+        // Calculate new date for milestone
+        const totalMs = dateRange.end.getTime() - dateRange.start.getTime();
+        const pixelPerMs = containerWidth / totalMs;
+        const msDelta = deltaX / pixelPerMs;
+
+        const newDate = new Date(draggingItem.initialDates.plannedEndDate!.getTime() + msDelta);
+
+        // Apply constraints
+        const { previous, next } = getAdjacentMilestones(draggingItem.projectId!, draggingItem.id);
+        const constrainedDate = constrainDate(newDate, previous, next);
+
+        const newLeft = calculatePosition(constrainedDate, dateRange.start, dateRange.end);
+        setTempPositions({
+          [`milestone-${draggingItem.id}`]: { left: `${newLeft}%` }
+        });
+      }
+    };
+
+    const handleMouseUp = async () => {
+      if (!draggingItem || !draggingItem.dateRange || !draggingItem.containerWidth) {
+        setDraggingItem(null);
+        setTempPositions({});
+        return;
+      }
+
+      const deltaX = window.event ? (window.event as MouseEvent).clientX - draggingItem.initialX : 0;
+      const { dateRange, containerWidth } = draggingItem;
+      const totalMs = dateRange.end.getTime() - dateRange.start.getTime();
+      const pixelPerMs = containerWidth / totalMs;
+      const msDelta = deltaX / pixelPerMs;
+
+      if (draggingItem.type === 'project') {
+        if (draggingItem.operation === 'resize-left' || draggingItem.operation === 'resize-right') {
+          // Handle resize operation
+          let newStartDate: Date;
+          let newEndDate: Date;
+
+          if (draggingItem.operation === 'resize-left') {
+            newStartDate = new Date(draggingItem.initialDates.startDate!.getTime() + msDelta);
+            newEndDate = draggingItem.initialDates.endDate!;
+
+            // Prevent start date from going past end date
+            if (newStartDate >= newEndDate) {
+              setDraggingItem(null);
+              setTempPositions({});
+              return;
+            }
+          } else {
+            newStartDate = draggingItem.initialDates.startDate!;
+            newEndDate = new Date(draggingItem.initialDates.endDate!.getTime() + msDelta);
+
+            // Prevent end date from going before start date
+            if (newEndDate <= newStartDate) {
+              setDraggingItem(null);
+              setTempPositions({});
+              return;
+            }
+          }
+
+          await updateProjectDatesWithResize(
+            draggingItem.id,
+            draggingItem.initialDates.startDate!,
+            draggingItem.initialDates.endDate!,
+            newStartDate,
+            newEndDate
+          );
+        } else {
+          // Handle move operation
+          const newStartDate = new Date(draggingItem.initialDates.startDate!.getTime() + msDelta);
+          const newEndDate = new Date(draggingItem.initialDates.endDate!.getTime() + msDelta);
+          const daysDelta = getTimeDeltaDays(draggingItem.initialDates.startDate!, newStartDate);
+
+          if (Math.abs(daysDelta) > 0) {
+            await updateProjectDates(draggingItem.id, newStartDate, newEndDate, daysDelta);
+          }
+        }
+      } else if (draggingItem.type === 'milestone') {
+        const newDate = new Date(draggingItem.initialDates.plannedEndDate!.getTime() + msDelta);
+        const { previous, next } = getAdjacentMilestones(draggingItem.projectId!, draggingItem.id);
+        const constrainedDate = constrainDate(newDate, previous, next);
+        const daysDelta = getTimeDeltaDays(draggingItem.initialDates.plannedEndDate!, constrainedDate);
+
+        if (Math.abs(daysDelta) > 0) {
+          await updateMilestoneDate(draggingItem.id, constrainedDate);
+        }
+      }
+
+      setDraggingItem(null);
+      setTempPositions({});
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingItem, milestones]);
 
   const handleOpenDialog = async (project?: Project) => {
     if (project) {
@@ -517,6 +804,57 @@ const ProjectManagement = () => {
       } catch (error) {
         console.error('Error deleting project:', error);
       }
+    }
+  };
+
+  // Dependency Dialog Handlers
+  const handleOpenDependencyManagerDialog = () => {
+    setOpenDependencyManagerDialog(true);
+  };
+
+  const handleCloseDependencyManagerDialog = () => {
+    setOpenDependencyManagerDialog(false);
+  };
+
+  const handleOpenDependencyCreateDialog = () => {
+    setOpenDependencyCreateDialog(true);
+  };
+
+  const handleCloseDependencyCreateDialog = () => {
+    setOpenDependencyCreateDialog(false);
+  };
+
+  const handleSaveDependency = async (dependencyData: DependencyFormData) => {
+    try {
+      await createDependency(dependencyData);
+
+      // Refresh dependencies list
+      const updatedDependencies = await getAllDependencies();
+      setDependencies(updatedDependencies);
+
+      alert('Dependency created successfully!');
+    } catch (error: any) {
+      console.error('Error creating dependency:', error);
+      throw error; // Re-throw to let dialog handle it
+    }
+  };
+
+  const handleDeleteDependency = async (dependencyId: number) => {
+    if (!window.confirm('Are you sure you want to delete this dependency?')) {
+      return;
+    }
+
+    try {
+      await deleteDependency(dependencyId);
+
+      // Refresh dependencies list
+      const updatedDependencies = await getAllDependencies();
+      setDependencies(updatedDependencies);
+
+      alert('Dependency deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting dependency:', error);
+      alert('Failed to delete dependency. Please try again.');
     }
   };
 
@@ -671,12 +1009,13 @@ const ProjectManagement = () => {
     return (
       (project.projectNumber || '').toLowerCase().includes(filters.projectNumber.toLowerCase()) &&
       project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
-      (filters.domain.length === 0 || filters.domain.includes(project.domain?.name || '')) &&
+      (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
       (filters.segmentFunction.length === 0 || filters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
       (filters.type === '' || (project.type || '').toLowerCase().includes(filters.type.toLowerCase())) &&
       (filters.fiscalYear.length === 0 || filters.fiscalYear.includes(project.fiscalYear || '')) &&
       (filters.status.length === 0 || filters.status.includes(project.status)) &&
       (filters.priority === '' || project.priority === filters.priority) &&
+      (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
       (filters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(filters.currentPhase.toLowerCase())) &&
       (filters.health.length === 0 || filters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain
@@ -779,6 +1118,738 @@ const ProjectManagement = () => {
     }
 
     return markers;
+  };
+
+  // Drag and Drop Helper Functions
+  const pixelToDate = (pixelX: number, containerWidth: number, dateRange: { start: Date; end: Date }) => {
+    const percentage = (pixelX / containerWidth) * 100;
+    const totalMs = dateRange.end.getTime() - dateRange.start.getTime();
+    return new Date(dateRange.start.getTime() + (percentage / 100) * totalMs);
+  };
+
+  const getTimeDeltaDays = (originalDate: Date, newDate: Date) => {
+    return Math.round((newDate.getTime() - originalDate.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const getAdjacentMilestones = (projectId: number, milestoneId: number) => {
+    const projectMilestones = milestones
+      .filter(m => m.projectId === projectId && m.plannedEndDate)
+      .sort((a, b) => new Date(a.plannedEndDate!).getTime() - new Date(b.plannedEndDate!).getTime());
+
+    const index = projectMilestones.findIndex(m => m.id === milestoneId);
+    return {
+      previous: index > 0 ? projectMilestones[index - 1] : null,
+      next: index < projectMilestones.length - 1 ? projectMilestones[index + 1] : null,
+    };
+  };
+
+  const constrainDate = (date: Date, previousMilestone: Milestone | null, nextMilestone: Milestone | null) => {
+    let constrainedDate = new Date(date);
+
+    if (previousMilestone && previousMilestone.plannedEndDate) {
+      const prevDate = new Date(previousMilestone.plannedEndDate);
+      if (constrainedDate <= prevDate) {
+        constrainedDate = new Date(prevDate.getTime() + 24 * 60 * 60 * 1000); // 1 day after previous
+      }
+    }
+
+    if (nextMilestone && nextMilestone.plannedEndDate) {
+      const nextDate = new Date(nextMilestone.plannedEndDate);
+      if (constrainedDate >= nextDate) {
+        constrainedDate = new Date(nextDate.getTime() - 24 * 60 * 60 * 1000); // 1 day before next
+      }
+    }
+
+    return constrainedDate;
+  };
+
+  const handleUndo = async () => {
+    if (!lastAction) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      if (lastAction.type === 'project-move' || lastAction.type === 'project-resize') {
+        // Undo project changes
+        const { startDate, endDate } = lastAction.beforeState.projectDates!;
+        await axios.put(`${API_URL}/projects/${lastAction.entityId}`, {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        }, config);
+
+        // Undo milestone changes if any
+        if (lastAction.beforeState.milestoneDates) {
+          await Promise.all(Object.entries(lastAction.beforeState.milestoneDates).map(([milestoneId, dates]) => {
+            return axios.put(`${API_URL}/milestones/${milestoneId}`, {
+              plannedEndDate: dates.endDate.toISOString(),
+              plannedStartDate: dates.startDate ? dates.startDate.toISOString() : undefined,
+            }, config);
+          }));
+        }
+      } else if (lastAction.type === 'milestone-move') {
+        // Undo milestone change
+        await axios.put(`${API_URL}/milestones/${lastAction.entityId}`, {
+          plannedEndDate: lastAction.beforeState.milestoneDate!.toISOString(),
+        }, config);
+      }
+
+      setLastAction(null);
+      setShowUndoSnackbar(false);
+      await fetchData();
+    } catch (error) {
+      console.error('Error undoing action:', error);
+      alert('Failed to undo action. Please try again.');
+    }
+  };
+
+  const updateProjectDates = async (projectId: number, startDate: Date, endDate: Date, daysDelta: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Get old dates before update
+      const project = projects.find(p => p.id === projectId);
+      const oldStartDate = project ? new Date(project.startDate || project.desiredStartDate || new Date()) : new Date();
+      const oldEndDate = project ? new Date(project.endDate || project.desiredCompletionDate || new Date()) : new Date();
+
+      // Update project
+      await axios.put(`${API_URL}/projects/${projectId}`, {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      }, config);
+
+      // Update all milestones for this project
+      const projectMilestones = milestones.filter(m => m.projectId === projectId && m.plannedEndDate);
+      await Promise.all(projectMilestones.map(milestone => {
+        const newMilestoneDate = new Date(
+          new Date(milestone.plannedEndDate!).getTime() + daysDelta * 24 * 60 * 60 * 1000
+        );
+        return axios.put(`${API_URL}/milestones/${milestone.id}`, {
+          plannedEndDate: newMilestoneDate.toISOString(),
+          plannedStartDate: milestone.plannedStartDate
+            ? new Date(new Date(milestone.plannedStartDate).getTime() + daysDelta * 24 * 60 * 60 * 1000).toISOString()
+            : undefined,
+        }, config);
+      }));
+
+      // Store undo action
+      const milestoneDates: { [key: number]: { startDate?: Date; endDate: Date } } = {};
+      projectMilestones.forEach(m => {
+        milestoneDates[m.id] = {
+          startDate: m.plannedStartDate ? new Date(m.plannedStartDate) : undefined,
+          endDate: new Date(m.plannedEndDate!),
+        };
+      });
+
+      setLastAction({
+        type: 'project-move',
+        entityId: projectId,
+        entityType: 'project',
+        beforeState: {
+          projectDates: { startDate: oldStartDate, endDate: oldEndDate },
+          milestoneDates,
+        },
+        afterState: {
+          projectDates: { startDate, endDate },
+          milestoneDates: Object.fromEntries(
+            projectMilestones.map(m => [
+              m.id,
+              {
+                startDate: m.plannedStartDate ? new Date(new Date(m.plannedStartDate).getTime() + daysDelta * 24 * 60 * 60 * 1000) : undefined,
+                endDate: new Date(new Date(m.plannedEndDate!).getTime() + daysDelta * 24 * 60 * 60 * 1000),
+              }
+            ])
+          ),
+        },
+        description: `Moved project timeline`,
+      });
+      setShowUndoSnackbar(true);
+
+      // Adjust dependent projects based on start point change
+      await adjustDependentProjects('project', projectId, oldStartDate, startDate, 'start');
+
+      // Adjust dependent projects based on end point change
+      await adjustDependentProjects('project', projectId, oldEndDate, endDate, 'end');
+
+      // Refresh data
+      await fetchData();
+    } catch (error) {
+      console.error('Error updating project dates:', error);
+      alert('Failed to update project dates. Please try again.');
+    }
+  };
+
+  const updateMilestoneDate = async (milestoneId: number, newDate: Date) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Get old date before update
+      const milestone = milestones.find(m => m.id === milestoneId);
+      const oldDate = milestone ? new Date(milestone.plannedEndDate || milestone.actualEndDate || new Date()) : new Date();
+
+      await axios.put(`${API_URL}/milestones/${milestoneId}`, {
+        plannedEndDate: newDate.toISOString(),
+      }, config);
+
+      // Store undo action
+      if (milestone) {
+        setLastAction({
+          type: 'milestone-move',
+          entityId: milestoneId,
+          entityType: 'milestone',
+          beforeState: {
+            milestoneDate: oldDate,
+          },
+          afterState: {
+            milestoneDate: newDate,
+          },
+          description: `Moved milestone "${milestone.name}"`,
+        });
+        setShowUndoSnackbar(true);
+      }
+
+      // Adjust dependent projects/milestones
+      await adjustDependentProjects('milestone', milestoneId, oldDate, newDate, 'end');
+
+      // Refresh data
+      await fetchData();
+    } catch (error) {
+      console.error('Error updating milestone date:', error);
+      alert('Failed to update milestone date. Please try again.');
+    }
+  };
+
+  const updateProjectDatesWithResize = async (
+    projectId: number,
+    oldStartDate: Date,
+    oldEndDate: Date,
+    newStartDate: Date,
+    newEndDate: Date
+  ) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Update project dates
+      await axios.put(`${API_URL}/projects/${projectId}`, {
+        startDate: newStartDate.toISOString(),
+        endDate: newEndDate.toISOString(),
+      }, config);
+
+      // Calculate proportional milestone positions
+      const projectMilestones = milestones.filter(m => m.projectId === projectId && m.plannedEndDate);
+      const oldDuration = oldEndDate.getTime() - oldStartDate.getTime();
+      const newDuration = newEndDate.getTime() - newStartDate.getTime();
+
+      // Update each milestone proportionally
+      await Promise.all(projectMilestones.map(milestone => {
+        const oldMilestoneDate = new Date(milestone.plannedEndDate!);
+
+        // Calculate relative position (0 to 1) in old timeline
+        const relativePosition = (oldMilestoneDate.getTime() - oldStartDate.getTime()) / oldDuration;
+
+        // Apply same relative position to new timeline
+        const newMilestoneDate = new Date(newStartDate.getTime() + (relativePosition * newDuration));
+
+        // Also update start date if it exists
+        let newMilestoneStartDate;
+        if (milestone.plannedStartDate) {
+          const oldMilestoneStartDate = new Date(milestone.plannedStartDate);
+          const relativeStartPosition = (oldMilestoneStartDate.getTime() - oldStartDate.getTime()) / oldDuration;
+          newMilestoneStartDate = new Date(newStartDate.getTime() + (relativeStartPosition * newDuration));
+        }
+
+        return axios.put(`${API_URL}/milestones/${milestone.id}`, {
+          plannedEndDate: newMilestoneDate.toISOString(),
+          plannedStartDate: newMilestoneStartDate ? newMilestoneStartDate.toISOString() : milestone.plannedStartDate,
+        }, config);
+      }));
+
+      // Store undo action
+      const beforeMilestoneDates: { [key: number]: { startDate?: Date; endDate: Date } } = {};
+      const afterMilestoneDates: { [key: number]: { startDate?: Date; endDate: Date } } = {};
+
+      projectMilestones.forEach(m => {
+        const oldDate = new Date(m.plannedEndDate!);
+        const relativePosition = (oldDate.getTime() - oldStartDate.getTime()) / (oldEndDate.getTime() - oldStartDate.getTime());
+        const newDate = new Date(newStartDate.getTime() + (relativePosition * (newEndDate.getTime() - newStartDate.getTime())));
+
+        beforeMilestoneDates[m.id] = {
+          startDate: m.plannedStartDate ? new Date(m.plannedStartDate) : undefined,
+          endDate: oldDate,
+        };
+        afterMilestoneDates[m.id] = {
+          startDate: m.plannedStartDate ? new Date(newStartDate.getTime() + ((new Date(m.plannedStartDate).getTime() - oldStartDate.getTime()) / (oldEndDate.getTime() - oldStartDate.getTime())) * (newEndDate.getTime() - newStartDate.getTime())) : undefined,
+          endDate: newDate,
+        };
+      });
+
+      setLastAction({
+        type: 'project-resize',
+        entityId: projectId,
+        entityType: 'project',
+        beforeState: {
+          projectDates: { startDate: oldStartDate, endDate: oldEndDate },
+          milestoneDates: beforeMilestoneDates,
+        },
+        afterState: {
+          projectDates: { startDate: newStartDate, endDate: newEndDate },
+          milestoneDates: afterMilestoneDates,
+        },
+        description: `Resized project timeline`,
+      });
+      setShowUndoSnackbar(true);
+
+      // Adjust dependent projects based on start point change (if it changed)
+      if (oldStartDate.getTime() !== newStartDate.getTime()) {
+        await adjustDependentProjects('project', projectId, oldStartDate, newStartDate, 'start');
+      }
+
+      // Adjust dependent projects based on end point change (if it changed)
+      if (oldEndDate.getTime() !== newEndDate.getTime()) {
+        await adjustDependentProjects('project', projectId, oldEndDate, newEndDate, 'end');
+      }
+
+      // Refresh data
+      await fetchData();
+    } catch (error) {
+      console.error('Error resizing project:', error);
+      alert('Failed to resize project. Please try again.');
+    }
+  };
+
+  // Dependency Arrow Helper Functions
+  const getEntityPosition = (
+    type: 'project' | 'milestone',
+    id: number,
+    point: 'start' | 'end',
+    dateRange: { start: Date; end: Date }
+  ): { x: number; y: number; rowIndex: number } | null => {
+    const projectIndex = filteredProjects.findIndex(p => p.id === id);
+    if (type === 'project' && projectIndex >= 0) {
+      const project = filteredProjects[projectIndex];
+      const projectStart = project.startDate || project.desiredStartDate;
+      const projectEnd = project.endDate || project.desiredCompletionDate;
+
+      if (!projectStart || !projectEnd) return null;
+
+      const date = point === 'start' ? new Date(projectStart) : new Date(projectEnd);
+      const x = calculatePosition(date, dateRange.start, dateRange.end);
+
+      return { x, y: 16, rowIndex: projectIndex }; // y=16 is middle of 32px row height
+    } else if (type === 'milestone') {
+      const milestone = milestones.find(m => m.id === id);
+      if (!milestone) return null;
+
+      const projectIndex = filteredProjects.findIndex(p => p.id === milestone.projectId);
+      if (projectIndex < 0) return null;
+
+      const milestoneDate = milestone.actualEndDate || milestone.plannedEndDate;
+      if (!milestoneDate) return null;
+
+      const x = calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end);
+      return { x, y: 16, rowIndex: projectIndex }; // y=16 is middle of 32px row height
+    }
+
+    return null;
+  };
+
+  const getDependencyColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      FS: '#1976d2', // Blue
+      SS: '#388e3c', // Green
+      FF: '#f57c00', // Orange
+      SF: '#d32f2f', // Red
+    };
+    return colors[type] || '#757575';
+  };
+
+  const getEntityName = (type: 'project' | 'milestone', id: number): string => {
+    if (type === 'project') {
+      const project = filteredProjects.find(p => p.id === id);
+      return project ? `${project.projectNumber || `PRJ-${project.id}`}` : 'Unknown';
+    } else {
+      const milestone = milestones.find(m => m.id === id);
+      return milestone ? milestone.name : 'Unknown';
+    }
+  };
+
+  // Critical Path Method (CPM) Calculation
+  interface CPMNode {
+    id: string;
+    type: 'project' | 'milestone';
+    entityId: number;
+    earliestStart: Date;
+    earliestFinish: Date;
+    latestStart: Date;
+    latestFinish: Date;
+    slack: number; // in days
+  }
+
+  const calculateCriticalPath = (): { nodes: Map<string, CPMNode>; criticalPath: string[] } => {
+    const nodes = new Map<string, CPMNode>();
+
+    // Initialize nodes for all projects
+    projects.forEach(project => {
+      const startDate = new Date(project.startDate || project.desiredStartDate || new Date());
+      const endDate = new Date(project.endDate || project.desiredCompletionDate || new Date());
+
+      nodes.set(`project-${project.id}`, {
+        id: `project-${project.id}`,
+        type: 'project',
+        entityId: project.id,
+        earliestStart: new Date(startDate),
+        earliestFinish: new Date(endDate),
+        latestStart: new Date(startDate),
+        latestFinish: new Date(endDate),
+        slack: 0,
+      });
+    });
+
+    // Initialize nodes for all milestones
+    milestones.forEach(milestone => {
+      const date = new Date(milestone.plannedEndDate || milestone.actualEndDate || new Date());
+
+      nodes.set(`milestone-${milestone.id}`, {
+        id: `milestone-${milestone.id}`,
+        type: 'milestone',
+        entityId: milestone.id,
+        earliestStart: new Date(date),
+        earliestFinish: new Date(date),
+        latestStart: new Date(date),
+        latestFinish: new Date(date),
+        slack: 0,
+      });
+    });
+
+    // Forward pass: Calculate earliest start/finish
+    dependencies.forEach(dep => {
+      const predKey = `${dep.predecessorType}-${dep.predecessorId}`;
+      const succKey = `${dep.successorType}-${dep.successorId}`;
+
+      const predNode = nodes.get(predKey);
+      const succNode = nodes.get(succKey);
+
+      if (!predNode || !succNode) return;
+
+      // Get predecessor date based on point
+      const predDate = dep.predecessorPoint === 'start'
+        ? new Date(predNode.earliestStart)
+        : new Date(predNode.earliestFinish);
+
+      // Apply lag
+      predDate.setDate(predDate.getDate() + dep.lagDays);
+
+      // Update successor's earliest start if this dependency requires a later start
+      if (dep.successorPoint === 'start') {
+        if (predDate.getTime() > succNode.earliestStart.getTime()) {
+          const duration = succNode.earliestFinish.getTime() - succNode.earliestStart.getTime();
+          succNode.earliestStart = new Date(predDate);
+          succNode.earliestFinish = new Date(predDate.getTime() + duration);
+        }
+      } else {
+        if (predDate.getTime() > succNode.earliestFinish.getTime()) {
+          succNode.earliestFinish = new Date(predDate);
+        }
+      }
+    });
+
+    // Find project end date (maximum earliest finish)
+    let projectEndDate = new Date(0);
+    nodes.forEach(node => {
+      if (node.earliestFinish.getTime() > projectEndDate.getTime()) {
+        projectEndDate = new Date(node.earliestFinish);
+      }
+    });
+
+    // Initialize all latest dates to project end date
+    nodes.forEach(node => {
+      node.latestFinish = new Date(projectEndDate);
+      const duration = node.earliestFinish.getTime() - node.earliestStart.getTime();
+      node.latestStart = new Date(node.latestFinish.getTime() - duration);
+    });
+
+    // Backward pass: Calculate latest start/finish
+    const reversedDeps = [...dependencies].reverse();
+    reversedDeps.forEach(dep => {
+      const predKey = `${dep.predecessorType}-${dep.predecessorId}`;
+      const succKey = `${dep.successorType}-${dep.successorId}`;
+
+      const predNode = nodes.get(predKey);
+      const succNode = nodes.get(succKey);
+
+      if (!predNode || !succNode) return;
+
+      // Get successor date based on point
+      const succDate = dep.successorPoint === 'start'
+        ? new Date(succNode.latestStart)
+        : new Date(succNode.latestFinish);
+
+      // Apply lag (subtract for backward pass)
+      succDate.setDate(succDate.getDate() - dep.lagDays);
+
+      // Update predecessor's latest finish if this dependency requires an earlier finish
+      if (dep.predecessorPoint === 'end') {
+        if (succDate.getTime() < predNode.latestFinish.getTime()) {
+          const duration = predNode.earliestFinish.getTime() - predNode.earliestStart.getTime();
+          predNode.latestFinish = new Date(succDate);
+          predNode.latestStart = new Date(predNode.latestFinish.getTime() - duration);
+        }
+      } else {
+        if (succDate.getTime() < predNode.latestStart.getTime()) {
+          predNode.latestStart = new Date(succDate);
+        }
+      }
+    });
+
+    // Calculate slack for each node
+    nodes.forEach(node => {
+      const slackMs = node.latestStart.getTime() - node.earliestStart.getTime();
+      node.slack = Math.round(slackMs / (1000 * 60 * 60 * 24));
+    });
+
+    // Identify critical path (nodes with zero or near-zero slack)
+    const criticalPath: string[] = [];
+    nodes.forEach(node => {
+      if (node.slack <= 0) {
+        criticalPath.push(node.id);
+      }
+    });
+
+    return { nodes, criticalPath };
+  };
+
+  // Dependency Violation Detection
+  const isDependencyViolated = (dependency: ProjectDependency): boolean => {
+    let predecessorDate: Date | null = null;
+    let successorDate: Date | null = null;
+
+    // Get predecessor date
+    if (dependency.predecessorType === 'project') {
+      const project = projects.find(p => p.id === dependency.predecessorId);
+      if (project) {
+        predecessorDate = dependency.predecessorPoint === 'start'
+          ? new Date(project.startDate || project.desiredStartDate || '')
+          : new Date(project.endDate || project.desiredCompletionDate || '');
+      }
+    } else {
+      const milestone = milestones.find(m => m.id === dependency.predecessorId);
+      if (milestone) {
+        predecessorDate = new Date(milestone.actualEndDate || milestone.plannedEndDate || '');
+      }
+    }
+
+    // Get successor date
+    if (dependency.successorType === 'project') {
+      const project = projects.find(p => p.id === dependency.successorId);
+      if (project) {
+        successorDate = dependency.successorPoint === 'start'
+          ? new Date(project.startDate || project.desiredStartDate || '')
+          : new Date(project.endDate || project.desiredCompletionDate || '');
+      }
+    } else {
+      const milestone = milestones.find(m => m.id === dependency.successorId);
+      if (milestone) {
+        successorDate = new Date(milestone.actualEndDate || milestone.plannedEndDate || '');
+      }
+    }
+
+    if (!predecessorDate || !successorDate || isNaN(predecessorDate.getTime()) || isNaN(successorDate.getTime())) {
+      return false;
+    }
+
+    // Apply lag days to predecessor date
+    const adjustedPredecessorDate = new Date(predecessorDate);
+    adjustedPredecessorDate.setDate(adjustedPredecessorDate.getDate() + dependency.lagDays);
+
+    // Check for violation based on dependency type
+    switch (dependency.dependencyType) {
+      case 'FS': // Finish-to-Start: successor should start after predecessor finishes
+        return successorDate.getTime() < adjustedPredecessorDate.getTime();
+      case 'SS': // Start-to-Start: successor should start after predecessor starts
+        return successorDate.getTime() < adjustedPredecessorDate.getTime();
+      case 'FF': // Finish-to-Finish: successor should finish after predecessor finishes
+        return successorDate.getTime() < adjustedPredecessorDate.getTime();
+      case 'SF': // Start-to-Finish: successor should finish after predecessor starts
+        return successorDate.getTime() < adjustedPredecessorDate.getTime();
+      default:
+        return false;
+    }
+  };
+
+  // Dependency Auto-Adjustment Helper Functions
+  const calculateDependentDate = (
+    predecessorDate: Date,
+    dependencyType: string,
+    lagDays: number,
+    isPredecessorStart: boolean
+  ): Date => {
+    const newDate = new Date(predecessorDate);
+
+    // Apply lag time
+    newDate.setDate(newDate.getDate() + lagDays);
+
+    // For FS and SS, if predecessor is END, we already have the right date
+    // For FF and SF, we might need adjustments based on project duration
+
+    return newDate;
+  };
+
+  const findDependentEntities = (
+    entityType: 'project' | 'milestone',
+    entityId: number
+  ): Array<{
+    dependency: ProjectDependency;
+    successorEntity: Project | Milestone;
+    successorType: 'project' | 'milestone';
+  }> => {
+    return dependencies
+      .filter(dep =>
+        dep.predecessorType === entityType &&
+        dep.predecessorId === entityId
+      )
+      .map(dep => {
+        const successorEntity = dep.successorType === 'project'
+          ? projects.find(p => p.id === dep.successorId)
+          : milestones.find(m => m.id === dep.successorId);
+
+        return {
+          dependency: dep,
+          successorEntity: successorEntity as Project | Milestone,
+          successorType: dep.successorType,
+        };
+      })
+      .filter(item => item.successorEntity !== undefined);
+  };
+
+  const adjustDependentProjects = async (
+    movedEntityType: 'project' | 'milestone',
+    movedEntityId: number,
+    oldDate: Date,
+    newDate: Date,
+    pointMoved: 'start' | 'end'
+  ): Promise<void> => {
+    const dependents = findDependentEntities(movedEntityType, movedEntityId);
+
+    if (dependents.length === 0) return;
+
+    const dateDiffDays = Math.round((newDate.getTime() - oldDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    const token = localStorage.getItem('token');
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+
+    for (const { dependency, successorEntity, successorType } of dependents) {
+      // Only adjust if the moved point matches the dependency's predecessor point
+      if (dependency.predecessorPoint !== pointMoved) continue;
+
+      try {
+        if (successorType === 'project') {
+          const project = successorEntity as Project;
+          const currentStart = new Date(project.startDate || project.desiredStartDate || new Date());
+          const currentEnd = new Date(project.endDate || project.desiredCompletionDate || new Date());
+
+          let newStart = new Date(currentStart);
+          let newEnd = new Date(currentEnd);
+
+          // Apply adjustment based on dependency type
+          switch (dependency.dependencyType) {
+            case 'FS': // Finish-to-Start
+              // Successor start should be after predecessor end + lag
+              newStart = new Date(newDate);
+              newStart.setDate(newStart.getDate() + dependency.lagDays);
+              const duration = Math.round((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24));
+              newEnd = new Date(newStart);
+              newEnd.setDate(newEnd.getDate() + duration);
+              break;
+
+            case 'SS': // Start-to-Start
+              // Successor start should align with predecessor start + lag
+              newStart.setDate(newStart.getDate() + dateDiffDays + dependency.lagDays);
+              newEnd.setDate(newEnd.getDate() + dateDiffDays);
+              break;
+
+            case 'FF': // Finish-to-Finish
+              // Successor end should align with predecessor end + lag
+              newEnd.setDate(newEnd.getDate() + dateDiffDays + dependency.lagDays);
+              break;
+
+            case 'SF': // Start-to-Finish
+              // Successor end should be after predecessor start + lag
+              newEnd = new Date(newDate);
+              newEnd.setDate(newEnd.getDate() + dependency.lagDays);
+              break;
+          }
+
+          // Update the project
+          await axios.put(
+            `${API_URL}/projects/${project.id}`,
+            {
+              ...project,
+              startDate: newStart,
+              endDate: newEnd,
+            },
+            config
+          );
+
+          // Adjust milestones within the project
+          const projectMilestones = milestones.filter(m => m.projectId === project.id);
+          const startShiftDays = Math.round((newStart.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24));
+
+          for (const milestone of projectMilestones) {
+            try {
+              const currentMilestoneDate = new Date(milestone.actualEndDate || milestone.plannedEndDate || new Date());
+              const newMilestoneDate = new Date(currentMilestoneDate);
+              newMilestoneDate.setDate(newMilestoneDate.getDate() + startShiftDays);
+
+              await axios.put(
+                `${API_URL}/milestones/${milestone.id}`,
+                {
+                  ...milestone,
+                  plannedEndDate: newMilestoneDate,
+                },
+                config
+              );
+            } catch (error) {
+              console.error(`Error adjusting milestone ${milestone.id}:`, error);
+            }
+          }
+
+          // Recursively adjust projects that depend on this one
+          await adjustDependentProjects(
+            'project',
+            project.id,
+            dependency.dependencyType === 'FS' || dependency.dependencyType === 'FF'
+              ? currentEnd
+              : currentStart,
+            dependency.dependencyType === 'FS' || dependency.dependencyType === 'FF'
+              ? newEnd
+              : newStart,
+            dependency.successorPoint
+          );
+
+        } else {
+          // Handle milestone adjustment
+          const milestone = successorEntity as Milestone;
+          const currentDate = new Date(milestone.actualEndDate || milestone.plannedEndDate || new Date());
+
+          let newMilestoneDate = new Date(currentDate);
+          newMilestoneDate.setDate(newMilestoneDate.getDate() + dateDiffDays + dependency.lagDays);
+
+          await axios.put(
+            `${API_URL}/milestones/${milestone.id}`,
+            {
+              ...milestone,
+              plannedEndDate: newMilestoneDate,
+            },
+            config
+          );
+        }
+      } catch (error) {
+        console.error(`Error adjusting dependent ${successorType}:`, error);
+      }
+    }
   };
 
   // Kanban Helper Functions
@@ -1005,6 +2076,15 @@ const ProjectManagement = () => {
             />
           </Button>
           <Button
+            variant="outlined"
+            startIcon={<DependencyIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            onClick={handleOpenDependencyManagerDialog}
+            size="small"
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
+          >
+            Dependencies
+          </Button>
+          <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
@@ -1017,7 +2097,9 @@ const ProjectManagement = () => {
       </Box>
 
       {viewMode === 'list' && (
-        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+        <>
+          <SharedFilters />
+          <TableContainer component={Paper} sx={{ overflowX: 'auto', mt: 2 }}>
           <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
             <TableRow>
@@ -1029,6 +2111,7 @@ const ProjectManagement = () => {
               <TableCell sx={{ minWidth: 100 }}>Fiscal Year</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Priority</TableCell>
+              <TableCell sx={{ minWidth: 130 }}>Business Decision</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Current Phase</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Budget</TableCell>
@@ -1057,28 +2140,7 @@ const ProjectManagement = () => {
                   fullWidth
                 />
               </TableCell>
-              <TableCell>
-                <TextField
-                  size="small"
-                  select
-                  placeholder="All"
-                  value={filters.domain}
-                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
-                  fullWidth
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.name}>
-                      <Checkbox checked={filters.domain.indexOf(domain.name) > -1} size="small" />
-                      {domain.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -1184,6 +2246,7 @@ const ProjectManagement = () => {
                   <MenuItem value="Critical">Critical</MenuItem>
                 </TextField>
               </TableCell>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -1295,6 +2358,7 @@ const ProjectManagement = () => {
                 <TableCell>
                   <Chip label={project.priority} size="small" variant="outlined" />
                 </TableCell>
+                <TableCell>{project.businessDecision || '-'}</TableCell>
                 <TableCell>{project.currentPhase || '-'}</TableCell>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -1380,6 +2444,7 @@ const ProjectManagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
+        </>
       )}
 
       {viewMode === 'kanban' && (
@@ -1490,6 +2555,9 @@ const ProjectManagement = () => {
           {/* Gantt Filters */}
           <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
             <Grid container spacing={1.5}>
+              <Grid item xs={12}>
+                <SharedFilters />
+              </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   size="small"
@@ -1511,34 +2579,6 @@ const ProjectManagement = () => {
                   onChange={(e) => setFilters({ ...filters, name: e.target.value })}
                   sx={{ bgcolor: 'background.paper' }}
                 />
-              </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <TextField
-                  size="small"
-                  select
-                  fullWidth
-                  label="Domain"
-                  value={filters.domain}
-                  onChange={(e) => setFilters({ ...filters, domain: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(selected as string[]).map((value) => (
-                          <Chip key={value} label={value} size="small" sx={{ height: 20 }} />
-                        ))}
-                      </Box>
-                    ),
-                  }}
-                  sx={{ bgcolor: 'background.paper' }}
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.name}>
-                      <Checkbox checked={filters.domain.indexOf(domain.name) > -1} size="small" />
-                      {domain.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
@@ -1680,7 +2720,6 @@ const ProjectManagement = () => {
                   onClick={() => setFilters({
                     projectNumber: '',
                     name: '',
-                    domain: [],
                     segmentFunction: [],
                     type: '',
                     fiscalYear: [],
@@ -1688,6 +2727,7 @@ const ProjectManagement = () => {
                     priority: '',
                     currentPhase: '',
                     health: [],
+                    impactedDomain: [],
                   })}
                   sx={{ height: '40px' }}
                 >
@@ -1737,14 +2777,16 @@ const ProjectManagement = () => {
                   <Box sx={{ width: 100, flexShrink: 0 }} />
                 </Box>
 
-                {/* Projects and Milestones */}
-                {filteredProjects.map((project) => {
-                  const projectMilestones = milestones.filter(m => m.projectId === project.id);
-                  const projectStart = project.startDate || project.desiredStartDate;
-                  const projectEnd = project.endDate || project.desiredCompletionDate;
+                {/* Gantt Chart Container with Relative Positioning for SVG Overlay */}
+                <Box ref={ganttContainerRef} sx={{ position: 'relative' }}>
+                  {/* Projects and Milestones */}
+                  {filteredProjects.map((project) => {
+                    const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                    const projectStart = project.startDate || project.desiredStartDate;
+                    const projectEnd = project.endDate || project.desiredCompletionDate;
 
-                  return (
-                    <Box key={project.id} sx={{ mb: 0.5, pb: 0.5, borderBottom: '1px solid #f8f8f8' }}>
+                    return (
+                      <Box key={project.id} sx={{ mb: 0.5, pb: 0.5, borderBottom: '1px solid #f8f8f8' }}>
                       {/* Project Row with Milestones */}
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1 }}>
@@ -1767,14 +2809,39 @@ const ProjectManagement = () => {
                             </Box>
                           </Typography>
                         </Box>
-                        <Box sx={{ flex: 1, position: 'relative', height: 28 }}>
+                        <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
                           {/* Project Bar */}
-                          {projectStart && projectEnd && (
-                            <Box
+                          {projectStart && projectEnd && (() => {
+                            const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+                            const slackDays = cpmNode?.slack || 0;
+                            const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+                            const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+                            return (
+                              <Tooltip title={tooltipContent} arrow>
+                                <Box
+                                  onMouseDown={(e) => {
+                                e.preventDefault();
+                                const container = document.getElementById(`timeline-container-${project.id}`);
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                setDraggingItem({
+                                  type: 'project',
+                                  operation: 'move',
+                                  id: project.id,
+                                  initialX: e.clientX,
+                                  initialDates: {
+                                    startDate: new Date(projectStart),
+                                    endDate: new Date(projectEnd),
+                                  },
+                                  dateRange: dateRange,
+                                  containerWidth: rect.width,
+                                });
+                              }}
                               sx={{
                                 position: 'absolute',
-                                left: `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
-                                width: `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                                left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                                width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
                                 height: 18,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
@@ -1782,6 +2849,7 @@ const ProjectManagement = () => {
                                         project.healthStatus === 'Yellow' ? '#ff9800' :
                                         project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
                                 borderRadius: 0.5,
+                                border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1789,13 +2857,100 @@ const ProjectManagement = () => {
                                 fontSize: '0.6rem',
                                 fontWeight: 600,
                                 px: 0.5,
-                                boxShadow: 1,
-                                zIndex: 1,
+                                boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                                zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
+                                cursor: 'grab',
+                                opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
+                                transition: draggingItem ? 'none' : 'all 0.2s',
+                                userSelect: 'none',
+                                '&:active': {
+                                  cursor: 'grabbing',
+                                },
+                                '&:hover': {
+                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
+                                  filter: 'brightness(1.1)',
+                                },
                               }}
                             >
+                              {/* Left Resize Handle */}
+                              <Box
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const container = document.getElementById(`timeline-container-${project.id}`);
+                                  if (!container) return;
+                                  const rect = container.getBoundingClientRect();
+                                  setDraggingItem({
+                                    type: 'project',
+                                    operation: 'resize-left',
+                                    id: project.id,
+                                    initialX: e.clientX,
+                                    initialDates: {
+                                      startDate: new Date(projectStart),
+                                      endDate: new Date(projectEnd),
+                                    },
+                                    dateRange: dateRange,
+                                    containerWidth: rect.width,
+                                  });
+                                }}
+                                sx={{
+                                  position: 'absolute',
+                                  left: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: 6,
+                                  cursor: 'ew-resize',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                  borderTopLeftRadius: 0.5,
+                                  borderBottomLeftRadius: 0.5,
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                  },
+                                }}
+                              />
+
                               {project.progress}%
+
+                              {/* Right Resize Handle */}
+                              <Box
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const container = document.getElementById(`timeline-container-${project.id}`);
+                                  if (!container) return;
+                                  const rect = container.getBoundingClientRect();
+                                  setDraggingItem({
+                                    type: 'project',
+                                    operation: 'resize-right',
+                                    id: project.id,
+                                    initialX: e.clientX,
+                                    initialDates: {
+                                      startDate: new Date(projectStart),
+                                      endDate: new Date(projectEnd),
+                                    },
+                                    dateRange: dateRange,
+                                    containerWidth: rect.width,
+                                  });
+                                }}
+                                sx={{
+                                  position: 'absolute',
+                                  right: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: 6,
+                                  cursor: 'ew-resize',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                  borderTopRightRadius: 0.5,
+                                  borderBottomRightRadius: 0.5,
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                  },
+                                }}
+                              />
                             </Box>
-                          )}
+                          </Tooltip>
+                            );
+                          })()}
 
                           {/* Milestone Markers */}
                           {projectMilestones.map((milestone) => {
@@ -1811,9 +2966,27 @@ const ProjectManagement = () => {
                             return (
                               <Box
                                 key={milestone.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation(); // Prevent project bar drag
+                                  const container = document.getElementById(`timeline-container-${project.id}`);
+                                  if (!container) return;
+                                  const rect = container.getBoundingClientRect();
+                                  setDraggingItem({
+                                    type: 'milestone',
+                                    id: milestone.id,
+                                    projectId: project.id,
+                                    initialX: e.clientX,
+                                    initialDates: {
+                                      plannedEndDate: new Date(milestoneDate),
+                                    },
+                                    dateRange: dateRange,
+                                    containerWidth: rect.width,
+                                  });
+                                }}
                                 sx={{
                                   position: 'absolute',
-                                  left: `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
+                                  left: tempPositions[`milestone-${milestone.id}`]?.left || `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
                                   top: '50%',
                                   transform: 'translate(-50%, -50%) rotate(45deg)',
                                   width: 11,
@@ -1822,12 +2995,18 @@ const ProjectManagement = () => {
                                           milestone.status === 'In Progress' ? '#42a5f5' : '#9e9e9e',
                                   border: '2px solid white',
                                   boxShadow: 1,
-                                  zIndex: 2,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
+                                  zIndex: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 10 : 2,
+                                  cursor: 'grab',
+                                  opacity: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 0.7 : 1,
+                                  transition: draggingItem ? 'none' : 'all 0.2s',
+                                  userSelect: 'none',
+                                  '&:active': {
+                                    cursor: 'grabbing',
+                                  },
                                   '&:hover': {
                                     transform: 'translate(-50%, -50%) rotate(45deg) scale(1.5)',
                                     zIndex: 3,
+                                    filter: 'brightness(1.2)',
                                   },
                                 }}
                                 title={`${milestone.name} - ${formattedDate}`}
@@ -1843,10 +3022,105 @@ const ProjectManagement = () => {
                             sx={{ fontSize: '0.6rem', height: 18 }}
                           />
                         </Box>
+                        </Box>
                       </Box>
-                    </Box>
-                  );
-                })}
+                    );
+                  })}
+
+                  {/* Dependency Arrows Overlay */}
+                  <svg
+                    viewBox={`0 0 100 ${filteredProjects.length * 32}`}
+                    preserveAspectRatio="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: ganttSidebarWidth,
+                      width: `calc(100% - ${ganttSidebarWidth + 100}px)`,
+                      height: filteredProjects.length * 32,
+                      pointerEvents: 'none',
+                      zIndex: 5,
+                      overflow: 'visible',
+                    }}
+                  >
+                    <defs>
+                      {/* Define multiple arrowhead markers for different colors */}
+                      {[
+                        { id: 'arrow-1976d2', color: '#1976d2' }, // FS Blue
+                        { id: 'arrow-388e3c', color: '#388e3c' }, // SS Green
+                        { id: 'arrow-f57c00', color: '#f57c00' }, // FF Orange
+                        { id: 'arrow-d32f2f', color: '#d32f2f' }, // SF Red
+                        { id: 'arrow-dc2626', color: '#dc2626' }, // Violated Red
+                      ].map(({ id, color: markerColor }) => (
+                        <marker
+                          key={id}
+                          id={id}
+                          markerWidth="10"
+                          markerHeight="4"
+                          refX="9"
+                          refY="2"
+                          orient="auto"
+                          markerUnits="userSpaceOnUse"
+                        >
+                          <polygon points="0 0.5, 10 2, 0 3.5" fill={markerColor} />
+                        </marker>
+                      ))}
+                    </defs>
+                    {dependencies
+                      .filter((dep) => {
+                        // Only show dependencies between visible projects
+                        const predInView = dep.predecessorType === 'project'
+                          ? filteredProjects.some(p => p.id === dep.predecessorId)
+                          : milestones.some(m => m.id === dep.predecessorId && filteredProjects.some(p => p.id === m.projectId));
+                        const succInView = dep.successorType === 'project'
+                          ? filteredProjects.some(p => p.id === dep.successorId)
+                          : milestones.some(m => m.id === dep.successorId && filteredProjects.some(p => p.id === m.projectId));
+                        return predInView && succInView;
+                      })
+                      .map((dep) => {
+                        const predPos = getEntityPosition(dep.predecessorType, dep.predecessorId, dep.predecessorPoint, dateRange);
+                        const succPos = getEntityPosition(dep.successorType, dep.successorId, dep.successorPoint, dateRange);
+
+                        if (!predPos || !succPos) return null;
+
+                        // Check if dependency is violated
+                        const isViolated = isDependencyViolated(dep);
+                        const color = isViolated ? '#dc2626' : getDependencyColor(dep.dependencyType);
+
+                        // Map color to marker ID
+                        const markerColor = color.replace('#', '');
+                        const markerId = `arrow-${markerColor}`;
+
+                        // Use percentage coordinates directly (viewBox is 0-100 for x)
+                        const x1 = predPos.x;
+                        const y1 = predPos.rowIndex * 32 + predPos.y;
+                        const x2 = succPos.x;
+                        const y2 = succPos.rowIndex * 32 + succPos.y;
+
+                        // Create curved path
+                        const midX = (x1 + x2) / 2;
+                        const controlOffset = Math.abs(y2 - y1) * 0.3;
+
+                        const pathD = `M ${x1} ${y1} Q ${midX} ${y1 + (y2 > y1 ? controlOffset : -controlOffset)}, ${x2} ${y2}`;
+
+                        return (
+                          <g key={dep.id}>
+                            <path
+                              d={pathD}
+                              stroke={color}
+                              strokeWidth={isViolated ? "3" : "2"}
+                              fill="none"
+                              markerEnd={`url(#${markerId})`}
+                              opacity={isViolated ? "1" : "0.8"}
+                              vectorEffect="non-scaling-stroke"
+                            />
+                            <title>
+                              {`${getEntityName(dep.predecessorType, dep.predecessorId)} (${dep.predecessorPoint}) → ${getEntityName(dep.successorType, dep.successorId)} (${dep.successorPoint})\nType: ${dep.dependencyType}${dep.lagDays !== 0 ? `\nLag: ${dep.lagDays} days` : ''}${isViolated ? '\n⚠️ CONSTRAINT VIOLATED' : ''}`}
+                            </title>
+                          </g>
+                        );
+                      })}
+                  </svg>
+                </Box>
 
                 {/* Legend */}
                 <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid #e0e0e0', display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -1889,6 +3163,44 @@ const ProjectManagement = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Box sx={{ width: 10, height: 10, bgcolor: '#9e9e9e', transform: 'rotate(45deg)', border: '1px solid white', boxShadow: 1 }} />
                         <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Pending</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.7rem', mb: 0.5, display: 'block' }}>
+                      Dependencies:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 20, height: 2, bgcolor: '#1976d2' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>FS (Finish→Start)</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 20, height: 2, bgcolor: '#388e3c' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>SS (Start→Start)</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 20, height: 2, bgcolor: '#f57c00' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>FF (Finish→Finish)</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 20, height: 2, bgcolor: '#d32f2f' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>SF (Start→Finish)</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 20, height: 3, bgcolor: '#dc2626' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>⚠️ Violated</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.7rem', mb: 0.5, display: 'block' }}>
+                      Critical Path:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 16, height: 12, bgcolor: '#4caf50', borderRadius: 0.5, border: '2px solid #fbbf24' }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>⚡ On Critical Path (Zero Slack)</Typography>
                       </Box>
                     </Box>
                   </Box>
@@ -2767,6 +4079,47 @@ const ProjectManagement = () => {
           <Button onClick={handleCloseResourcesDialog}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Undo Snackbar */}
+      <Snackbar
+        open={showUndoSnackbar}
+        autoHideDuration={10000}
+        onClose={() => setShowUndoSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowUndoSnackbar(false)}
+          severity="info"
+          sx={{ width: '100%' }}
+          action={
+            <Button color="inherit" size="small" onClick={handleUndo} startIcon={<UndoIcon />}>
+              UNDO
+            </Button>
+          }
+        >
+          {lastAction?.description} - Press Ctrl+Z to undo
+        </Alert>
+      </Snackbar>
+
+      {/* Dependency Manager Dialog */}
+      <DependencyManagerDialog
+        open={openDependencyManagerDialog}
+        onClose={handleCloseDependencyManagerDialog}
+        dependencies={dependencies}
+        projects={filteredProjects}
+        milestones={milestones.filter(m => filteredProjects.some(p => p.id === m.projectId))}
+        onDelete={handleDeleteDependency}
+        onAddNew={handleOpenDependencyCreateDialog}
+      />
+
+      {/* Dependency Create Dialog */}
+      <DependencyDialog
+        open={openDependencyCreateDialog}
+        onClose={handleCloseDependencyCreateDialog}
+        onSave={handleSaveDependency}
+        projects={filteredProjects}
+        milestones={milestones.filter(m => filteredProjects.some(p => p.id === m.projectId))}
+      />
     </Box>
   );
 };

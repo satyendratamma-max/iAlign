@@ -21,6 +21,8 @@ import {
   MenuItem,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector } from '../../hooks/redux';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -48,6 +50,7 @@ interface Domain {
 }
 
 const PortfolioOverview = () => {
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +146,13 @@ const PortfolioOverview = () => {
     );
   }
 
+  const filteredSegmentFunctions = segmentFunctions.filter((sf) => {
+    return (
+      (selectedDomainIds.length === 0 || selectedDomainIds.includes(sf.domainId || 0)) &&
+      (selectedBusinessDecisions.length === 0)
+    );
+  });
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -154,13 +164,16 @@ const PortfolioOverview = () => {
             Strategic oversight and governance of enterprise IT initiatives
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Add Segment Function
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <SharedFilters />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            Add Segment Function
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer component={Paper}>
@@ -177,7 +190,7 @@ const PortfolioOverview = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {segmentFunctions.map((segmentFunction) => (
+            {filteredSegmentFunctions.map((segmentFunction) => (
               <TableRow key={segmentFunction.id}>
                 <TableCell>
                   <Typography variant="body1" fontWeight="medium">

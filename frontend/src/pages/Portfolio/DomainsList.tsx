@@ -15,6 +15,8 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector } from '../../hooks/redux';
 import {
   Business,
   AttachMoney,
@@ -71,6 +73,7 @@ interface DomainImpact {
 
 const DomainsList = () => {
   const navigate = useNavigate();
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
@@ -197,6 +200,13 @@ const DomainsList = () => {
     );
   }
 
+  const filteredDomains = domains.filter((domain) => {
+    return (
+      (selectedDomainIds.length === 0 || selectedDomainIds.includes(domain.id)) &&
+      (selectedBusinessDecisions.length === 0)
+    );
+  });
+
   return (
     <Box>
       <Box
@@ -225,21 +235,23 @@ const DomainsList = () => {
             Select a domain to view its segment functions, projects, and team capacity
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenDialog}
-          sx={{
-            alignSelf: { xs: 'stretch', sm: 'auto' },
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Add Domain
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <SharedFilters />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenDialog}
+            sx={{
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Add Domain
+          </Button>
+        </Box>
       </Box>
 
       <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
-        {domains.map((domain) => {
+        {filteredDomains.map((domain) => {
           const stats = getDomainStats(domain.id);
           const icon = getDomainIcon(domain.name);
           const colors = getDomainColor();
@@ -510,13 +522,13 @@ const DomainsList = () => {
         })}
       </Grid>
 
-      {domains.length === 0 && (
+      {filteredDomains.length === 0 && (
         <Box textAlign="center" py={8}>
           <Typography variant="h6" color="text.secondary">
             No domains found
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Click "Add Domain" to create a new domain
+            {domains.length === 0 ? 'Click "Add Domain" to create a new domain' : 'Try adjusting your filters'}
           </Typography>
         </Box>
       )}

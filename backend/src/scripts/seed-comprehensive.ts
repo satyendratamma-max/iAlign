@@ -376,6 +376,8 @@ const seedDatabase = async () => {
         const status = fiscalYear === 'FY24' && Math.random() > 0.5 ? 'Completed' :
                       fiscalYear === 'FY27' ? 'Planning' : 'In Progress';
 
+        const businessDecisions = ['Above Cutline', 'Below Cutline', 'Pending'];
+
         const project = await Project.create({
           projectNumber: `PROJ-${String(projectIndex).padStart(3, '0')}`,
           segmentFunctionId: segmentFunction.id,
@@ -386,6 +388,7 @@ const seedDatabase = async () => {
           functionality: `Core ${domain.name} functionality enhancement`,
           status,
           priority: priorities[Math.floor(Math.random() * 4)],
+          businessDecision: businessDecisions[Math.floor(Math.random() * 3)],
           type: template.type,
           fiscalYear,
           progress,

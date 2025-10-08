@@ -16,6 +16,7 @@ import Role from './Role';
 import ResourceCapability from './ResourceCapability';
 import ProjectRequirement from './ProjectRequirement';
 import ProjectDomainImpact from './ProjectDomainImpact';
+import ProjectDependency from './ProjectDependency';
 
 // SegmentFunction Associations
 SegmentFunction.hasMany(Project, { foreignKey: 'segmentFunctionId', as: 'projects' });
@@ -171,6 +172,7 @@ export {
   ResourceCapability,
   ProjectRequirement,
   ProjectDomainImpact,
+  ProjectDependency,
 };
 
 export default {
@@ -192,4 +194,5 @@ export default {
   ResourceCapability,
   ProjectRequirement,
   ProjectDomainImpact,
+  ProjectDependency,
 };

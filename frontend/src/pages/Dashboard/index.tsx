@@ -15,11 +15,9 @@ import {
   TableHead,
   TableRow,
   Alert,
-  FormControl,
-  Select,
-  MenuItem,
-  InputLabel,
 } from '@mui/material';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector } from '../../hooks/redux';
 import {
   TrendingUp,
   Folder,
@@ -85,6 +83,7 @@ interface Project {
   healthStatus?: string;
   priority: string;
   fiscalYear?: string;
+  businessDecision?: string;
 }
 
 interface Allocation {
@@ -100,6 +99,7 @@ interface Domain {
 }
 
 const Dashboard = () => {
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [segmentFunctionStats, setSegmentFunctionStats] = useState<SegmentFunctionStats | null>(null);
   const [resourceMetrics, setResourceMetrics] = useState<ResourceMetrics | null>(null);
@@ -107,7 +107,6 @@ const Dashboard = () => {
   const [topProjects, setTopProjects] = useState<Project[]>([]);
   const [atRiskProjects, setAtRiskProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [allResources, setAllResources] = useState<any[]>([]);
@@ -163,18 +162,25 @@ const Dashboard = () => {
     if (allProjects.length === 0) return;
 
     // Filter projects by domain if selected
-    const projects = selectedDomainId === 'all'
+    let projects = selectedDomainIds.length === 0
       ? allProjects
-      : allProjects.filter((p: any) => p.domainId === selectedDomainId);
+      : allProjects.filter((p: any) => selectedDomainIds.includes(p.domainId));
+
+    // Apply businessDecision filter
+    if (selectedBusinessDecisions.length > 0) {
+      projects = projects.filter((p: Project) =>
+        selectedBusinessDecisions.includes(p.businessDecision || '')
+      );
+    }
 
     // Filter resources by domain if selected
-    const resources = selectedDomainId === 'all'
+    const resources = selectedDomainIds.length === 0
       ? allResources
-      : allResources.filter((r: any) => r.domainId === selectedDomainId);
+      : allResources.filter((r: any) => selectedDomainIds.includes(r.domainId));
 
     // Filter allocations to match filtered resources
     const resourceIds = resources.map((r: any) => r.id);
-    const allocations = selectedDomainId === 'all'
+    const allocations = selectedDomainIds.length === 0
       ? allAllocations
       : allAllocations.filter((a: Allocation) => resourceIds.includes(a.resourceId));
 
@@ -246,9 +252,9 @@ const Dashboard = () => {
     setAtRiskProjects(atRisk);
 
     // Calculate domain performance (filtered by domain selection)
-    const domainsToShow = selectedDomainId === 'all'
+    const domainsToShow = selectedDomainIds.length === 0
       ? domains
-      : domains.filter(d => d.id === selectedDomainId);
+      : domains.filter(d => selectedDomainIds.includes(d.id));
 
     const domainPerf: DomainPerformance[] = domainsToShow.map((domain: any) => {
       const domainProjects = allProjects.filter((p: any) => p.domainId === domain.id);
@@ -273,7 +279,7 @@ const Dashboard = () => {
     }).filter((d: DomainPerformance) => d.projectCount > 0);
 
     setDomainPerformance(domainPerf);
-  }, [allProjects, allResources, allAllocations, selectedDomainId, domains]);
+  }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, domains]);
 
   if (loading) {
     return (
@@ -374,22 +380,7 @@ const Dashboard = () => {
               Real-time insights and analytics across your portfolio
             </Typography>
           </Box>
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel id="domain-filter-label">Filter by Domain</InputLabel>
-            <Select
-              labelId="domain-filter-label"
-              value={selectedDomainId}
-              label="Filter by Domain"
-              onChange={(e) => setSelectedDomainId(e.target.value as number | 'all')}
-            >
-              <MenuItem value="all">All Domains</MenuItem>
-              {domains.map((domain) => (
-                <MenuItem key={domain.id} value={domain.id}>
-                  {domain.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SharedFilters />
         </Box>
       </Box>
 

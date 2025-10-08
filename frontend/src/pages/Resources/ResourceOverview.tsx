@@ -29,6 +29,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
+import SharedFilters from '../../components/common/SharedFilters';
+import { useAppSelector } from '../../hooks/redux';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -100,6 +102,7 @@ interface SegmentFunction {
 }
 
 const ResourceOverview = () => {
+  const { selectedDomainIds } = useAppSelector((state) => state.filters);
   const [resources, setResources] = useState<Resource[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
@@ -112,7 +115,6 @@ const ResourceOverview = () => {
     name: '',
     role: '',
     location: '',
-    domain: '',
     segmentFunction: '',
   });
 
@@ -316,6 +318,10 @@ const ResourceOverview = () => {
         </Box>
       </Box>
 
+      <Box mb={3}>
+        <SharedFilters />
+      </Box>
+
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>
           <TableHead>
@@ -349,23 +355,7 @@ const ResourceOverview = () => {
                   fullWidth
                 />
               </TableCell>
-              <TableCell>
-                <TextField
-                  size="small"
-                  select
-                  placeholder="All"
-                  value={filters.domain}
-                  onChange={(e) => setFilters({ ...filters, domain: e.target.value })}
-                  fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.name}>
-                      {domain.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -405,7 +395,7 @@ const ResourceOverview = () => {
                 return (
                   resource.employeeId.toLowerCase().includes(filters.employeeId.toLowerCase()) &&
                   fullName.includes(filters.name.toLowerCase()) &&
-                  (filters.domain === '' || resource.domain?.name === filters.domain) &&
+                  (selectedDomainIds.length === 0 || selectedDomainIds.includes(resource.domainId || 0)) &&
                   (filters.segmentFunction === '' || resource.segmentFunction?.name === filters.segmentFunction) &&
                   (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
                 );
