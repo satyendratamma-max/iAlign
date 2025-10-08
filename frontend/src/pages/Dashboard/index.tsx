@@ -109,7 +109,9 @@ const Dashboard = () => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
 
+  // Fetch data only once on mount
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -126,49 +128,46 @@ const Dashboard = () => {
           axios.get(`${API_URL}/segment-functions`, config),
         ]);
 
-        const allProjects: Project[] = projectsRes.data.data;
+        const fetchedProjects: Project[] = projectsRes.data.data;
         const resources = resourcesRes.data.data;
         const allocations: Allocation[] = allocationsRes.data.data;
         const allDomains = domainsRes.data.data;
 
+        setAllProjects(fetchedProjects);
         setDomains(allDomains);
 
-        // Filter projects by domain if selected
-        const projects = selectedDomainId === 'all'
-          ? allProjects
-          : allProjects.filter((p: any) => p.domainId === selectedDomainId);
-
-        // Calculate project metrics
-        const activeProjects = projects.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled');
-        const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
-        const totalActualCost = projects.reduce((sum, p) => sum + (p.actualCost || 0), 0);
-        const averageProgress = projects.length > 0
-          ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length
-          : 0;
-
-        const statusBreakdown: Record<string, number> = {};
-        const healthBreakdown: Record<string, number> = {};
-        const priorityBreakdown: Record<string, number> = {};
-
-        projects.forEach(p => {
-          statusBreakdown[p.status] = (statusBreakdown[p.status] || 0) + 1;
-          if (p.healthStatus) {
-            healthBreakdown[p.healthStatus] = (healthBreakdown[p.healthStatus] || 0) + 1;
-          }
-          priorityBreakdown[p.priority] = (priorityBreakdown[p.priority] || 0) + 1;
+        // Portfolio stats
+        setSegmentFunctionStats({
+          totalSegmentFunctions: segmentFunctionsRes.data.data.length,
+          totalValue: fetchedProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
+          averageROI: 15.5, // placeholder
+          averageRisk: 3.2, // placeholder
         });
 
-        setMetrics({
-          totalProjects: projects.length,
-          activeProjects: activeProjects.length,
-          totalBudget,
-          totalActualCost,
-          budgetVariance: totalBudget - totalActualCost,
-          averageProgress: Math.round(averageProgress),
-          statusBreakdown,
-          healthBreakdown,
-          priorityBreakdown,
+        // Calculate domain performance (always based on ALL projects)
+        const domainPerf: DomainPerformance[] = allDomains.map((domain: any) => {
+          const domainProjects = fetchedProjects.filter((p: any) => p.domainId === domain.id);
+          const domainBudget = domainProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+          const avgProg = domainProjects.length > 0
+            ? domainProjects.reduce((sum, p) => sum + p.progress, 0) / domainProjects.length
+            : 0;
+
+          const healthyProjects = domainProjects.filter(p => p.healthStatus === 'Green').length;
+          const healthScore = domainProjects.length > 0
+            ? (healthyProjects / domainProjects.length) * 100
+            : 0;
+
+          return {
+            domainId: domain.id,
+            domainName: domain.name,
+            projectCount: domainProjects.length,
+            totalBudget: domainBudget,
+            avgProgress: Math.round(avgProg),
+            healthScore: Math.round(healthScore),
+          };
         });
+
+        setDomainPerformance(domainPerf);
 
         // Calculate resource metrics
         const resourceUtilization = resources.map((resource: any) => {
@@ -191,53 +190,6 @@ const Dashboard = () => {
           availableResources: available,
         });
 
-        // Calculate domain performance
-        const domainPerf: DomainPerformance[] = allDomains.map((domain: any) => {
-          const domainProjects = allProjects.filter((p: any) => p.domainId === domain.id);
-          const domainBudget = domainProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
-          const avgProg = domainProjects.length > 0
-            ? domainProjects.reduce((sum, p) => sum + p.progress, 0) / domainProjects.length
-            : 0;
-
-          const healthyProjects = domainProjects.filter(p => p.healthStatus === 'Green').length;
-          const healthScore = domainProjects.length > 0
-            ? (healthyProjects / domainProjects.length) * 100
-            : 0;
-
-          return {
-            domainId: domain.id,
-            domainName: domain.name,
-            projectCount: domainProjects.length,
-            totalBudget: domainBudget,
-            avgProgress: Math.round(avgProg),
-            healthScore: Math.round(healthScore),
-          };
-        }).filter((d: DomainPerformance) => d.projectCount > 0);
-
-        setDomainPerformance(domainPerf);
-
-        // Portfolio stats
-        setSegmentFunctionStats({
-          totalSegmentFunctions: segmentFunctionsRes.data.data.length,
-          totalValue: totalBudget,
-          averageROI: 15.5, // placeholder
-          averageRisk: 3.2, // placeholder
-        });
-
-        // Top projects by budget
-        const sortedByBudget = [...projects]
-          .filter(p => p.budget && p.budget > 0)
-          .sort((a, b) => (b.budget || 0) - (a.budget || 0))
-          .slice(0, 5);
-        setTopProjects(sortedByBudget);
-
-        // At-risk projects (Red health or low progress with approaching deadlines)
-        const atRisk = projects.filter(p =>
-          p.healthStatus === 'Red' ||
-          p.healthStatus === 'Yellow' && p.progress < 50
-        ).slice(0, 5);
-        setAtRiskProjects(atRisk);
-
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -246,7 +198,63 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [selectedDomainId]);
+  }, []);
+
+  // Calculate filtered metrics when domain filter changes
+  useEffect(() => {
+    if (allProjects.length === 0) return;
+
+    // Filter projects by domain if selected
+    const projects = selectedDomainId === 'all'
+      ? allProjects
+      : allProjects.filter((p: any) => p.domainId === selectedDomainId);
+
+    // Calculate project metrics (filtered by domain)
+    const activeProjects = projects.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled');
+    const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
+    const totalActualCost = projects.reduce((sum, p) => sum + (p.actualCost || 0), 0);
+    const averageProgress = projects.length > 0
+      ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length
+      : 0;
+
+    const statusBreakdown: Record<string, number> = {};
+    const healthBreakdown: Record<string, number> = {};
+    const priorityBreakdown: Record<string, number> = {};
+
+    projects.forEach(p => {
+      statusBreakdown[p.status] = (statusBreakdown[p.status] || 0) + 1;
+      if (p.healthStatus) {
+        healthBreakdown[p.healthStatus] = (healthBreakdown[p.healthStatus] || 0) + 1;
+      }
+      priorityBreakdown[p.priority] = (priorityBreakdown[p.priority] || 0) + 1;
+    });
+
+    setMetrics({
+      totalProjects: projects.length,
+      activeProjects: activeProjects.length,
+      totalBudget,
+      totalActualCost,
+      budgetVariance: totalBudget - totalActualCost,
+      averageProgress: Math.round(averageProgress),
+      statusBreakdown,
+      healthBreakdown,
+      priorityBreakdown,
+    });
+
+    // Top projects by budget (filtered)
+    const sortedByBudget = [...projects]
+      .filter(p => p.budget && p.budget > 0)
+      .sort((a, b) => (b.budget || 0) - (a.budget || 0))
+      .slice(0, 5);
+    setTopProjects(sortedByBudget);
+
+    // At-risk projects (filtered)
+    const atRisk = projects.filter(p =>
+      p.healthStatus === 'Red' ||
+      p.healthStatus === 'Yellow' && p.progress < 50
+    ).slice(0, 5);
+    setAtRiskProjects(atRisk);
+  }, [allProjects, selectedDomainId]);
 
   if (loading) {
     return (
