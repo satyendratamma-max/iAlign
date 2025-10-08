@@ -15,6 +15,10 @@ import {
   TableHead,
   TableRow,
   Alert,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -90,6 +94,11 @@ interface Allocation {
   allocationPercentage: number;
 }
 
+interface Domain {
+  id: number;
+  name: string;
+}
+
 const Dashboard = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [segmentFunctionStats, setSegmentFunctionStats] = useState<SegmentFunctionStats | null>(null);
@@ -97,6 +106,8 @@ const Dashboard = () => {
   const [domainPerformance, setDomainPerformance] = useState<DomainPerformance[]>([]);
   const [topProjects, setTopProjects] = useState<Project[]>([]);
   const [atRiskProjects, setAtRiskProjects] = useState<Project[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -115,10 +126,17 @@ const Dashboard = () => {
           axios.get(`${API_URL}/segment-functions`, config),
         ]);
 
-        const projects: Project[] = projectsRes.data.data;
+        const allProjects: Project[] = projectsRes.data.data;
         const resources = resourcesRes.data.data;
         const allocations: Allocation[] = allocationsRes.data.data;
-        const domains = domainsRes.data.data;
+        const allDomains = domainsRes.data.data;
+
+        setDomains(allDomains);
+
+        // Filter projects by domain if selected
+        const projects = selectedDomainId === 'all'
+          ? allProjects
+          : allProjects.filter((p: any) => p.domainId === selectedDomainId);
 
         // Calculate project metrics
         const activeProjects = projects.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled');
@@ -174,8 +192,8 @@ const Dashboard = () => {
         });
 
         // Calculate domain performance
-        const domainPerf: DomainPerformance[] = domains.map((domain: any) => {
-          const domainProjects = projects.filter((p: any) => p.domainId === domain.id);
+        const domainPerf: DomainPerformance[] = allDomains.map((domain: any) => {
+          const domainProjects = allProjects.filter((p: any) => p.domainId === domain.id);
           const domainBudget = domainProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
           const avgProg = domainProjects.length > 0
             ? domainProjects.reduce((sum, p) => sum + p.progress, 0) / domainProjects.length
@@ -228,7 +246,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [selectedDomainId]);
 
   if (loading) {
     return (
@@ -309,23 +327,43 @@ const Dashboard = () => {
   return (
     <Box>
       <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 700,
-            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-          }}
-          gutterBottom
-        >
-          Executive Dashboard
-        </Typography>
-        <Typography
-          variant="body1"
-          color="text.secondary"
-          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-        >
-          Real-time insights and analytics across your portfolio
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
+              }}
+              gutterBottom
+            >
+              Executive Dashboard
+            </Typography>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+            >
+              Real-time insights and analytics across your portfolio
+            </Typography>
+          </Box>
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="domain-filter-label">Filter by Domain</InputLabel>
+            <Select
+              labelId="domain-filter-label"
+              value={selectedDomainId}
+              label="Filter by Domain"
+              onChange={(e) => setSelectedDomainId(e.target.value as number | 'all')}
+            >
+              <MenuItem value="all">All Domains</MenuItem>
+              {domains.map((domain) => (
+                <MenuItem key={domain.id} value={domain.id}>
+                  {domain.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Alerts */}

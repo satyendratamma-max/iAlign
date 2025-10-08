@@ -13,6 +13,10 @@ import {
   TableRow,
   CircularProgress,
   LinearProgress,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from '@mui/material';
 import {
   People,
@@ -33,6 +37,7 @@ interface Resource {
   location?: string;
   hourlyRate?: number;
   utilizationRate?: number;
+  domainId?: number;
 }
 
 interface Allocation {
@@ -42,9 +47,16 @@ interface Allocation {
   allocationPercentage: number;
 }
 
+interface Domain {
+  id: number;
+  name: string;
+}
+
 const CapacityDashboard = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,13 +65,30 @@ const CapacityDashboard = () => {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [resourcesRes, allocationsRes] = await Promise.all([
+        const [resourcesRes, allocationsRes, domainsRes] = await Promise.all([
           axios.get(`${API_URL}/resources`, config),
           axios.get(`${API_URL}/allocations`, config),
+          axios.get(`${API_URL}/domains`, config),
         ]);
 
-        setResources(resourcesRes.data.data || []);
-        setAllocations(allocationsRes.data.data || []);
+        const allResources = resourcesRes.data.data || [];
+        const allAllocations = allocationsRes.data.data || [];
+
+        setDomains(domainsRes.data.data || []);
+
+        // Filter resources by domain if selected
+        const filteredResources = selectedDomainId === 'all'
+          ? allResources
+          : allResources.filter((r: Resource) => r.domainId === selectedDomainId);
+
+        // Filter allocations to match filtered resources
+        const filteredResourceIds = filteredResources.map((r: Resource) => r.id);
+        const filteredAllocations = selectedDomainId === 'all'
+          ? allAllocations
+          : allAllocations.filter((a: Allocation) => filteredResourceIds.includes(a.resourceId));
+
+        setResources(filteredResources);
+        setAllocations(filteredAllocations);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -68,7 +97,7 @@ const CapacityDashboard = () => {
     };
 
     fetchData();
-  }, []);
+  }, [selectedDomainId]);
 
   if (loading) {
     return (
@@ -115,12 +144,32 @@ const CapacityDashboard = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Capacity Dashboard
-      </Typography>
-      <Typography color="text.secondary" mb={3}>
-        Unified capacity planning with predictive analytics
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            Capacity Dashboard
+          </Typography>
+          <Typography color="text.secondary">
+            Unified capacity planning with predictive analytics
+          </Typography>
+        </Box>
+        <FormControl sx={{ minWidth: 200 }}>
+          <InputLabel id="capacity-domain-filter-label">Filter by Domain</InputLabel>
+          <Select
+            labelId="capacity-domain-filter-label"
+            value={selectedDomainId}
+            label="Filter by Domain"
+            onChange={(e) => setSelectedDomainId(e.target.value as number | 'all')}
+          >
+            <MenuItem value="all">All Domains</MenuItem>
+            {domains.map((domain) => (
+              <MenuItem key={domain.id} value={domain.id}>
+                {domain.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
