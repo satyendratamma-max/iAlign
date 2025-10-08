@@ -50,6 +50,7 @@ import axios from 'axios';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
+import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
 import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
 import {
@@ -362,6 +363,9 @@ const ProjectManagement = () => {
   // Redux state
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
 
+  // Scenario state
+  const { activeScenario } = useScenario();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
@@ -470,11 +474,14 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Build query parameters with scenarioId if active scenario is selected
+      const scenarioParam = activeScenario?.id ? `?scenarioId=${activeScenario.id}` : '';
+
       const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/milestones`, config),
+        axios.get(`${API_URL}/milestones${scenarioParam}`, config),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
@@ -495,8 +502,10 @@ const ProjectManagement = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [activeScenario]);
 
   // Calculate Critical Path when data changes
   useEffect(() => {

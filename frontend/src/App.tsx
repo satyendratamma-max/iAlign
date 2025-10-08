@@ -24,9 +24,11 @@ import DataModel from './pages/Admin/DataModel';
 import AppsManagement from './pages/Admin/AppsManagement';
 import TechnologiesManagement from './pages/Admin/TechnologiesManagement';
 import RolesManagement from './pages/Admin/RolesManagement';
+import ScenarioManagement from './pages/Admin/ScenarioManagement';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
 import { ReactNode } from 'react';
+import { ScenarioProvider } from './contexts/ScenarioContext';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -51,10 +53,11 @@ function App() {
   }
 
   return (
-    <MainLayout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+    <ScenarioProvider>
+      <MainLayout>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Segment Function Routes */}
         <Route path="/domains" element={<DomainsList />} />
@@ -146,10 +149,19 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/scenarios"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <ScenarioManagement />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </MainLayout>
+    </ScenarioProvider>
   );
 }
 

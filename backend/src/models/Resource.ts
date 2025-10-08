@@ -3,6 +3,7 @@ import sequelize from '../config/database';
 
 export interface ResourceAttributes {
   id?: number;
+  scenarioId?: number;
   domainId?: number;
   segmentFunctionId?: number;
   employeeId: string;
@@ -26,6 +27,7 @@ export interface ResourceAttributes {
 
 class Resource extends Model<ResourceAttributes> implements ResourceAttributes {
   declare id: number;
+  declare scenarioId?: number;
   declare domainId?: number;
   declare segmentFunctionId?: number;
   declare employeeId: string;
@@ -54,6 +56,10 @@ Resource.init(
       autoIncrement: true,
       primaryKey: true,
     },
+    scenarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     domainId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -65,7 +71,6 @@ Resource.init(
     employeeId: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true,
     },
     firstName: {
       type: DataTypes.STRING(100),
@@ -140,6 +145,13 @@ Resource.init(
     sequelize,
     tableName: 'Resources',
     timestamps: false,
+    indexes: [
+      {
+        unique: true,
+        fields: ['scenarioId', 'employeeId'],
+        name: 'unique_scenario_employee',
+      },
+    ],
   }
 );
 

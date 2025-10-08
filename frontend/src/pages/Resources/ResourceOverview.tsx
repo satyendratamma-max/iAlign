@@ -31,6 +31,7 @@ import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector } from '../../hooks/redux';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -103,6 +104,7 @@ interface SegmentFunction {
 
 const ResourceOverview = () => {
   const { selectedDomainIds } = useAppSelector((state) => state.filters);
+  const { activeScenario } = useScenario();
   const [resources, setResources] = useState<Resource[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
@@ -119,12 +121,17 @@ const ResourceOverview = () => {
   });
 
   const fetchResources = async () => {
+    if (!activeScenario) return;
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Build query parameters with scenarioId
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
+
       const [resourcesRes, domainsRes, segmentFunctionsRes] = await Promise.all([
-        axios.get(`${API_URL}/resources`, config),
+        axios.get(`${API_URL}/resources${scenarioParam}`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
       ]);
@@ -140,8 +147,10 @@ const ResourceOverview = () => {
   };
 
   useEffect(() => {
-    fetchResources();
-  }, []);
+    if (activeScenario) {
+      fetchResources();
+    }
+  }, [activeScenario]);
 
   const handleOpenDialog = (resource?: Resource) => {
     if (resource) {

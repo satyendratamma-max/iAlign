@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector } from '../../hooks/redux';
+import { useScenario } from '../../contexts/ScenarioContext';
 import {
   TrendingUp,
   Folder,
@@ -100,6 +101,7 @@ interface Domain {
 
 const Dashboard = () => {
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { activeScenario } = useScenario();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [segmentFunctionStats, setSegmentFunctionStats] = useState<SegmentFunctionStats | null>(null);
   const [resourceMetrics, setResourceMetrics] = useState<ResourceMetrics | null>(null);
@@ -112,18 +114,23 @@ const Dashboard = () => {
   const [allResources, setAllResources] = useState<any[]>([]);
   const [allAllocations, setAllAllocations] = useState<Allocation[]>([]);
 
-  // Fetch data only once on mount
+  // Fetch data when active scenario changes
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (!activeScenario) return;
+
       try {
         const token = localStorage.getItem('token');
         const config = {
           headers: { Authorization: `Bearer ${token}` },
         };
 
+        // Build query parameters with scenarioId
+        const scenarioParam = `?scenarioId=${activeScenario.id}`;
+
         const [projectsRes, resourcesRes, allocationsRes, domainsRes, segmentFunctionsRes] = await Promise.all([
-          axios.get(`${API_URL}/projects`, config),
-          axios.get(`${API_URL}/resources`, config),
+          axios.get(`${API_URL}/projects${scenarioParam}`, config),
+          axios.get(`${API_URL}/resources${scenarioParam}`, config),
           axios.get(`${API_URL}/allocations`, config),
           axios.get(`${API_URL}/domains`, config),
           axios.get(`${API_URL}/segment-functions`, config),
@@ -155,7 +162,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [activeScenario]);
 
   // Calculate filtered metrics when domain filter changes
   useEffect(() => {

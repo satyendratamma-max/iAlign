@@ -34,6 +34,7 @@ import {
   Apps,
   Extension,
   WorkOutline,
+  Layers,
   ExpandMore,
   ChevronRight,
 } from '@mui/icons-material';
@@ -98,6 +99,7 @@ const adminMenuSection = {
     { text: 'Apps', icon: <Apps />, path: '/admin/apps' },
     { text: 'Technologies', icon: <Extension />, path: '/admin/technologies' },
     { text: 'Roles', icon: <WorkOutline />, path: '/admin/roles' },
+    { text: 'Scenarios', icon: <Layers />, path: '/admin/scenarios' },
   ],
 };
 

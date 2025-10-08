@@ -9,10 +9,17 @@ import Role from '../models/Role';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
-export const getAllResources = async (_req: Request, res: Response, next: NextFunction) => {
+export const getAllResources = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { scenarioId } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
     const resources = await Resource.findAll({
-      where: { isActive: true },
+      where,
       order: [['createdDate', 'DESC']],
       include: [
         {

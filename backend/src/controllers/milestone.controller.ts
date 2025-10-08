@@ -5,11 +5,14 @@ import User from '../models/User';
 
 export const getAllMilestones = async (req: Request, res: Response) => {
   try {
-    const { projectId } = req.query;
+    const { projectId, scenarioId } = req.query;
 
     const where: any = { isActive: true };
     if (projectId) {
       where.projectId = projectId;
+    }
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
     }
 
     const milestones = await Milestone.findAll({

@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { logout } from '../../store/slices/authSlice';
 import { useThemeMode } from '../../contexts/ThemeContext';
 import axios from 'axios';
+import ScenarioSelector from '../ScenarioSelector';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -175,6 +176,8 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         </IconButton>
 
         <Box sx={{ flexGrow: 1 }} />
+
+        <ScenarioSelector />
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
           <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>

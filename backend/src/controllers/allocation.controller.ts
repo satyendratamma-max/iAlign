@@ -12,12 +12,13 @@ import { calculateMatchScore } from '../utils/resourceMatcher';
 
 export const getAllAllocations = async (req: Request, res: Response) => {
   try {
-    const { projectId, resourceId, domainId, fiscalYear } = req.query;
+    const { projectId, resourceId, domainId, fiscalYear, scenarioId } = req.query;
 
     const where: any = { isActive: true };
 
     if (projectId) where.projectId = projectId;
     if (resourceId) where.resourceId = resourceId;
+    if (scenarioId) where.scenarioId = scenarioId;
 
     const include: any[] = [
       {

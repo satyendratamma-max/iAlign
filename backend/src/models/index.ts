@@ -17,6 +17,25 @@ import ResourceCapability from './ResourceCapability';
 import ProjectRequirement from './ProjectRequirement';
 import ProjectDomainImpact from './ProjectDomainImpact';
 import ProjectDependency from './ProjectDependency';
+import Scenario from './Scenario';
+
+// Scenario Associations
+Scenario.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Scenario.belongsTo(User, { foreignKey: 'publishedBy', as: 'publisher' });
+Scenario.belongsTo(Scenario, { foreignKey: 'parentScenarioId', as: 'parentScenario' });
+Scenario.hasMany(Scenario, { foreignKey: 'parentScenarioId', as: 'childScenarios' });
+
+Scenario.hasMany(Project, { foreignKey: 'scenarioId', as: 'projects' });
+Project.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
+
+Scenario.hasMany(Resource, { foreignKey: 'scenarioId', as: 'resources' });
+Resource.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
+
+Scenario.hasMany(Milestone, { foreignKey: 'scenarioId', as: 'milestones' });
+Milestone.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
+
+Scenario.hasMany(ProjectDependency, { foreignKey: 'scenarioId', as: 'dependencies' });
+ProjectDependency.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
 
 // SegmentFunction Associations
 SegmentFunction.hasMany(Project, { foreignKey: 'segmentFunctionId', as: 'projects' });
@@ -173,6 +192,7 @@ export {
   ProjectRequirement,
   ProjectDomainImpact,
   ProjectDependency,
+  Scenario,
 };
 
 export default {
@@ -195,4 +215,5 @@ export default {
   ProjectRequirement,
   ProjectDomainImpact,
   ProjectDependency,
+  Scenario,
 };

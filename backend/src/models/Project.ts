@@ -4,6 +4,7 @@ import sequelize from '../config/database';
 export interface ProjectAttributes {
   id?: number;
   projectNumber?: string;
+  scenarioId?: number;
   segmentFunctionId?: number;
   domainId?: number;
   name: string;
@@ -58,6 +59,7 @@ export interface ProjectAttributes {
 class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare id: number;
   declare projectNumber?: string;
+  declare scenarioId?: number;
   declare segmentFunctionId?: number;
   declare domainId?: number;
   declare name: string;
@@ -119,7 +121,10 @@ Project.init(
     projectNumber: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      unique: true,
+    },
+    scenarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     segmentFunctionId: {
       type: DataTypes.INTEGER,
@@ -343,6 +348,13 @@ Project.init(
         (project as any).modifiedDate = new Date();
       },
     },
+    indexes: [
+      {
+        unique: true,
+        fields: ['scenarioId', 'projectNumber'],
+        name: 'unique_scenario_project',
+      },
+    ],
   }
 );
 

@@ -7,7 +7,7 @@ import logger from '../config/logger';
 
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { segmentFunctionId, status } = req.query;
+    const { segmentFunctionId, status, scenarioId } = req.query;
     const where: any = { isActive: true };
 
     if (segmentFunctionId) {
@@ -16,6 +16,10 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
 
     if (status) {
       where.status = status;
+    }
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
     }
 
     const projects = await Project.findAll({
@@ -146,10 +150,17 @@ export const deleteProject = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getProjectStats = async (_req: Request, res: Response, next: NextFunction) => {
+export const getProjectStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { scenarioId } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
     const projects = await Project.findAll({
-      where: { isActive: true },
+      where,
     });
 
     const totalBudget = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
@@ -183,9 +194,16 @@ export const getProjectStats = async (_req: Request, res: Response, next: NextFu
   }
 };
 
-export const getDashboardMetrics = async (_req: Request, res: Response, next: NextFunction) => {
+export const getDashboardMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projects = await Project.findAll({ where: { isActive: true } });
+    const { scenarioId } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
+    const projects = await Project.findAll({ where });
 
     const activeProjects = projects.filter(p =>
       p.status === 'In Progress' || p.status === 'Planning'

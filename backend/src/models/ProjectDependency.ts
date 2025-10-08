@@ -3,6 +3,7 @@ import sequelize from '../config/database';
 
 export interface ProjectDependencyAttributes {
   id?: number;
+  scenarioId?: number;
   predecessorType: 'project' | 'milestone';
   predecessorId: number;
   predecessorPoint: 'start' | 'end';
@@ -17,6 +18,7 @@ export interface ProjectDependencyAttributes {
 
 class ProjectDependency extends Model<ProjectDependencyAttributes> implements ProjectDependencyAttributes {
   declare id: number;
+  declare scenarioId?: number;
   declare predecessorType: 'project' | 'milestone';
   declare predecessorId: number;
   declare predecessorPoint: 'start' | 'end';
@@ -35,6 +37,10 @@ ProjectDependency.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+    },
+    scenarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     predecessorType: {
       type: DataTypes.STRING(20),

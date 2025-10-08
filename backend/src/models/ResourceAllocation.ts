@@ -3,6 +3,7 @@ import sequelize from '../config/database';
 
 export interface ResourceAllocationAttributes {
   id?: number;
+  scenarioId?: number;
   projectId: number;
   resourceId: number;
   milestoneId?: number;
@@ -26,6 +27,7 @@ export interface ResourceAllocationAttributes {
 
 class ResourceAllocation extends Model<ResourceAllocationAttributes> implements ResourceAllocationAttributes {
   declare id: number;
+  declare scenarioId?: number;
   declare projectId: number;
   declare resourceId: number;
   declare milestoneId?: number;
@@ -53,6 +55,10 @@ ResourceAllocation.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+    },
+    scenarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     projectId: {
       type: DataTypes.INTEGER,
@@ -156,6 +162,13 @@ ResourceAllocation.init(
         (allocation as any).modifiedDate = new Date();
       },
     },
+    indexes: [
+      {
+        unique: true,
+        fields: ['scenarioId', 'projectId', 'resourceId'],
+        name: 'unique_scenario_project_resource',
+      },
+    ],
   }
 );
 
