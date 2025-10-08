@@ -77,11 +77,7 @@ export const resetAndReseedData = async (_req: Request, res: Response, next: Nex
   try {
     logger.warn('Database reset and reseed initiated by admin');
 
-    // First, force sync the database to ensure schema is up to date
-    await sequelize.sync({ force: true });
-    logger.info('Database schema synced (force: true)');
-
-    // Then run the seed script
+    // Run the seed script (it will handle database sync internally)
     const { stdout, stderr } = await execAsync('npm run seed:dev');
 
     if (stderr) {
