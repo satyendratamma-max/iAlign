@@ -110,6 +110,8 @@ const Dashboard = () => {
   const [selectedDomainId, setSelectedDomainId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allResources, setAllResources] = useState<any[]>([]);
+  const [allAllocations, setAllAllocations] = useState<Allocation[]>([]);
 
   // Fetch data only once on mount
   useEffect(() => {
@@ -134,36 +136,16 @@ const Dashboard = () => {
         const allDomains = domainsRes.data.data;
 
         setAllProjects(fetchedProjects);
+        setAllResources(resources);
+        setAllAllocations(allocations);
         setDomains(allDomains);
 
-        // Portfolio stats
+        // Portfolio stats (will be updated by filter effect)
         setSegmentFunctionStats({
           totalSegmentFunctions: segmentFunctionsRes.data.data.length,
           totalValue: fetchedProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
           averageROI: 15.5, // placeholder
           averageRisk: 3.2, // placeholder
-        });
-
-
-        // Calculate resource metrics
-        const resourceUtilization = resources.map((resource: any) => {
-          const resourceAllocs = allocations.filter(a => a.resourceId === resource.id);
-          const totalAllocation = resourceAllocs.reduce((sum, a) => sum + a.allocationPercentage, 0);
-          return { ...resource, totalAllocation };
-        });
-
-        const overAllocated = resourceUtilization.filter((r: any) => r.totalAllocation > 100).length;
-        const available = resourceUtilization.filter((r: any) => r.totalAllocation < 80).length;
-        const avgUtil = resourceUtilization.length > 0
-          ? resourceUtilization.reduce((sum: number, r: any) => sum + r.totalAllocation, 0) / resourceUtilization.length
-          : 0;
-
-        setResourceMetrics({
-          totalResources: resources.length,
-          totalAllocations: allocations.length,
-          averageUtilization: Math.round(avgUtil),
-          overAllocatedResources: overAllocated,
-          availableResources: available,
         });
 
       } catch (error) {
@@ -184,6 +166,17 @@ const Dashboard = () => {
     const projects = selectedDomainId === 'all'
       ? allProjects
       : allProjects.filter((p: any) => p.domainId === selectedDomainId);
+
+    // Filter resources by domain if selected
+    const resources = selectedDomainId === 'all'
+      ? allResources
+      : allResources.filter((r: any) => r.domainId === selectedDomainId);
+
+    // Filter allocations to match filtered resources
+    const resourceIds = resources.map((r: any) => r.id);
+    const allocations = selectedDomainId === 'all'
+      ? allAllocations
+      : allAllocations.filter((a: Allocation) => resourceIds.includes(a.resourceId));
 
     // Calculate project metrics (filtered by domain)
     const activeProjects = projects.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled');
@@ -215,6 +208,27 @@ const Dashboard = () => {
       statusBreakdown,
       healthBreakdown,
       priorityBreakdown,
+    });
+
+    // Calculate resource metrics (filtered by domain)
+    const resourceUtilization = resources.map((resource: any) => {
+      const resourceAllocs = allocations.filter(a => a.resourceId === resource.id);
+      const totalAllocation = resourceAllocs.reduce((sum, a) => sum + a.allocationPercentage, 0);
+      return { ...resource, totalAllocation };
+    });
+
+    const overAllocated = resourceUtilization.filter((r: any) => r.totalAllocation > 100).length;
+    const available = resourceUtilization.filter((r: any) => r.totalAllocation < 80).length;
+    const avgUtil = resourceUtilization.length > 0
+      ? resourceUtilization.reduce((sum: number, r: any) => sum + r.totalAllocation, 0) / resourceUtilization.length
+      : 0;
+
+    setResourceMetrics({
+      totalResources: resources.length,
+      totalAllocations: allocations.length,
+      averageUtilization: Math.round(avgUtil),
+      overAllocatedResources: overAllocated,
+      availableResources: available,
     });
 
     // Top projects by budget (filtered)
@@ -259,7 +273,7 @@ const Dashboard = () => {
     }).filter((d: DomainPerformance) => d.projectCount > 0);
 
     setDomainPerformance(domainPerf);
-  }, [allProjects, selectedDomainId, domains]);
+  }, [allProjects, allResources, allAllocations, selectedDomainId, domains]);
 
   if (loading) {
     return (
