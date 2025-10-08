@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Typography,
   Box,
@@ -397,6 +397,28 @@ const ProjectManagement = () => {
     impactedDomain: [] as string[],
   });
 
+  // Swimlane Configuration State
+  const [swimlaneConfig, setSwimlaneConfig] = useState<{
+    enabled: boolean;
+    level1: 'domain' | 'segmentFunction' | 'type';
+    level2: 'domain' | 'segmentFunction' | 'type';
+    rotateLevel1: boolean;
+    rotateLevel2: boolean;
+  }>(() => {
+    const saved = localStorage.getItem('ganttSwimlaneConfig');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { enabled: false, level1: 'domain', level2: 'type', rotateLevel1: true, rotateLevel2: false };
+      }
+    }
+    return { enabled: false, level1: 'domain', level2: 'type', rotateLevel1: true, rotateLevel2: false };
+  });
+
+  // Project Order State (for drag-and-drop reordering)
+  const [projectOrder, setProjectOrder] = useState<{ [swimlaneKey: string]: number[] }>({});
+
   // Drag and Drop State
   const [draggingItem, setDraggingItem] = useState<{
     type: 'project' | 'milestone';
@@ -487,12 +509,14 @@ const ProjectManagement = () => {
   // Measure timeline width after render using ResizeObserver
   useEffect(() => {
     const measureWidth = () => {
-      const containers = document.querySelectorAll('[id^="timeline-container-"]');
-      if (containers.length > 0) {
-        const firstContainer = containers[0] as HTMLElement;
-        const width = firstContainer.offsetWidth;
-        if (width > 0) {
-          setTimelineWidth(width);
+      if (ganttContainerRef.current) {
+        const containerWidth = ganttContainerRef.current.offsetWidth || 1000;
+        const sidebarWidth = swimlaneConfig.enabled
+          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+          : ganttSidebarWidth;
+        const calculatedWidth = containerWidth - sidebarWidth - 100; // 100 for status column
+        if (calculatedWidth > 0) {
+          setTimelineWidth(calculatedWidth);
         }
       }
     };
@@ -517,7 +541,7 @@ const ProjectManagement = () => {
       timeouts.forEach(clearTimeout);
       resizeObserver.disconnect();
     };
-  }, [projects, filters, selectedDomainIds, selectedBusinessDecisions]);
+  }, [projects, filters, selectedDomainIds, selectedBusinessDecisions, swimlaneConfig, ganttSidebarWidth]);
 
   // Keyboard listener for undo (Ctrl+Z / Cmd+Z)
   useEffect(() => {
@@ -536,6 +560,11 @@ const ProjectManagement = () => {
   useEffect(() => {
     localStorage.setItem('projectManagementViewMode', viewMode);
   }, [viewMode]);
+
+  // Save swimlane config to localStorage
+  useEffect(() => {
+    localStorage.setItem('ganttSwimlaneConfig', JSON.stringify(swimlaneConfig));
+  }, [swimlaneConfig]);
 
   // Drag Event Handlers useEffect
   useEffect(() => {
@@ -990,6 +1019,12 @@ const ProjectManagement = () => {
     return allDomainImpacts.filter(impact => impact.projectId === projectId).length;
   };
 
+  const getLevel1Color = (key: string): string => {
+    const colors = ['#1976d2', '#616161', '#f57c00', '#388e3c', '#7b1fa2', '#c62828'];
+    const hash = key.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
   const getImpactedDomains = (projectId: number) => {
     return allDomainImpacts
       .filter(impact => impact.projectId === projectId)
@@ -1021,6 +1056,100 @@ const ProjectManagement = () => {
       matchesImpactedDomain
     );
   });
+
+  // Swimlane grouping helper functions
+  const getGroupKey = (project: Project, groupBy: 'domain' | 'segmentFunction' | 'type'): string => {
+    switch (groupBy) {
+      case 'domain':
+        return project.domain?.name || 'Unassigned';
+      case 'segmentFunction':
+        return project.segmentFunctionData?.name || 'Unassigned';
+      case 'type':
+        return project.type || 'Unassigned';
+      default:
+        return 'Unassigned';
+    }
+  };
+
+  const getGroupLabel = (groupBy: 'domain' | 'segmentFunction' | 'type'): string => {
+    switch (groupBy) {
+      case 'domain':
+        return 'Domain';
+      case 'segmentFunction':
+        return 'Segment Function';
+      case 'type':
+        return 'Type';
+      default:
+        return '';
+    }
+  };
+
+  // Swimlane structure: Level 1 > Level 2 > Projects
+  interface SwimlaneStructure {
+    [level1Key: string]: {
+      [level2Key: string]: Project[];
+    };
+  }
+
+  const groupProjectsForSwimlanes = (): SwimlaneStructure => {
+    const structure: SwimlaneStructure = {};
+
+    filteredProjects.forEach((project) => {
+      const level1Key = getGroupKey(project, swimlaneConfig.level1);
+      const level2Key = getGroupKey(project, swimlaneConfig.level2);
+
+      if (!structure[level1Key]) {
+        structure[level1Key] = {};
+      }
+      if (!structure[level1Key][level2Key]) {
+        structure[level1Key][level2Key] = [];
+      }
+
+      structure[level1Key][level2Key].push(project);
+    });
+
+    // Apply custom project order within each swimlane
+    Object.keys(structure).forEach((level1Key) => {
+      Object.keys(structure[level1Key]).forEach((level2Key) => {
+        const swimlaneKey = `${level1Key}::${level2Key}`;
+        const projects = structure[level1Key][level2Key];
+
+        if (projectOrder[swimlaneKey] && projectOrder[swimlaneKey].length > 0) {
+          // Sort projects according to custom order
+          const orderedProjects: Project[] = [];
+          const orderedIds = projectOrder[swimlaneKey];
+
+          orderedIds.forEach((id) => {
+            const project = projects.find((p) => p.id === id);
+            if (project) orderedProjects.push(project);
+          });
+
+          // Add any projects that aren't in the custom order
+          projects.forEach((project) => {
+            if (!orderedIds.includes(project.id)) {
+              orderedProjects.push(project);
+            }
+          });
+
+          structure[level1Key][level2Key] = orderedProjects;
+        }
+      });
+    });
+
+    return structure;
+  };
+
+  const swimlaneStructure = swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
+
+  // Calculate total row count for swimlane layout
+  const getTotalSwimlaneRows = (): number => {
+    if (!swimlaneStructure) return 0;
+    let totalRows = 0;
+    Object.values(swimlaneStructure).forEach((level2Groups) => {
+      totalRows += Object.keys(level2Groups).length;
+    });
+    return totalRows;
+  };
 
   // Gantt Chart Helper Functions
   const getDateRange = () => {
@@ -2552,6 +2681,91 @@ const ProjectManagement = () => {
             </Box>
           </Box>
 
+          {/* Swimlane Configuration */}
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ViewKanbanIcon fontSize="small" color="primary" />
+                <Typography variant="subtitle2" fontWeight="600">
+                  Swimlanes:
+                </Typography>
+                <Button
+                  size="small"
+                  variant={swimlaneConfig.enabled ? 'contained' : 'outlined'}
+                  onClick={() => setSwimlaneConfig({ ...swimlaneConfig, enabled: !swimlaneConfig.enabled })}
+                  sx={{ minWidth: 70 }}
+                >
+                  {swimlaneConfig.enabled ? 'ON' : 'OFF'}
+                </Button>
+              </Box>
+
+              {swimlaneConfig.enabled && (
+                <>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Level 1:
+                    </Typography>
+                    <TextField
+                      size="small"
+                      select
+                      value={swimlaneConfig.level1}
+                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level1: e.target.value as any })}
+                      sx={{ minWidth: 150 }}
+                    >
+                      <MenuItem value="domain">Domain</MenuItem>
+                      <MenuItem value="segmentFunction">Segment Function</MenuItem>
+                      <MenuItem value="type">Type</MenuItem>
+                    </TextField>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Level 2:
+                    </Typography>
+                    <TextField
+                      size="small"
+                      select
+                      value={swimlaneConfig.level2}
+                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2: e.target.value as any })}
+                      sx={{ minWidth: 150 }}
+                      disabled={swimlaneConfig.level1 === swimlaneConfig.level2}
+                    >
+                      <MenuItem value="domain" disabled={swimlaneConfig.level1 === 'domain'}>Domain</MenuItem>
+                      <MenuItem value="segmentFunction" disabled={swimlaneConfig.level1 === 'segmentFunction'}>Segment Function</MenuItem>
+                      <MenuItem value="type" disabled={swimlaneConfig.level1 === 'type'}>Type</MenuItem>
+                    </TextField>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Checkbox
+                      size="small"
+                      checked={swimlaneConfig.rotateLevel1}
+                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel1: e.target.checked })}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Rotate Level 1
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Checkbox
+                      size="small"
+                      checked={swimlaneConfig.rotateLevel2}
+                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel2: e.target.checked })}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Rotate Level 2
+                    </Typography>
+                  </Box>
+
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    Level 3: Projects (fixed)
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Box>
+
           {/* Gantt Filters */}
           <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
             <Grid container spacing={1.5}>
@@ -2780,109 +2994,56 @@ const ProjectManagement = () => {
                 {/* Gantt Chart Container with Relative Positioning for SVG Overlay */}
                 <Box ref={ganttContainerRef} sx={{ position: 'relative' }}>
                   {/* Projects and Milestones */}
-                  {filteredProjects.map((project) => {
-                    const projectMilestones = milestones.filter(m => m.projectId === project.id);
-                    const projectStart = project.startDate || project.desiredStartDate;
-                    const projectEnd = project.endDate || project.desiredCompletionDate;
+                  {!swimlaneConfig.enabled ? (
+                    // Flat list rendering when swimlanes are disabled
+                    filteredProjects.map((project) => {
+                      const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                      const projectStart = project.startDate || project.desiredStartDate;
+                      const projectEnd = project.endDate || project.desiredCompletionDate;
 
-                    return (
-                      <Box key={project.id} sx={{ mb: 0.5, pb: 0.5, borderBottom: '1px solid #f8f8f8' }}>
-                      {/* Project Row with Milestones */}
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1 }}>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: '0.7rem',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              display: 'block',
-                            }}
-                            title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
-                          >
-                            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
-                              {project.projectNumber || `PRJ-${project.id}`}
-                            </Box>
-                            <Box component="span" sx={{ color: 'text.secondary' }}>
-                              {project.name}
-                            </Box>
-                          </Typography>
-                        </Box>
-                        <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
-                          {/* Project Bar */}
-                          {projectStart && projectEnd && (() => {
-                            const cpmNode = cpmData.nodes.get(`project-${project.id}`);
-                            const slackDays = cpmNode?.slack || 0;
-                            const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
-                            const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
-
-                            return (
-                              <Tooltip title={tooltipContent} arrow>
-                                <Box
-                                  onMouseDown={(e) => {
-                                e.preventDefault();
-                                const container = document.getElementById(`timeline-container-${project.id}`);
-                                if (!container) return;
-                                const rect = container.getBoundingClientRect();
-                                setDraggingItem({
-                                  type: 'project',
-                                  operation: 'move',
-                                  id: project.id,
-                                  initialX: e.clientX,
-                                  initialDates: {
-                                    startDate: new Date(projectStart),
-                                    endDate: new Date(projectEnd),
-                                  },
-                                  dateRange: dateRange,
-                                  containerWidth: rect.width,
-                                });
-                              }}
+                      return (
+                        <Box key={project.id} sx={{ mb: 0.5, pb: 0.5, borderBottom: '1px solid #f8f8f8' }}>
+                        {/* Project Row with Milestones */}
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1 }}>
+                            <Typography
+                              variant="caption"
                               sx={{
-                                position: 'absolute',
-                                left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
-                                width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
-                                height: 18,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
-                                        project.healthStatus === 'Yellow' ? '#ff9800' :
-                                        project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
-                                borderRadius: 0.5,
-                                border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: '0.6rem',
-                                fontWeight: 600,
-                                px: 0.5,
-                                boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
-                                zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
-                                cursor: 'grab',
-                                opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
-                                transition: draggingItem ? 'none' : 'all 0.2s',
-                                userSelect: 'none',
-                                '&:active': {
-                                  cursor: 'grabbing',
-                                },
-                                '&:hover': {
-                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
-                                  filter: 'brightness(1.1)',
-                                },
+                                fontSize: '0.7rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'block',
                               }}
+                              title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
                             >
-                              {/* Left Resize Handle */}
-                              <Box
-                                onMouseDown={(e) => {
+                              <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
+                                {project.projectNumber || `PRJ-${project.id}`}
+                              </Box>
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {project.name}
+                              </Box>
+                            </Typography>
+                          </Box>
+                          <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
+                            {/* Project Bar */}
+                            {projectStart && projectEnd && (() => {
+                              const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+                              const slackDays = cpmNode?.slack || 0;
+                              const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+                              const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+                              return (
+                                <Tooltip title={tooltipContent} arrow>
+                                  <Box
+                                    onMouseDown={(e) => {
                                   e.preventDefault();
-                                  e.stopPropagation();
                                   const container = document.getElementById(`timeline-container-${project.id}`);
                                   if (!container) return;
                                   const rect = container.getBoundingClientRect();
                                   setDraggingItem({
                                     type: 'project',
-                                    operation: 'resize-left',
+                                    operation: 'move',
                                     id: project.id,
                                     initialX: e.clientX,
                                     initialDates: {
@@ -2895,148 +3056,624 @@ const ProjectManagement = () => {
                                 }}
                                 sx={{
                                   position: 'absolute',
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  width: 6,
-                                  cursor: 'ew-resize',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                                  borderTopLeftRadius: 0.5,
-                                  borderBottomLeftRadius: 0.5,
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                  },
-                                }}
-                              />
-
-                              {project.progress}%
-
-                              {/* Right Resize Handle */}
-                              <Box
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  const container = document.getElementById(`timeline-container-${project.id}`);
-                                  if (!container) return;
-                                  const rect = container.getBoundingClientRect();
-                                  setDraggingItem({
-                                    type: 'project',
-                                    operation: 'resize-right',
-                                    id: project.id,
-                                    initialX: e.clientX,
-                                    initialDates: {
-                                      startDate: new Date(projectStart),
-                                      endDate: new Date(projectEnd),
-                                    },
-                                    dateRange: dateRange,
-                                    containerWidth: rect.width,
-                                  });
-                                }}
-                                sx={{
-                                  position: 'absolute',
-                                  right: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  width: 6,
-                                  cursor: 'ew-resize',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                                  borderTopRightRadius: 0.5,
-                                  borderBottomRightRadius: 0.5,
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                  },
-                                }}
-                              />
-                            </Box>
-                          </Tooltip>
-                            );
-                          })()}
-
-                          {/* Milestone Markers */}
-                          {projectMilestones.map((milestone) => {
-                            const milestoneDate = milestone.plannedEndDate;
-                            if (!milestoneDate) return null;
-
-                            const formattedDate = new Date(milestoneDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            });
-
-                            return (
-                              <Box
-                                key={milestone.id}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation(); // Prevent project bar drag
-                                  const container = document.getElementById(`timeline-container-${project.id}`);
-                                  if (!container) return;
-                                  const rect = container.getBoundingClientRect();
-                                  setDraggingItem({
-                                    type: 'milestone',
-                                    id: milestone.id,
-                                    projectId: project.id,
-                                    initialX: e.clientX,
-                                    initialDates: {
-                                      plannedEndDate: new Date(milestoneDate),
-                                    },
-                                    dateRange: dateRange,
-                                    containerWidth: rect.width,
-                                  });
-                                }}
-                                sx={{
-                                  position: 'absolute',
-                                  left: tempPositions[`milestone-${milestone.id}`]?.left || `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
+                                  left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                                  width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                                  height: 18,
                                   top: '50%',
-                                  transform: 'translate(-50%, -50%) rotate(45deg)',
-                                  width: 11,
-                                  height: 11,
-                                  bgcolor: milestone.status === 'Completed' ? '#66bb6a' :
-                                          milestone.status === 'In Progress' ? '#42a5f5' : '#9e9e9e',
-                                  border: '2px solid white',
-                                  boxShadow: 1,
-                                  zIndex: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 10 : 2,
+                                  transform: 'translateY(-50%)',
+                                  bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
+                                          project.healthStatus === 'Yellow' ? '#ff9800' :
+                                          project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
+                                  borderRadius: 0.5,
+                                  border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 600,
+                                  px: 0.5,
+                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                                  zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
                                   cursor: 'grab',
-                                  opacity: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 0.7 : 1,
+                                  opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
                                   transition: draggingItem ? 'none' : 'all 0.2s',
                                   userSelect: 'none',
                                   '&:active': {
                                     cursor: 'grabbing',
                                   },
                                   '&:hover': {
-                                    transform: 'translate(-50%, -50%) rotate(45deg) scale(1.5)',
-                                    zIndex: 3,
-                                    filter: 'brightness(1.2)',
+                                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
+                                    filter: 'brightness(1.1)',
                                   },
                                 }}
-                                title={`${milestone.name} - ${formattedDate}`}
-                              />
-                            );
-                          })}
+                              >
+                                {/* Left Resize Handle */}
+                                <Box
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const container = document.getElementById(`timeline-container-${project.id}`);
+                                    if (!container) return;
+                                    const rect = container.getBoundingClientRect();
+                                    setDraggingItem({
+                                      type: 'project',
+                                      operation: 'resize-left',
+                                      id: project.id,
+                                      initialX: e.clientX,
+                                      initialDates: {
+                                        startDate: new Date(projectStart),
+                                        endDate: new Date(projectEnd),
+                                      },
+                                      dateRange: dateRange,
+                                      containerWidth: rect.width,
+                                    });
+                                  }}
+                                  sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: 6,
+                                    cursor: 'ew-resize',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                    borderTopLeftRadius: 0.5,
+                                    borderBottomLeftRadius: 0.5,
+                                    '&:hover': {
+                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                    },
+                                  }}
+                                />
+
+                                {project.progress}%
+
+                                {/* Right Resize Handle */}
+                                <Box
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const container = document.getElementById(`timeline-container-${project.id}`);
+                                    if (!container) return;
+                                    const rect = container.getBoundingClientRect();
+                                    setDraggingItem({
+                                      type: 'project',
+                                      operation: 'resize-right',
+                                      id: project.id,
+                                      initialX: e.clientX,
+                                      initialDates: {
+                                        startDate: new Date(projectStart),
+                                        endDate: new Date(projectEnd),
+                                      },
+                                      dateRange: dateRange,
+                                      containerWidth: rect.width,
+                                    });
+                                  }}
+                                  sx={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: 6,
+                                    cursor: 'ew-resize',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                    borderTopRightRadius: 0.5,
+                                    borderBottomRightRadius: 0.5,
+                                    '&:hover': {
+                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                    },
+                                  }}
+                                />
+                              </Box>
+                            </Tooltip>
+                              );
+                            })()}
+
+                            {/* Milestone Markers */}
+                            {projectMilestones.map((milestone) => {
+                              const milestoneDate = milestone.plannedEndDate;
+                              if (!milestoneDate) return null;
+
+                              const formattedDate = new Date(milestoneDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              });
+
+                              return (
+                                <Box
+                                  key={milestone.id}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation(); // Prevent project bar drag
+                                    const container = document.getElementById(`timeline-container-${project.id}`);
+                                    if (!container) return;
+                                    const rect = container.getBoundingClientRect();
+                                    setDraggingItem({
+                                      type: 'milestone',
+                                      id: milestone.id,
+                                      projectId: project.id,
+                                      initialX: e.clientX,
+                                      initialDates: {
+                                        plannedEndDate: new Date(milestoneDate),
+                                      },
+                                      dateRange: dateRange,
+                                      containerWidth: rect.width,
+                                    });
+                                  }}
+                                  sx={{
+                                    position: 'absolute',
+                                    left: tempPositions[`milestone-${milestone.id}`]?.left || `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
+                                    top: '50%',
+                                    transform: 'translate(-50%, -50%) rotate(45deg)',
+                                    width: 11,
+                                    height: 11,
+                                    bgcolor: milestone.status === 'Completed' ? '#66bb6a' :
+                                            milestone.status === 'In Progress' ? '#42a5f5' : '#9e9e9e',
+                                    border: '2px solid white',
+                                    boxShadow: 1,
+                                    zIndex: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 10 : 2,
+                                    cursor: 'grab',
+                                    opacity: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 0.7 : 1,
+                                    transition: draggingItem ? 'none' : 'all 0.2s',
+                                    userSelect: 'none',
+                                    '&:active': {
+                                      cursor: 'grabbing',
+                                    },
+                                    '&:hover': {
+                                      transform: 'translate(-50%, -50%) rotate(45deg) scale(1.5)',
+                                      zIndex: 3,
+                                      filter: 'brightness(1.2)',
+                                    },
+                                  }}
+                                  title={`${milestone.name} - ${formattedDate}`}
+                                />
+                              );
+                            })}
+                          </Box>
+                          <Box sx={{ width: 100, textAlign: 'center', pl: 1 }}>
+                            <Chip
+                              label={project.status}
+                              size="small"
+                              color={getStatusColor(project.status)}
+                              sx={{ fontSize: '0.6rem', height: 18 }}
+                            />
+                          </Box>
+                          </Box>
                         </Box>
-                        <Box sx={{ width: 100, textAlign: 'center', pl: 1 }}>
-                          <Chip
-                            label={project.status}
-                            size="small"
-                            color={getStatusColor(project.status)}
-                            sx={{ fontSize: '0.6rem', height: 18 }}
-                          />
-                        </Box>
-                        </Box>
+                      );
+                    })
+                  ) : (
+                    // Traditional swimlane layout with vertical Level 1 and horizontal Level 2
+                    <Box sx={{ display: 'flex' }}>
+                      {/* Level 1 Vertical Column */}
+                      <Box sx={{ width: swimlaneConfig.rotateLevel1 ? 50 : 120, flexShrink: 0, borderRight: '2px solid #ccc' }}>
+                        {Object.entries(swimlaneStructure || {}).map(([level1Key, level2Groups]) => {
+                          // Calculate total height for this Level 1 group
+                          const totalHeight = Object.values(level2Groups).reduce((sum, projects) => {
+                            return sum + (projects.length * 32);
+                          }, 0);
+
+                          return (
+                            <Box
+                              key={level1Key}
+                              sx={{
+                                height: totalHeight,
+                                bgcolor: getLevel1Color(level1Key),
+                                borderBottom: '2px solid #fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  ...(swimlaneConfig.rotateLevel1 ? {
+                                    writingMode: 'vertical-lr',
+                                    transform: 'rotate(180deg)',
+                                  } : {}),
+                                  fontSize: swimlaneConfig.rotateLevel1 ? '0.9rem' : '0.75rem',
+                                  fontWeight: 700,
+                                  color: 'white',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: 1,
+                                }}
+                              >
+                                {level1Key}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
                       </Box>
-                    );
-                  })}
+
+                      {/* Level 2 Column + Timeline */}
+                      <Box sx={{ flex: 1 }}>
+                        {Object.entries(swimlaneStructure || {}).flatMap(([level1Key, level2Groups]) => {
+                          const level2Entries = Object.entries(level2Groups);
+                          return level2Entries.map(([level2Key, projects], level2Index) => {
+                            const rowKey = `${level1Key}-${level2Key}`;
+                            const isLastLevel2InGroup = level2Index === level2Entries.length - 1;
+
+                            return (
+                              <Box key={rowKey} sx={{ display: 'flex', height: projects.length * 32 }}>
+                                {/* Level 2 Label */}
+                                <Box sx={{
+                                  width: swimlaneConfig.rotateLevel2 ? 50 : 180,
+                                  flexShrink: 0,
+                                  bgcolor: '#f5f5f5',
+                                  px: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
+                                  borderRight: '1px solid #e0e0e0',
+                                  borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
+                                  position: 'relative',
+                                }}>
+                                  <Typography
+                                    variant="caption"
+                                    fontWeight={500}
+                                    sx={{
+                                      ...(swimlaneConfig.rotateLevel2 ? {
+                                        writingMode: 'vertical-lr',
+                                        transform: 'rotate(180deg)',
+                                      } : {}),
+                                      fontSize: '0.7rem',
+                                    }}
+                                  >
+                                    {level2Key}
+                                  </Typography>
+                                </Box>
+
+                                {/* Level 3 Project Names Column */}
+                                <Box sx={{
+                                  width: ganttSidebarWidth,
+                                  flexShrink: 0,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  borderRight: '1px solid #e0e0e0',
+                                  bgcolor: 'background.paper',
+                                }}>
+                                  {projects.map((project, idx) => {
+                                    const isLastProject = idx === projects.length - 1;
+                                    // Determine border style based on hierarchy
+                                    let borderStyle = '1px dotted #e0e0e0'; // Default: thin dotted line between projects
+                                    if (isLastProject) {
+                                      if (isLastLevel2InGroup) {
+                                        borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                      } else {
+                                        borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                      }
+                                    }
+                                    return (
+                                      <Box
+                                        key={project.id}
+                                        sx={{
+                                          height: 32,
+                                          px: 1,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          borderBottom: borderStyle,
+                                        }}
+                                      >
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          fontSize: '0.7rem',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          display: 'block',
+                                        }}
+                                        title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
+                                      >
+                                        <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
+                                          {project.projectNumber || `PRJ-${project.id}`}
+                                        </Box>
+                                        <Box component="span" sx={{ color: 'text.secondary' }}>
+                                          {project.name}
+                                        </Box>
+                                      </Typography>
+                                    </Box>
+                                  );
+                                  })}
+                                </Box>
+
+                                {/* Timeline Container for ALL projects in this row */}
+                                <Box sx={{ flex: 1, position: 'relative', height: projects.length * 32 }}>
+                                  {/* Grid lines to match project rows */}
+                                  {projects.map((_, idx) => {
+                                    const isLastProject = idx === projects.length - 1;
+                                    let borderStyle = '1px dotted #e0e0e0'; // Thin dotted line between projects
+                                    if (isLastProject) {
+                                      if (isLastLevel2InGroup) {
+                                        borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                      } else {
+                                        borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                      }
+                                    }
+                                    return (
+                                      <Box
+                                        key={`timeline-grid-${idx}`}
+                                        sx={{
+                                          position: 'absolute',
+                                          left: 0,
+                                          right: 0,
+                                          top: (idx + 1) * 32,
+                                          height: 0,
+                                          borderTop: borderStyle,
+                                          zIndex: 0,
+                                        }}
+                                      />
+                                    );
+                                  })}
+
+                                  {projects.map((project, projectIdx) => {
+                                    const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                                    const projectStart = project.startDate || project.desiredStartDate;
+                                    const projectEnd = project.endDate || project.desiredCompletionDate;
+
+                                    return (
+                                      <React.Fragment key={project.id}>
+                                        {/* Project Bar */}
+                                        {projectStart && projectEnd && (() => {
+                                          const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+                                          const slackDays = cpmNode?.slack || 0;
+                                          const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+                                          const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+                                          return (
+                                            <Tooltip title={tooltipContent} arrow key={`bar-${project.id}`}>
+                                              <Box
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  const timelineContainer = e.currentTarget.parentElement;
+                                                  if (!timelineContainer) return;
+                                                  const rect = timelineContainer.getBoundingClientRect();
+                                                  setDraggingItem({
+                                                    type: 'project',
+                                                    operation: 'move',
+                                                    id: project.id,
+                                                    initialX: e.clientX,
+                                                    initialDates: {
+                                                      startDate: new Date(projectStart),
+                                                      endDate: new Date(projectEnd),
+                                                    },
+                                                    dateRange: dateRange,
+                                                    containerWidth: rect.width,
+                                                  });
+                                                }}
+                                                sx={{
+                                                  position: 'absolute',
+                                                  left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                                                  width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                                                  height: 18,
+                                                  top: projectIdx * 32 + 7,
+                                                  transform: 'none',
+                                                  bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
+                                                          project.healthStatus === 'Yellow' ? '#ff9800' :
+                                                          project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
+                                                  borderRadius: 0.5,
+                                                  border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                  color: 'white',
+                                                  fontSize: '0.6rem',
+                                                  fontWeight: 600,
+                                                  px: 0.5,
+                                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                                                  zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
+                                                  cursor: 'grab',
+                                                  opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
+                                                  transition: draggingItem ? 'none' : 'all 0.2s',
+                                                  userSelect: 'none',
+                                                  '&:active': {
+                                                    cursor: 'grabbing',
+                                                  },
+                                                  '&:hover': {
+                                                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
+                                                    filter: 'brightness(1.1)',
+                                                  },
+                                                }}
+                                              >
+                                                {/* Left Resize Handle */}
+                                                <Box
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const timelineContainer = e.currentTarget.parentElement?.parentElement;
+                                                    if (!timelineContainer) return;
+                                                    const rect = timelineContainer.getBoundingClientRect();
+                                                    setDraggingItem({
+                                                      type: 'project',
+                                                      operation: 'resize-left',
+                                                      id: project.id,
+                                                      initialX: e.clientX,
+                                                      initialDates: {
+                                                        startDate: new Date(projectStart),
+                                                        endDate: new Date(projectEnd),
+                                                      },
+                                                      dateRange: dateRange,
+                                                      containerWidth: rect.width,
+                                                    });
+                                                  }}
+                                                  sx={{
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    width: 6,
+                                                    cursor: 'ew-resize',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                                    borderTopLeftRadius: 0.5,
+                                                    borderBottomLeftRadius: 0.5,
+                                                    '&:hover': {
+                                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                                    },
+                                                  }}
+                                                />
+
+                                                {project.progress}%
+
+                                                {/* Right Resize Handle */}
+                                                <Box
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const timelineContainer = e.currentTarget.parentElement?.parentElement;
+                                                    if (!timelineContainer) return;
+                                                    const rect = timelineContainer.getBoundingClientRect();
+                                                    setDraggingItem({
+                                                      type: 'project',
+                                                      operation: 'resize-right',
+                                                      id: project.id,
+                                                      initialX: e.clientX,
+                                                      initialDates: {
+                                                        startDate: new Date(projectStart),
+                                                        endDate: new Date(projectEnd),
+                                                      },
+                                                      dateRange: dateRange,
+                                                      containerWidth: rect.width,
+                                                    });
+                                                  }}
+                                                  sx={{
+                                                    position: 'absolute',
+                                                    right: 0,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    width: 6,
+                                                    cursor: 'ew-resize',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                                    borderTopRightRadius: 0.5,
+                                                    borderBottomRightRadius: 0.5,
+                                                    '&:hover': {
+                                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                                    },
+                                                  }}
+                                                />
+                                              </Box>
+                                            </Tooltip>
+                                          );
+                                        })()}
+
+                                        {/* Milestone Markers */}
+                                        {projectMilestones.map((milestone) => {
+                                          const milestoneDate = milestone.plannedEndDate;
+                                          if (!milestoneDate) return null;
+
+                                          const formattedDate = new Date(milestoneDate).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                          });
+
+                                          return (
+                                            <Box
+                                              key={milestone.id}
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const timelineContainer = e.currentTarget.parentElement;
+                                                if (!timelineContainer) return;
+                                                const rect = timelineContainer.getBoundingClientRect();
+                                                setDraggingItem({
+                                                  type: 'milestone',
+                                                  id: milestone.id,
+                                                  projectId: project.id,
+                                                  initialX: e.clientX,
+                                                  initialDates: {
+                                                    plannedEndDate: new Date(milestoneDate),
+                                                  },
+                                                  dateRange: dateRange,
+                                                  containerWidth: rect.width,
+                                                });
+                                              }}
+                                              sx={{
+                                                position: 'absolute',
+                                                left: tempPositions[`milestone-${milestone.id}`]?.left || `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
+                                                top: projectIdx * 32 + 16,
+                                                transform: 'translate(-50%, -50%) rotate(45deg)',
+                                                width: 11,
+                                                height: 11,
+                                                bgcolor: milestone.status === 'Completed' ? '#66bb6a' :
+                                                        milestone.status === 'In Progress' ? '#42a5f5' : '#9e9e9e',
+                                                border: '2px solid white',
+                                                boxShadow: 1,
+                                                zIndex: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 10 : 2,
+                                                cursor: 'grab',
+                                                opacity: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 0.7 : 1,
+                                                transition: draggingItem ? 'none' : 'all 0.2s',
+                                                userSelect: 'none',
+                                                '&:active': {
+                                                  cursor: 'grabbing',
+                                                },
+                                                '&:hover': {
+                                                  transform: 'translate(-50%, -50%) rotate(45deg) scale(1.5)',
+                                                  zIndex: 3,
+                                                  filter: 'brightness(1.2)',
+                                                },
+                                              }}
+                                              title={`${milestone.name} - ${formattedDate}`}
+                                            />
+                                          );
+                                        })}
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </Box>
+
+                                {/* Status column */}
+                                <Box sx={{ width: 100, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                                  {projects.map((project, idx) => {
+                                    const isLastProject = idx === projects.length - 1;
+                                    let borderStyle = '1px dotted #e0e0e0'; // Thin dotted line between projects
+                                    if (isLastProject) {
+                                      if (isLastLevel2InGroup) {
+                                        borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                      } else {
+                                        borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                      }
+                                    }
+                                    return (
+                                      <Box
+                                        key={project.id}
+                                        sx={{
+                                          height: 32,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderBottom: borderStyle,
+                                        }}
+                                      >
+                                        <Chip
+                                          label={project.status}
+                                          size="small"
+                                          color={getStatusColor(project.status)}
+                                          sx={{ fontSize: '0.55rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+                                        />
+                                      </Box>
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            );
+                          });
+                        })}
+                      </Box>
+                    </Box>
+                  )}
 
                   {/* Dependency Arrows Overlay */}
                   <svg
-                    viewBox={`0 0 100 ${filteredProjects.length * 32}`}
+                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 32}`}
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
                       top: 0,
-                      left: ganttSidebarWidth,
-                      width: `calc(100% - ${ganttSidebarWidth + 100}px)`,
-                      height: filteredProjects.length * 32,
+                      left: swimlaneConfig.enabled
+                        ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                        : ganttSidebarWidth,
+                      width: swimlaneConfig.enabled ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth}px - 100px)` : `calc(100% - ${ganttSidebarWidth + 100}px)`,
+                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 32,
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',
