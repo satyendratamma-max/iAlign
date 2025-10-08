@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   Drawer,
   List,
@@ -11,6 +12,8 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
+  Collapse,
+  IconButton,
 } from '@mui/material';
 import {
   Dashboard,
@@ -31,6 +34,8 @@ import {
   Apps,
   Extension,
   WorkOutline,
+  ExpandMore,
+  ChevronRight,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
@@ -109,6 +114,24 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === 'Administrator';
 
+  // Load collapsed state from localStorage
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('sidebarCollapsedSections');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Save collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsedSections', JSON.stringify(collapsedSections));
+  }, [collapsedSections]);
+
+  const toggleSection = (sectionTitle: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionTitle]: !prev[sectionTitle]
+    }));
+  };
+
   const handleNavigation = (path: string) => {
     navigate(path);
     if (isMobile) {
@@ -148,78 +171,109 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
       </Box>
       <Divider sx={{ borderColor: 'divider', opacity: 0.1 }} />
       <List sx={{ pt: 1, px: 1 }}>
-        {[...menuSections, ...(isAdmin ? [adminMenuSection] : [])].map((section, sectionIndex) => (
-          <Box key={section.title}>
-            {section.title !== 'Main' && open && (
-              <ListItem sx={{ pt: 2, pb: 0.5, px: 2 }}>
-                <Typography
-                  variant="caption"
+        {[...menuSections, ...(isAdmin ? [adminMenuSection] : [])].map((section, sectionIndex) => {
+          const isCollapsed = collapsedSections[section.title] || false;
+
+          return (
+            <Box key={section.title}>
+              {section.title !== 'Main' && open && (
+                <ListItem
                   sx={{
-                    opacity: 0.6,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    fontSize: '0.7rem',
+                    pt: 2,
+                    pb: 0.5,
+                    px: 1,
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
                   }}
+                  onClick={() => toggleSection(section.title)}
                 >
-                  {section.title}
-                </Typography>
-              </ListItem>
-            )}
-            {section.items.map((item) => (
-              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-                <Tooltip title={!open ? item.text : ''} placement="right" arrow>
-                  <ListItemButton
-                    selected={location.pathname === item.path}
-                    onClick={() => handleNavigation(item.path)}
+                  <Typography
+                    variant="caption"
                     sx={{
-                      borderRadius: 2,
-                      minHeight: 48,
-                      justifyContent: open ? 'initial' : 'center',
-                      px: 2,
-                      '&.Mui-selected': {
-                        backgroundColor: 'primary.main',
-                        color: 'primary.contrastText',
-                        '&:hover': {
-                          backgroundColor: 'primary.dark',
-                        },
-                        '& .MuiListItemIcon-root': {
-                          color: 'primary.contrastText',
-                        },
-                      },
+                      opacity: 0.6,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      fontSize: '0.7rem',
+                      flex: 1,
+                    }}
+                  >
+                    {section.title}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      p: 0.5,
+                      opacity: 0.6,
                       '&:hover': {
-                        backgroundColor: 'action.hover',
+                        backgroundColor: 'transparent',
                       },
                     }}
                   >
-                    <ListItemIcon
-                      sx={{
-                        minWidth: 0,
-                        mr: open ? 2 : 'auto',
-                        justifyContent: 'center',
-                        color: 'inherit',
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    {open && (
-                      <ListItemText
-                        primary={item.text}
-                        primaryTypographyProps={{
-                          fontSize: '0.875rem',
-                          fontWeight: 500,
+                    {isCollapsed ? <ChevronRight fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  </IconButton>
+                </ListItem>
+              )}
+              <Collapse in={!isCollapsed || section.title === 'Main'} timeout="auto" unmountOnExit>
+                {section.items.map((item) => (
+                  <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                    <Tooltip title={!open ? item.text : ''} placement="right" arrow>
+                      <ListItemButton
+                        selected={location.pathname === item.path}
+                        onClick={() => handleNavigation(item.path)}
+                        sx={{
+                          borderRadius: 2,
+                          minHeight: 48,
+                          justifyContent: open ? 'initial' : 'center',
+                          px: 2,
+                          '&.Mui-selected': {
+                            backgroundColor: 'primary.main',
+                            color: 'primary.contrastText',
+                            '&:hover': {
+                              backgroundColor: 'primary.dark',
+                            },
+                            '& .MuiListItemIcon-root': {
+                              color: 'primary.contrastText',
+                            },
+                          },
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                          },
                         }}
-                      />
-                    )}
-                  </ListItemButton>
-                </Tooltip>
-              </ListItem>
-            ))}
-            {sectionIndex < menuSections.length - 1 && section.title === 'Main' && open && (
-              <Divider sx={{ borderColor: 'divider', opacity: 0.1, my: 1.5 }} />
-            )}
-          </Box>
-        ))}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 0,
+                            mr: open ? 2 : 'auto',
+                            justifyContent: 'center',
+                            color: 'inherit',
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        {open && (
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                            }}
+                          />
+                        )}
+                      </ListItemButton>
+                    </Tooltip>
+                  </ListItem>
+                ))}
+              </Collapse>
+              {sectionIndex < menuSections.length - 1 && section.title === 'Main' && open && (
+                <Divider sx={{ borderColor: 'divider', opacity: 0.1, my: 1.5 }} />
+              )}
+            </Box>
+          );
+        })}
       </List>
     </>
   );
