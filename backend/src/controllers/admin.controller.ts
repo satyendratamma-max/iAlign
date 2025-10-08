@@ -78,7 +78,8 @@ export const resetAndReseedData = async (_req: Request, res: Response, next: Nex
     logger.warn('Database reset and reseed initiated by admin');
 
     // Run the seed script (it will handle database sync internally)
-    const { stdout, stderr } = await execAsync('npm run seed:dev');
+    // Increase maxBuffer to 10MB to handle large seed script output
+    const { stdout, stderr } = await execAsync('npm run seed:dev', { maxBuffer: 10 * 1024 * 1024 });
 
     if (stderr) {
       logger.warn('Seed script stderr:', stderr);
