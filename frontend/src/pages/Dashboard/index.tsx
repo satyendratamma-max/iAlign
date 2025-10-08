@@ -144,30 +144,6 @@ const Dashboard = () => {
           averageRisk: 3.2, // placeholder
         });
 
-        // Calculate domain performance (always based on ALL projects)
-        const domainPerf: DomainPerformance[] = allDomains.map((domain: any) => {
-          const domainProjects = fetchedProjects.filter((p: any) => p.domainId === domain.id);
-          const domainBudget = domainProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
-          const avgProg = domainProjects.length > 0
-            ? domainProjects.reduce((sum, p) => sum + p.progress, 0) / domainProjects.length
-            : 0;
-
-          const healthyProjects = domainProjects.filter(p => p.healthStatus === 'Green').length;
-          const healthScore = domainProjects.length > 0
-            ? (healthyProjects / domainProjects.length) * 100
-            : 0;
-
-          return {
-            domainId: domain.id,
-            domainName: domain.name,
-            projectCount: domainProjects.length,
-            totalBudget: domainBudget,
-            avgProgress: Math.round(avgProg),
-            healthScore: Math.round(healthScore),
-          };
-        });
-
-        setDomainPerformance(domainPerf);
 
         // Calculate resource metrics
         const resourceUtilization = resources.map((resource: any) => {
@@ -254,7 +230,36 @@ const Dashboard = () => {
       p.healthStatus === 'Yellow' && p.progress < 50
     ).slice(0, 5);
     setAtRiskProjects(atRisk);
-  }, [allProjects, selectedDomainId]);
+
+    // Calculate domain performance (filtered by domain selection)
+    const domainsToShow = selectedDomainId === 'all'
+      ? domains
+      : domains.filter(d => d.id === selectedDomainId);
+
+    const domainPerf: DomainPerformance[] = domainsToShow.map((domain: any) => {
+      const domainProjects = allProjects.filter((p: any) => p.domainId === domain.id);
+      const domainBudget = domainProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+      const avgProg = domainProjects.length > 0
+        ? domainProjects.reduce((sum, p) => sum + p.progress, 0) / domainProjects.length
+        : 0;
+
+      const healthyProjects = domainProjects.filter(p => p.healthStatus === 'Green').length;
+      const healthScore = domainProjects.length > 0
+        ? (healthyProjects / domainProjects.length) * 100
+        : 0;
+
+      return {
+        domainId: domain.id,
+        domainName: domain.name,
+        projectCount: domainProjects.length,
+        totalBudget: domainBudget,
+        avgProgress: Math.round(avgProg),
+        healthScore: Math.round(healthScore),
+      };
+    }).filter((d: DomainPerformance) => d.projectCount > 0);
+
+    setDomainPerformance(domainPerf);
+  }, [allProjects, selectedDomainId, domains]);
 
   if (loading) {
     return (
