@@ -689,6 +689,9 @@ const SortableSwimlaneProjectName: React.FC<SortableSwimlaneProjectNameProps> = 
           '&:active': { cursor: 'grabbing' },
           color: 'action.active',
           '&:hover': { color: 'primary.main' },
+          zIndex: 10,
+          position: 'relative',
+          touchAction: 'none',
         }}
       >
         <Box sx={{ fontSize: '1rem', userSelect: 'none' }}>⋮⋮</Box>
@@ -764,18 +767,24 @@ const ProjectManagement = () => {
     enabled: boolean;
     level1: 'domain' | 'segmentFunction' | 'type';
     level2: 'domain' | 'segmentFunction' | 'type';
+    level2Enabled: boolean;
     rotateLevel1: boolean;
     rotateLevel2: boolean;
   }>(() => {
     const saved = localStorage.getItem('ganttSwimlaneConfig');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Add level2Enabled if it doesn't exist (for backward compatibility)
+        if (parsed.level2Enabled === undefined) {
+          parsed.level2Enabled = true;
+        }
+        return parsed;
       } catch {
-        return { enabled: false, level1: 'domain', level2: 'type', rotateLevel1: true, rotateLevel2: false };
+        return { enabled: false, level1: 'domain', level2: 'type', level2Enabled: true, rotateLevel1: true, rotateLevel2: false };
       }
     }
-    return { enabled: false, level1: 'domain', level2: 'type', rotateLevel1: true, rotateLevel2: false };
+    return { enabled: false, level1: 'domain', level2: 'type', level2Enabled: true, rotateLevel1: true, rotateLevel2: false };
   });
 
   // Show gridlines option
@@ -901,7 +910,7 @@ const ProjectManagement = () => {
       if (ganttContainerRef.current) {
         const containerWidth = ganttContainerRef.current.offsetWidth || 1000;
         const sidebarWidth = swimlaneConfig.enabled
-          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
           : ganttSidebarWidth;
         const calculatedWidth = containerWidth - sidebarWidth - 100; // 100 for status column
         if (calculatedWidth > 0) {
@@ -1508,7 +1517,8 @@ const ProjectManagement = () => {
 
     filteredProjects.forEach((project) => {
       const level1Key = getGroupKey(project, swimlaneConfig.level1);
-      const level2Key = getGroupKey(project, swimlaneConfig.level2);
+      // If level2 is disabled, use 'all' as a single group
+      const level2Key = swimlaneConfig.level2Enabled ? getGroupKey(project, swimlaneConfig.level2) : 'all';
 
       if (!structure[level1Key]) {
         structure[level1Key] = {};
@@ -1546,7 +1556,7 @@ const ProjectManagement = () => {
   // Memoize swimlane structure so it's consistent across rendering and arrow positioning
   const swimlaneStructure = useMemo(() => {
     return swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
-  }, [swimlaneConfig.enabled, swimlaneConfig.level1, swimlaneConfig.level2, filteredProjects]);
+  }, [swimlaneConfig.enabled, swimlaneConfig.level1, swimlaneConfig.level2, swimlaneConfig.level2Enabled, filteredProjects]);
 
   // Memoize the row index map to ensure consistency
   const projectRowIndexMap = useMemo(() => {
@@ -3338,16 +3348,31 @@ const ProjectManagement = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Checkbox
                       size="small"
-                      checked={swimlaneConfig.rotateLevel2}
-                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel2: e.target.checked })}
+                      checked={swimlaneConfig.level2Enabled}
+                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2Enabled: e.target.checked })}
                     />
-                    <Typography variant="caption" color="text.secondary">
-                      Rotate Level 2
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Enable Level 2
                     </Typography>
                   </Box>
 
+                  {swimlaneConfig.level2Enabled && (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Checkbox
+                          size="small"
+                          checked={swimlaneConfig.rotateLevel2}
+                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel2: e.target.checked })}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Rotate Level 2
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+
                   <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    Level 3: Projects (fixed)
+                    {swimlaneConfig.level2Enabled ? 'Level 3: Projects (fixed)' : 'Level 2: Projects (fixed)'}
                   </Typography>
                 </>
               )}
@@ -3549,7 +3574,7 @@ const ProjectManagement = () => {
                 <Box sx={{ display: 'flex' }}>
                   <Box sx={{
                     width: swimlaneConfig.enabled
-                      ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                      ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
                       : ganttSidebarWidth,
                     flexShrink: 0,
                     pr: 1
@@ -3603,7 +3628,7 @@ const ProjectManagement = () => {
                         position: 'absolute',
                         top: 0,
                         left: `calc(${swimlaneConfig.enabled
-                          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
                           : ganttSidebarWidth}px + ${marker.position}%)`,
                         width: 0,
                         height: '100%',
@@ -3722,36 +3747,37 @@ const ProjectManagement = () => {
 
                             return (
                               <Box key={rowKey} sx={{ display: 'flex', height: projects.length * 32 }}>
-                                {/* Level 2 Label */}
-                                <Box sx={{
-                                  width: swimlaneConfig.rotateLevel2 ? 50 : 180,
-                                  flexShrink: 0,
-                                  bgcolor: '#f5f5f5',
-                                  px: 1,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
-                                  borderRight: '1px solid #e0e0e0',
-                                  borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
-                                  position: 'relative',
-                                }}>
-                                  <Typography
-                                    variant="caption"
-                                    fontWeight={500}
-                                    sx={{
-                                      ...(swimlaneConfig.rotateLevel2 ? {
-                                        writingMode: 'vertical-lr',
-                                        transform: 'rotate(180deg)',
-                                      } : {}),
-                                      fontSize: '0.7rem',
-                                    }}
-                                  >
-                                    {level2Key}
-                                  </Typography>
+                                {/* Level 2 Label - Only show if Level 2 is enabled */}
+                                {swimlaneConfig.level2Enabled && (
+                                  <Box sx={{
+                                    width: swimlaneConfig.rotateLevel2 ? 50 : 180,
+                                    flexShrink: 0,
+                                    bgcolor: '#f5f5f5',
+                                    px: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
+                                    borderRight: '1px solid #e0e0e0',
+                                    borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
+                                    position: 'relative',
+                                  }}>
+                                    <Typography
+                                      variant="caption"
+                                      fontWeight={500}
+                                      sx={{
+                                        ...(swimlaneConfig.rotateLevel2 ? {
+                                          writingMode: 'vertical-lr',
+                                          transform: 'rotate(180deg)',
+                                        } : {}),
+                                        fontSize: '0.7rem',
+                                      }}
+                                    >
+                                      {level2Key}
+                                    </Typography>
 
-                                  {/* Grid line overlays to match project rows */}
-                                  {projects.slice(0, -1).map((_, idx) => (
-                                    <Box
+                                    {/* Grid line overlays to match project rows */}
+                                    {projects.slice(0, -1).map((_, idx) => (
+                                      <Box
                                       key={`level2-grid-${idx}`}
                                       sx={{
                                         position: 'absolute',
@@ -3763,7 +3789,8 @@ const ProjectManagement = () => {
                                       }}
                                     />
                                   ))}
-                                </Box>
+                                  </Box>
+                                )}
 
                                 {/* Level 3 Project Names Column */}
                                 <DndContext
@@ -4142,36 +4169,37 @@ const ProjectManagement = () => {
 
                             return (
                               <Box key={rowKey} sx={{ display: 'flex', height: projects.length * 32 }}>
-                                {/* Level 2 Label */}
-                                <Box sx={{
-                                  width: swimlaneConfig.rotateLevel2 ? 50 : 180,
-                                  flexShrink: 0,
-                                  bgcolor: '#f5f5f5',
-                                  px: 1,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
-                                  borderRight: '1px solid #e0e0e0',
-                                  borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
-                                  position: 'relative',
-                                }}>
-                                  <Typography
-                                    variant="caption"
-                                    fontWeight={500}
-                                    sx={{
-                                      ...(swimlaneConfig.rotateLevel2 ? {
-                                        writingMode: 'vertical-lr',
-                                        transform: 'rotate(180deg)',
-                                      } : {}),
-                                      fontSize: '0.7rem',
-                                    }}
-                                  >
-                                    {level2Key}
-                                  </Typography>
+                                {/* Level 2 Label - Only show if Level 2 is enabled */}
+                                {swimlaneConfig.level2Enabled && (
+                                  <Box sx={{
+                                    width: swimlaneConfig.rotateLevel2 ? 50 : 180,
+                                    flexShrink: 0,
+                                    bgcolor: '#f5f5f5',
+                                    px: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
+                                    borderRight: '1px solid #e0e0e0',
+                                    borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
+                                    position: 'relative',
+                                  }}>
+                                    <Typography
+                                      variant="caption"
+                                      fontWeight={500}
+                                      sx={{
+                                        ...(swimlaneConfig.rotateLevel2 ? {
+                                          writingMode: 'vertical-lr',
+                                          transform: 'rotate(180deg)',
+                                        } : {}),
+                                        fontSize: '0.7rem',
+                                      }}
+                                    >
+                                      {level2Key}
+                                    </Typography>
 
-                                  {/* Grid line overlays to match project rows */}
-                                  {projects.slice(0, -1).map((_, idx) => (
-                                    <Box
+                                    {/* Grid line overlays to match project rows */}
+                                    {projects.slice(0, -1).map((_, idx) => (
+                                      <Box
                                       key={`level2-grid-${idx}`}
                                       sx={{
                                         position: 'absolute',
@@ -4183,7 +4211,8 @@ const ProjectManagement = () => {
                                       }}
                                     />
                                   ))}
-                                </Box>
+                                  </Box>
+                                )}
 
                                 {/* Level 3 Project Names Column */}
                                 <Box sx={{
@@ -4533,10 +4562,10 @@ const ProjectManagement = () => {
                       position: 'absolute',
                       top: 0,
                       left: swimlaneConfig.enabled
-                        ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                        ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
                         : ganttSidebarWidth,
                       width: swimlaneConfig.enabled
-                        ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth}px - 100px)`
+                        ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth}px - 100px)`
                         : `calc(100% - ${ganttSidebarWidth}px)`,
                       height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36,
                       pointerEvents: 'none',
