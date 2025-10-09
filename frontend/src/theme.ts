@@ -32,21 +32,25 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             main: '#ef4444',
             light: '#f87171',
             dark: '#dc2626',
+            lighter: '#fee2e2',
           },
           warning: {
             main: '#f59e0b',
             light: '#fbbf24',
             dark: '#d97706',
+            lighter: '#fef3c7',
           },
           info: {
             main: '#06b6d4',
             light: '#22d3ee',
             dark: '#0891b2',
+            lighter: '#cffafe',
           },
           success: {
             main: '#10b981',
             light: '#34d399',
             dark: '#059669',
+            lighter: '#d1fae5',
           },
           background: {
             default: '#f8fafc',
@@ -56,6 +60,10 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             primary: '#0f172a',
             secondary: '#64748b',
           },
+          action: {
+            hover: 'rgba(0, 0, 0, 0.04)',
+          },
+          divider: 'rgba(0, 0, 0, 0.12)',
         }
       : {
           // Dark mode palette
@@ -74,21 +82,25 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             main: '#f87171',
             light: '#fca5a5',
             dark: '#ef4444',
+            lighter: 'rgba(248, 113, 113, 0.15)',
           },
           warning: {
             main: '#fbbf24',
             light: '#fcd34d',
             dark: '#f59e0b',
+            lighter: 'rgba(251, 191, 36, 0.15)',
           },
           info: {
             main: '#22d3ee',
             light: '#67e8f9',
             dark: '#06b6d4',
+            lighter: 'rgba(34, 211, 238, 0.15)',
           },
           success: {
             main: '#34d399',
             light: '#6ee7b7',
             dark: '#10b981',
+            lighter: 'rgba(16, 185, 129, 0.15)',
           },
           background: {
             default: '#0f172a',
@@ -98,6 +110,10 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             primary: '#f1f5f9',
             secondary: '#cbd5e1',
           },
+          action: {
+            hover: 'rgba(255, 255, 255, 0.08)',
+          },
+          divider: 'rgba(255, 255, 255, 0.12)',
         }),
   },
   typography: {

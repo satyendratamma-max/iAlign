@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Grid,
   Card,
@@ -15,7 +15,20 @@ import {
   TableHead,
   TableRow,
   Alert,
+  Button,
+  IconButton,
+  Divider,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
+import {
+  Download as DownloadIcon,
+  Fullscreen as FullscreenIcon,
+  Image as ImageIcon,
+  PictureAsPdf as PdfIcon,
+} from '@mui/icons-material';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
@@ -28,13 +41,11 @@ import {
   Warning,
   Error as ErrorIcon,
   People,
-  Schedule,
-  AssignmentTurnedIn,
-  Timeline,
-  Groups,
   Business,
 } from '@mui/icons-material';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -113,6 +124,9 @@ const Dashboard = () => {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [allResources, setAllResources] = useState<any[]>([]);
   const [allAllocations, setAllAllocations] = useState<Allocation[]>([]);
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
   // Fetch data when active scenario changes
   useEffect(() => {
@@ -150,8 +164,8 @@ const Dashboard = () => {
         setSegmentFunctionStats({
           totalSegmentFunctions: segmentFunctionsRes.data.data.length,
           totalValue: fetchedProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
-          averageROI: 15.5, // placeholder
-          averageRisk: 3.2, // placeholder
+          averageROI: 15.5,
+          averageRisk: 3.2,
         });
 
       } catch (error) {
@@ -256,14 +270,14 @@ const Dashboard = () => {
     const sortedByBudget = [...projects]
       .filter(p => p.budget && p.budget > 0)
       .sort((a, b) => (b.budget || 0) - (a.budget || 0))
-      .slice(0, 5);
+      .slice(0, 8);
     setTopProjects(sortedByBudget);
 
     // At-risk projects (filtered)
     const atRisk = projects.filter(p =>
       p.healthStatus === 'Red' ||
       p.healthStatus === 'Yellow' && p.progress < 50
-    ).slice(0, 5);
+    ).slice(0, 8);
     setAtRiskProjects(atRisk);
 
     // Calculate domain performance (filtered by domain selection)
@@ -296,6 +310,52 @@ const Dashboard = () => {
     setDomainPerformance(domainPerf);
   }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, domains]);
 
+  const handleExport = async (format: 'png' | 'pdf') => {
+    if (!dashboardRef.current) return;
+
+    try {
+      // Temporarily enable presentation mode for export
+      setPresentationMode(true);
+      setExportMenuAnchor(null);
+
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        backgroundColor: null, // Use actual background color from the page
+        logging: false,
+        useCORS: true,
+      });
+
+      const fileName = `dashboard-${activeScenario?.name || 'export'}-${new Date().toISOString().split('T')[0]}`;
+
+      if (format === 'png') {
+        // Export as PNG
+        const link = document.createElement('a');
+        link.download = `${fileName}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } else {
+        // Export as PDF
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`${fileName}.pdf`);
+      }
+
+      setPresentationMode(false);
+    } catch (error) {
+      console.error('Error exporting dashboard:', error);
+      setPresentationMode(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -313,57 +373,53 @@ const Dashboard = () => {
     }).format(value);
   };
 
+  const formatCompact = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return formatCurrency(value);
+  };
+
   const mainMetrics = [
     {
-      title: 'Total Segment Function Value',
-      value: segmentFunctionStats ? formatCurrency(segmentFunctionStats.totalValue) : '$0',
+      title: 'Portfolio Value',
+      value: formatCompact(segmentFunctionStats?.totalValue || 0),
+      subtitle: `${segmentFunctionStats?.totalSegmentFunctions || 0} Segment Functions`,
       icon: <Business sx={{ fontSize: 40 }} />,
-      subtitle: `${segmentFunctionStats?.totalSegmentFunctions || 0} segment functions`,
-      trend: '+12% from last quarter',
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      iconBg: 'rgba(102, 126, 234, 0.1)',
     },
     {
       title: 'Active Projects',
       value: metrics?.activeProjects || 0,
+      subtitle: `${metrics?.averageProgress || 0}% Avg Progress`,
       icon: <Folder sx={{ fontSize: 40 }} />,
-      subtitle: `${metrics?.totalProjects || 0} total projects`,
-      trend: `${metrics?.averageProgress || 0}% avg completion`,
       color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      iconBg: 'rgba(240, 147, 251, 0.1)',
     },
     {
-      title: 'Total Resources',
-      value: resourceMetrics?.totalResources || 0,
+      title: 'Resource Utilization',
+      value: `${resourceMetrics?.averageUtilization || 0}%`,
+      subtitle: `${resourceMetrics?.totalResources || 0} Resources`,
       icon: <People sx={{ fontSize: 40 }} />,
-      subtitle: `${resourceMetrics?.averageUtilization || 0}% avg utilization`,
-      trend: `${resourceMetrics?.availableResources || 0} available`,
       color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      iconBg: 'rgba(79, 172, 254, 0.1)',
     },
     {
-      title: 'Budget Variance',
-      value: metrics ? formatCurrency(Math.abs(metrics.budgetVariance)) : '$0',
+      title: 'Budget Status',
+      value: formatCompact(Math.abs(metrics?.budgetVariance || 0)),
+      subtitle: metrics && metrics.budgetVariance >= 0 ? 'Under Budget' : 'Over Budget',
       icon: metrics && metrics.budgetVariance >= 0 ? <TrendingUp sx={{ fontSize: 40 }} /> : <TrendingDown sx={{ fontSize: 40 }} />,
-      subtitle: `${formatCurrency(metrics?.totalActualCost || 0)} spent`,
-      trend: metrics && metrics.budgetVariance >= 0 ? 'Under budget' : 'Over budget',
       color: metrics && metrics.budgetVariance >= 0
         ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
         : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      iconBg: metrics && metrics.budgetVariance >= 0 ? 'rgba(67, 233, 123, 0.1)' : 'rgba(250, 112, 154, 0.1)',
     },
   ];
 
-  const healthColors: Record<string, string> = {
+  const healthColors: Record<string, any> = {
     Green: 'success',
     Yellow: 'warning',
     Red: 'error',
-  };
-
-  const healthIcons: Record<string, JSX.Element> = {
-    Green: <CheckCircle />,
-    Yellow: <Warning />,
-    Red: <ErrorIcon />,
   };
 
   const getHealthScoreColor = (score: number) => {
@@ -373,8 +429,9 @@ const Dashboard = () => {
   };
 
   return (
-    <Box>
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+    <Box sx={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      {/* Header with Export Button */}
+      <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography
@@ -387,416 +444,411 @@ const Dashboard = () => {
             >
               Executive Dashboard
             </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-            >
-              Real-time insights and analytics across your portfolio
+            <Typography variant="body2" color="text.secondary">
+              {activeScenario?.name || 'Portfolio'} • Last updated: {new Date().toLocaleString()}
             </Typography>
           </Box>
-          <SharedFilters />
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <SharedFilters />
+            <IconButton
+              onClick={() => setPresentationMode(!presentationMode)}
+              color={presentationMode ? 'primary' : 'default'}
+              title="Presentation Mode"
+            >
+              <FullscreenIcon />
+            </IconButton>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={(e) => setExportMenuAnchor(e.currentTarget)}
+              size="small"
+            >
+              Export
+            </Button>
+            <Menu
+              anchorEl={exportMenuAnchor}
+              open={Boolean(exportMenuAnchor)}
+              onClose={() => setExportMenuAnchor(null)}
+            >
+              <MenuItem onClick={() => handleExport('png')}>
+                <ListItemIcon>
+                  <ImageIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Export as PNG" secondary="High-resolution image" />
+              </MenuItem>
+              <MenuItem onClick={() => handleExport('pdf')}>
+                <ListItemIcon>
+                  <PdfIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Export as PDF" secondary="Printable document" />
+              </MenuItem>
+            </Menu>
+          </Box>
         </Box>
       </Box>
 
-      {/* Alerts */}
-      {resourceMetrics && resourceMetrics.overAllocatedResources > 0 && (
-        <Alert severity="warning" icon={<Warning />} sx={{ mb: { xs: 2, sm: 3 } }}>
-          <strong>{resourceMetrics.overAllocatedResources}</strong> resource(s) are over-allocated.
-          Review resource allocation to prevent burnout.
+      {/* Alert for Over-allocated Resources */}
+      {resourceMetrics && resourceMetrics.overAllocatedResources > 0 && !presentationMode && (
+        <Alert severity="warning" icon={<Warning />} sx={{ mb: 2 }}>
+          <strong>{resourceMetrics.overAllocatedResources}</strong> resource(s) over-allocated
         </Alert>
       )}
 
-      {/* Main Metrics Cards */}
-      <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
-        {mainMetrics.map((metric, index) => (
-          <Grid item xs={12} sm={6} lg={3} key={index}>
-            <Card
-              sx={{
-                height: '100%',
-                background: metric.color,
-                color: 'white',
-                position: 'relative',
-                overflow: 'hidden',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  transition: 'transform 0.3s ease-in-out',
-                  boxShadow: 6,
-                }
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      {metric.title}
-                    </Typography>
-                    <Typography variant="h3" fontWeight="bold" sx={{ mb: 1 }}>
-                      {metric.value}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 0.5 }}>
-                      {metric.subtitle}
-                    </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      {metric.trend}
-                    </Typography>
+      {/* Dashboard Content */}
+      <Box ref={dashboardRef} sx={{
+        bgcolor: presentationMode ? 'background.paper' : 'transparent',
+        p: presentationMode ? 3 : 0,
+      }}>
+        {/* Hero KPI Cards - Single Row */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {mainMetrics.map((metric, index) => (
+            <Grid item xs={12} sm={6} md={3} key={index}>
+              <Card
+                sx={{
+                  height: '100%',
+                  background: metric.color,
+                  color: 'white',
+                  boxShadow: presentationMode ? 4 : 2,
+                }}
+              >
+                <CardContent sx={{ p: 2.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        {metric.title}
+                      </Typography>
+                      <Typography variant="h3" fontWeight="bold" sx={{ my: 1, fontSize: '2rem' }}>
+                        {metric.value}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
+                        {metric.subtitle}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ opacity: 0.3 }}>
+                      {metric.icon}
+                    </Box>
                   </Box>
-                  <Box
-                    sx={{
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      borderRadius: 2,
-                      p: 1.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {metric.icon}
-                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Middle Section - Combined Health & Domain Performance */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {/* Left: Combined Project Health, Status & Priority */}
+          <Grid item xs={12} md={5}>
+            <Card sx={{ height: '100%', boxShadow: presentationMode ? 4 : 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  Portfolio Health & Status
+                </Typography>
+
+                {/* Project Health */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    Health Status
+                  </Typography>
+                  {metrics && Object.entries(metrics.healthBreakdown).map(([health, count]) => (
+                    <Box key={health} sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                      <Box sx={{ width: 100, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: `${healthColors[health]}.main`
+                        }} />
+                        <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                          {health}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, mx: 2 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(count / metrics.totalProjects) * 100}
+                          color={healthColors[health]}
+                          sx={{ height: 6, borderRadius: 3 }}
+                        />
+                      </Box>
+                      <Typography variant="body2" fontWeight="bold" sx={{ width: 40, textAlign: 'right' }}>
+                        {count}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Project Status */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    Status Distribution
+                  </Typography>
+                  {metrics && Object.entries(metrics.statusBreakdown).slice(0, 4).map(([status, count]) => (
+                    <Box key={status} sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ width: 100, fontSize: '0.875rem' }}>
+                        {status}
+                      </Typography>
+                      <Box sx={{ flex: 1, mx: 2 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(count / metrics.totalProjects) * 100}
+                          sx={{ height: 6, borderRadius: 3 }}
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ width: 40, textAlign: 'right', fontSize: '0.875rem' }}>
+                        {Math.round((count / metrics.totalProjects) * 100)}%
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Priority */}
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    Priority Breakdown
+                  </Typography>
+                  {metrics && Object.entries(metrics.priorityBreakdown).map(([priority, count]) => (
+                    <Box key={priority} sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ width: 100, fontSize: '0.875rem' }}>
+                        {priority}
+                      </Typography>
+                      <Box sx={{ flex: 1, mx: 2 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(count / metrics.totalProjects) * 100}
+                          color={
+                            priority === 'Critical' ? 'error' :
+                            priority === 'High' ? 'warning' :
+                            priority === 'Medium' ? 'info' : 'primary'
+                          }
+                          sx={{ height: 6, borderRadius: 3 }}
+                        />
+                      </Box>
+                      <Chip
+                        label={count}
+                        size="small"
+                        color={
+                          priority === 'Critical' ? 'error' :
+                          priority === 'High' ? 'warning' :
+                          priority === 'Medium' ? 'info' : 'default'
+                        }
+                        sx={{ height: 20, fontSize: '0.75rem', minWidth: 40 }}
+                      />
+                    </Box>
+                  ))}
                 </Box>
               </CardContent>
             </Card>
           </Grid>
-        ))}
-      </Grid>
 
-      <Grid container spacing={3}>
-        {/* Resource Utilization */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Groups sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  Resource Utilization
-                </Typography>
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.lighter', borderRadius: 2 }}>
-                    <Typography variant="h3" color="success.main" fontWeight="bold">
-                      {resourceMetrics?.averageUtilization || 0}%
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Average Utilization
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.lighter', borderRadius: 2 }}>
-                    <Typography variant="h3" color="info.main" fontWeight="bold">
-                      {resourceMetrics?.availableResources || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Available Resources
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'error.lighter', borderRadius: 2 }}>
-                    <Typography variant="h3" color="error.main" fontWeight="bold">
-                      {resourceMetrics?.overAllocatedResources || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Over-Allocated
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.lighter', borderRadius: 2 }}>
-                    <Typography variant="h3" color="warning.main" fontWeight="bold">
-                      {resourceMetrics?.totalAllocations || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Allocations
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Project Health */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Timeline sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  Project Health Overview
-                </Typography>
-              </Box>
-              <Box>
-                {metrics &&
-                  Object.entries(metrics.healthBreakdown).map(([health, count]) => (
-                    <Box key={health} sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ color: `${healthColors[health]}.main` }}>
-                            {healthIcons[health]}
-                          </Box>
-                          <Typography fontWeight="medium">{health}</Typography>
-                        </Box>
-                        <Chip
-                          label={`${count} projects`}
-                          size="small"
-                          color={healthColors[health] as any}
-                        />
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(count / metrics.totalProjects) * 100}
-                        color={healthColors[health] as any}
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-                  ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Domain Performance */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Business sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
+          {/* Right: Domain Performance */}
+          <Grid item xs={12} md={7}>
+            <Card sx={{ height: '100%', boxShadow: presentationMode ? 4 : 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                   Domain Performance
                 </Typography>
-              </Box>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Domain</strong></TableCell>
-                      <TableCell align="center"><strong>Projects</strong></TableCell>
-                      <TableCell align="center"><strong>Budget</strong></TableCell>
-                      <TableCell align="center"><strong>Avg Progress</strong></TableCell>
-                      <TableCell align="center"><strong>Health Score</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {domainPerformance.map((domain) => (
-                      <TableRow key={domain.domainId} hover>
-                        <TableCell>
-                          <Typography fontWeight="medium">{domain.domainName}</Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip label={domain.projectCount} size="small" color="primary" variant="outlined" />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography>{formatCurrency(domain.totalBudget)}</Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={domain.avgProgress}
-                              sx={{ width: 100, height: 8, borderRadius: 4 }}
-                            />
-                            <Typography variant="body2">{domain.avgProgress}%</Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={`${domain.healthScore}%`}
-                            size="small"
-                            color={getHealthScoreColor(domain.healthScore) as any}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Top Projects by Budget */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <AttachMoney sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  Top Projects by Budget
-                </Typography>
-              </Box>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Project</strong></TableCell>
-                      <TableCell align="right"><strong>Budget</strong></TableCell>
-                      <TableCell align="center"><strong>Progress</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {topProjects.map((project) => (
-                      <TableRow key={project.id} hover>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {project.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {project.fiscalYear}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(project.budget || 0)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <LinearProgress
-                            variant="determinate"
-                            value={project.progress}
-                            sx={{ height: 6, borderRadius: 3 }}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* At-Risk Projects */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Warning sx={{ mr: 1, color: 'error.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  At-Risk Projects
-                </Typography>
-              </Box>
-              {atRiskProjects.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <CheckCircle sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
-                  <Typography variant="body1" color="text.secondary">
-                    No projects at risk!
-                  </Typography>
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table size="small">
+                <TableContainer sx={{ maxHeight: 400 }}>
+                  <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell><strong>Project</strong></TableCell>
-                        <TableCell align="center"><strong>Health</strong></TableCell>
-                        <TableCell align="center"><strong>Progress</strong></TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Domain</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Projects</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Budget</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1, minWidth: 120 }}>Progress</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Health</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {atRiskProjects.map((project) => (
-                        <TableRow key={project.id} hover>
-                          <TableCell>
-                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                              {project.name}
+                      {domainPerformance.map((domain) => (
+                        <TableRow key={domain.domainId} hover>
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                              {domain.domainName}
                             </Typography>
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ py: 1.5 }}>
                             <Chip
-                              label={project.healthStatus || 'N/A'}
+                              label={domain.projectCount}
                               size="small"
-                              color={healthColors[project.healthStatus || ''] as any}
+                              color="primary"
+                              variant="outlined"
+                              sx={{ height: 20, fontSize: '0.75rem', minWidth: 32 }}
                             />
                           </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2">{project.progress}%</Typography>
+                          <TableCell align="right" sx={{ py: 1.5 }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                              {formatCompact(domain.totalBudget)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={domain.avgProgress}
+                                sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                              />
+                              <Typography variant="body2" sx={{ width: 35, fontSize: '0.875rem' }}>
+                                {domain.avgProgress}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 1.5 }}>
+                            <Chip
+                              label={`${domain.healthScore}%`}
+                              size="small"
+                              color={getHealthScoreColor(domain.healthScore)}
+                              sx={{ height: 20, fontSize: '0.75rem', minWidth: 45 }}
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
 
-        {/* Project Status Distribution */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <AssignmentTurnedIn sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  Project Status Distribution
-                </Typography>
-              </Box>
-              <Box>
-                {metrics &&
-                  Object.entries(metrics.statusBreakdown).map(([status, count]) => (
-                    <Box key={status} sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography fontWeight="medium">{status}</Typography>
-                        <Typography color="text.secondary">
-                          {count} ({Math.round((count / metrics.totalProjects) * 100)}%)
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(count / metrics.totalProjects) * 100}
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-                  ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Bottom Section - At-Risk & Top Projects */}
+        <Grid container spacing={2}>
+          {/* At-Risk Projects */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%', boxShadow: presentationMode ? 4 : 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Warning sx={{ mr: 1, color: 'error.main', fontSize: 20 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    At-Risk Projects
+                  </Typography>
+                  <Chip
+                    label={atRiskProjects.length}
+                    size="small"
+                    color="error"
+                    sx={{ ml: 1, height: 20, fontSize: '0.75rem' }}
+                  />
+                </Box>
+                {atRiskProjects.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <CheckCircle sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      All projects on track!
+                    </Typography>
+                  </Box>
+                ) : (
+                  <TableContainer sx={{ maxHeight: 340 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Project</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Health</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Progress</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {atRiskProjects.map((project) => (
+                          <TableRow key={project.id} hover>
+                            <TableCell sx={{ py: 1.5 }}>
+                              <Typography variant="body2" sx={{ fontSize: '0.875rem' }} noWrap>
+                                {project.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {project.fiscalYear}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1.5 }}>
+                              <Chip
+                                label={project.healthStatus}
+                                size="small"
+                                color={healthColors[project.healthStatus || '']}
+                                sx={{ height: 20, fontSize: '0.75rem', minWidth: 50 }}
+                              />
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1.5 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={project.progress}
+                                  color={project.progress < 30 ? 'error' : project.progress < 70 ? 'warning' : 'success'}
+                                  sx={{ width: 60, height: 6, borderRadius: 3 }}
+                                />
+                                <Typography variant="body2" sx={{ width: 35, fontSize: '0.875rem' }}>
+                                  {project.progress}%
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
 
-        {/* Priority Breakdown */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Schedule sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                  Priority Breakdown
-                </Typography>
-              </Box>
-              <Box>
-                {metrics &&
-                  Object.entries(metrics.priorityBreakdown).map(([priority, count]) => (
-                    <Box key={priority} sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography fontWeight="medium">{priority}</Typography>
-                        <Chip
-                          label={count}
-                          size="small"
-                          color={
-                            priority === 'Critical' ? 'error' :
-                            priority === 'High' ? 'warning' :
-                            priority === 'Medium' ? 'info' : 'default'
-                          }
-                        />
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(count / metrics.totalProjects) * 100}
-                        color={
-                          priority === 'Critical' ? 'error' :
-                          priority === 'High' ? 'warning' :
-                          priority === 'Medium' ? 'info' : 'primary'
-                        }
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-                  ))}
-              </Box>
-            </CardContent>
-          </Card>
+          {/* Top Projects by Budget */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%', boxShadow: presentationMode ? 4 : 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <AttachMoney sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Top Projects by Budget
+                  </Typography>
+                </Box>
+                <TableContainer sx={{ maxHeight: 340 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Project</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Budget</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Progress</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {topProjects.map((project) => (
+                        <TableRow key={project.id} hover>
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }} noWrap>
+                              {project.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {project.fiscalYear}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: 1.5 }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                              {formatCompact(project.budget || 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={project.progress}
+                                color={project.progress < 30 ? 'error' : project.progress < 70 ? 'warning' : 'success'}
+                                sx={{ width: 60, height: 6, borderRadius: 3 }}
+                              />
+                              <Typography variant="body2" sx={{ width: 35, fontSize: '0.875rem' }}>
+                                {project.progress}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
     </Box>
   );
 };
