@@ -1451,15 +1451,79 @@ const ProjectManagement = () => {
       setExportingView(true);
       setExportViewAnchor(null);
 
-      // Small delay to ensure UI updates
+      // Longer delay to ensure SVG dependency lines and all elements are fully rendered
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Clone SVG elements to ensure they're properly captured
+      const svgElements = contentRef.current.querySelectorAll('svg');
+      const svgClones: { original: SVGElement; clone: HTMLCanvasElement; parent: HTMLElement }[] = [];
+
+      // Pre-render SVGs to canvas for better compatibility
+      for (const svg of Array.from(svgElements)) {
+        const svgRect = svg.getBoundingClientRect();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        if (ctx && svgRect.width > 0 && svgRect.height > 0) {
+          canvas.width = svgRect.width * 2; // 2x for high resolution
+          canvas.height = svgRect.height * 2;
+          canvas.style.width = `${svgRect.width}px`;
+          canvas.style.height = `${svgRect.height}px`;
+          canvas.style.position = 'absolute';
+          canvas.style.top = svg.style.top || '0';
+          canvas.style.left = svg.style.left || '0';
+
+          // Serialize SVG to data URL
+          const svgData = new XMLSerializer().serializeToString(svg);
+          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const svgUrl = URL.createObjectURL(svgBlob);
+
+          // Load and draw SVG
+          const img = new Image();
+          await new Promise<void>((resolve) => {
+            img.onload = () => {
+              ctx.scale(2, 2); // Scale for high resolution
+              ctx.drawImage(img, 0, 0, svgRect.width, svgRect.height);
+              URL.revokeObjectURL(svgUrl);
+              resolve();
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(svgUrl);
+              resolve(); // Continue even if this fails
+            };
+            img.src = svgUrl;
+          });
+
+          // Replace SVG with canvas temporarily
+          if (svg.parentElement) {
+            svgClones.push({
+              original: svg as SVGElement,
+              clone: canvas,
+              parent: svg.parentElement
+            });
+            svg.style.display = 'none';
+            svg.parentElement.appendChild(canvas);
+          }
+        }
+      }
+
+      // Small delay to ensure canvas replacements are rendered
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const canvas = await html2canvas(contentRef.current, {
+      const mainCanvas = await html2canvas(contentRef.current, {
         scale: 2,
         backgroundColor: null,
         logging: false,
         useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: false,
       });
+
+      // Restore original SVG elements
+      for (const { original, clone, parent } of svgClones) {
+        parent.removeChild(clone);
+        original.style.display = '';
+      }
 
       const viewName = viewMode === 'list' ? 'list' : viewMode === 'gantt' ? 'timeline' : 'kanban';
       const fileName = `projects-${viewName}-${activeScenario?.name || 'view'}-${new Date().toISOString().split('T')[0]}`;
@@ -1467,16 +1531,16 @@ const ProjectManagement = () => {
       if (format === 'png') {
         const link = document.createElement('a');
         link.download = `${fileName}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.href = mainCanvas.toDataURL('image/png');
         link.click();
       } else {
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = mainCanvas.toDataURL('image/png');
         const pdf = new jsPDF({
-          orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+          orientation: mainCanvas.width > mainCanvas.height ? 'landscape' : 'portrait',
           unit: 'px',
-          format: [canvas.width, canvas.height]
+          format: [mainCanvas.width, mainCanvas.height]
         });
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.addImage(imgData, 'PNG', 0, 0, mainCanvas.width, mainCanvas.height);
         pdf.save(`${fileName}.pdf`);
       }
 
