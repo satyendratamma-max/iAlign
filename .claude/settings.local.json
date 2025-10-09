@@ -42,7 +42,12 @@
       "Bash(npx tsc:*)",
       "Bash(npm run dev:*)",
       "Bash(npm run type-check:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Read(//private/tmp/**)",
+      "Bash(npm run seed:scenarios:*)",
+      "Bash(npm run seed:notifications:*)",
+      "Bash(npm run:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

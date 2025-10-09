@@ -57,12 +57,12 @@ const DependencyManagerDialog: React.FC<DependencyManagerDialogProps> = ({
     if (type === 'project') {
       const project = projects.find((p) => p.id === id);
       if (!project) return `Unknown Project (${id})`;
-      return `${project.projectNumber} - ${project.name} (${point})`;
+      return `${project.projectNumber || `PRJ-${project.id}`} - ${project.name} (${point})`;
     } else {
       const milestone = milestones.find((m) => m.id === id);
       if (!milestone) return `Unknown Milestone (${id})`;
       const project = projects.find((p) => p.id === milestone.projectId);
-      return `${milestone.name} - ${project?.projectNumber || 'Unknown'} (${point})`;
+      return `${milestone.name} - ${project?.projectNumber || `PRJ-${milestone.projectId}`} (${point})`;
     }
   };
 

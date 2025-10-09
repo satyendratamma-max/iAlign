@@ -8,6 +8,7 @@ import ProjectRequirement from '../models/ProjectRequirement';
 import App from '../models/App';
 import Technology from '../models/Technology';
 import Role from '../models/Role';
+import Domain from '../models/Domain';
 import { calculateMatchScore } from '../utils/resourceMatcher';
 
 export const getAllAllocations = async (req: Request, res: Response) => {
@@ -20,17 +21,42 @@ export const getAllAllocations = async (req: Request, res: Response) => {
     if (resourceId) where.resourceId = resourceId;
     if (scenarioId) where.scenarioId = scenarioId;
 
+    // Build Resource include - Resources are shared across scenarios, no scenarioId filter needed
+    const resourceInclude: any = {
+      model: Resource,
+      as: 'resource',
+      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'primarySkill', 'domainId'],
+      include: [
+        {
+          model: Domain,
+          as: 'domain',
+          attributes: ['id', 'name'],
+        },
+      ],
+    };
+
+    // Build Project include - Projects are scenario-specific, filter by scenarioId
+    const projectInclude: any = {
+      model: Project,
+      as: 'project',
+      attributes: ['id', 'name', 'status', 'fiscalYear', 'domainId', 'businessDecision'],
+      include: [
+        {
+          model: Domain,
+          as: 'domain',
+          attributes: ['id', 'name'],
+        },
+      ],
+    };
+
+    // Add scenarioId filter to Project where clause if provided
+    if (scenarioId) {
+      projectInclude.where = { scenarioId: parseInt(scenarioId as string) };
+    }
+
     const include: any[] = [
-      {
-        model: Resource,
-        as: 'resource',
-        attributes: ['id', 'employeeId', 'firstName', 'lastName', 'primarySkill'],
-      },
-      {
-        model: Project,
-        as: 'project',
-        attributes: ['id', 'name', 'status', 'fiscalYear', 'domainId'],
-      },
+      resourceInclude,
+      projectInclude,
       {
         model: ResourceCapability,
         as: 'resourceCapability',

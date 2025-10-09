@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -36,14 +37,21 @@ interface Project {
 }
 
 const PipelineOverview = () => {
+  const { activeScenario } = useScenario();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!activeScenario?.id) {
+        console.warn('fetchProjects called without activeScenario - skipping');
+        return;
+      }
+
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/projects`, {
+        const scenarioParam = `?scenarioId=${activeScenario.id}`;
+        const response = await axios.get(`${API_URL}/projects${scenarioParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setProjects(response.data.data);
@@ -54,8 +62,10 @@ const PipelineOverview = () => {
       }
     };
 
-    fetchProjects();
-  }, []);
+    if (activeScenario) {
+      fetchProjects();
+    }
+  }, [activeScenario]);
 
   if (loading) {
     return (

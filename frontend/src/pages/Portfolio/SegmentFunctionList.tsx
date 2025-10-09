@@ -23,6 +23,7 @@ import {
   Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -65,6 +66,7 @@ interface DomainImpact {
 const SegmentFunctionList = () => {
   const { domainId } = useParams<{ domainId: string }>();
   const navigate = useNavigate();
+  const { activeScenario } = useScenario();
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
@@ -78,18 +80,26 @@ const SegmentFunctionList = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [domainId]);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [domainId, activeScenario]);
 
   const fetchData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for SegmentFunctionList');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [domainRes, segmentFunctionsRes, projectsRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/project-domain-impacts?domainId=${domainId}`, config),
       ]);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Box,
@@ -35,6 +35,9 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { useScenario } from '../../contexts/ScenarioContext';
+import { useAppSelector, useAppDispatch } from '../../hooks/redux';
+import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -89,6 +92,9 @@ interface Domain {
 }
 
 const MilestonesOverview = () => {
+  const { activeScenario } = useScenario();
+  const dispatch = useAppDispatch();
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -106,17 +112,26 @@ const MilestonesOverview = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [activeScenario]);
 
   const fetchData = async () => {
+    // Guard: Don't fetch data without an active scenario
+    if (!activeScenario?.id) {
+      console.warn('fetchData called without activeScenario - skipping');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [milestonesRes, projectsRes, usersRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/milestones`, config),
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/milestones${scenarioParam}`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/users`, config),
         axios.get(`${API_URL}/domains`, config),
       ]);
@@ -339,6 +354,46 @@ const MilestonesOverview = () => {
     }
   };
 
+  // Apply global filters first, then local filters
+  const filteredMilestones = useMemo(() => {
+    let filtered = milestones;
+
+    // Apply global domain filter
+    if (selectedDomainIds.length > 0) {
+      filtered = filtered.filter(m => {
+        const project = projects.find(p => p.id === m.projectId);
+        return project && selectedDomainIds.includes(project.domainId!);
+      });
+    }
+
+    // Apply global business decision filter
+    if (selectedBusinessDecisions.length > 0) {
+      filtered = filtered.filter(m => {
+        const project = projects.find(p => p.id === m.projectId);
+        return project && selectedBusinessDecisions.includes(project.businessDecision!);
+      });
+    }
+
+    // Apply local filters
+    filtered = filtered.filter((milestone) => {
+      const ownerName = milestone.owner
+        ? `${milestone.owner.firstName} ${milestone.owner.lastName}`.toLowerCase()
+        : '';
+
+      const project = projects.find(p => p.id === milestone.projectId);
+
+      return (
+        (filters.project === '' || milestone.project?.name === filters.project) &&
+        (filters.status === '' || milestone.status === filters.status) &&
+        (filters.owner === '' || ownerName.includes(filters.owner.toLowerCase())) &&
+        (filters.domainId === '' || project?.domainId?.toString() === filters.domainId) &&
+        (filters.businessDecision === '' || project?.businessDecision === filters.businessDecision)
+      );
+    });
+
+    return filtered;
+  }, [milestones, projects, selectedDomainIds, selectedBusinessDecisions, filters]);
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -346,22 +401,6 @@ const MilestonesOverview = () => {
       </Box>
     );
   }
-
-  const filteredMilestones = milestones.filter((milestone) => {
-    const ownerName = milestone.owner
-      ? `${milestone.owner.firstName} ${milestone.owner.lastName}`.toLowerCase()
-      : '';
-
-    const project = projects.find(p => p.id === milestone.projectId);
-
-    return (
-      (filters.project === '' || milestone.project?.name === filters.project) &&
-      (filters.status === '' || milestone.status === filters.status) &&
-      (filters.owner === '' || ownerName.includes(filters.owner.toLowerCase())) &&
-      (filters.domainId === '' || project?.domainId?.toString() === filters.domainId) &&
-      (filters.businessDecision === '' || project?.businessDecision === filters.businessDecision)
-    );
-  });
 
   const upcomingMilestones = milestones.filter(
     (m) =>
@@ -454,6 +493,76 @@ const MilestonesOverview = () => {
           <strong>{upcomingMilestones.length}</strong> milestone(s) due within the next 30 days
         </Alert>
       )}
+
+      {/* Global Filters */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">Filters</Typography>
+          {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+            <Button
+              size="small"
+              onClick={() => dispatch(clearAllFilters())}
+              variant="outlined"
+            >
+              Clear All Filters
+            </Button>
+          )}
+        </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              select
+              fullWidth
+              label="Domain"
+              value={selectedDomainIds}
+              onChange={(e) => {
+                const value = e.target.value;
+                dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
+              }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => {
+                  const selectedArray = selected as number[];
+                  return selectedArray.length === 0
+                    ? 'All Domains'
+                    : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
+                },
+              }}
+            >
+              {domains.map((domain) => (
+                <MenuItem key={domain.id} value={domain.id}>
+                  <Chip label={domain.name} size="small" />
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              select
+              fullWidth
+              label="Business Decision"
+              value={selectedBusinessDecisions}
+              onChange={(e) => {
+                const value = e.target.value;
+                dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
+              }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => {
+                  const selectedArray = selected as string[];
+                  return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
+                },
+              }}
+            >
+              {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                <MenuItem key={decision} value={decision!}>
+                  <Chip label={decision} size="small" />
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </Grid>
+      </Paper>
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: { xs: 700, md: 900 } }}>

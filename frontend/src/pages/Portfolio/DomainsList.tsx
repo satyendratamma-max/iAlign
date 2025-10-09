@@ -37,6 +37,7 @@ import {
   Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -74,6 +75,7 @@ interface DomainImpact {
 const DomainsList = () => {
   const navigate = useNavigate();
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { activeScenario } = useScenario();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
@@ -112,17 +114,25 @@ const DomainsList = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [activeScenario]);
 
   const fetchData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for DomainsList');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [domainsResponse, projectsResponse, impactsResponse] = await Promise.all([
         axios.get(`${API_URL}/domains`, config),
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 

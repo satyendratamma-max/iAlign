@@ -51,6 +51,7 @@ export interface ProjectAttributes {
   submittedById?: number;
   domainManagerId?: number;
   rank?: number;
+  sortOrder?: number;
   createdDate?: Date;
   modifiedDate?: Date;
   isActive?: boolean;
@@ -106,6 +107,7 @@ class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare submittedById?: number;
   declare domainManagerId?: number;
   declare rank?: number;
+  declare sortOrder?: number;
   declare createdDate: Date;
   declare modifiedDate: Date;
   declare isActive: boolean;
@@ -319,6 +321,11 @@ Project.init(
       allowNull: true,
     },
     rank: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0,
+    },
+    sortOrder: {
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: 0,

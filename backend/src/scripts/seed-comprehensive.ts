@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import sequelize from '../config/database';
 import User from '../models/User';
+import Scenario from '../models/Scenario';
 import SegmentFunction from '../models/SegmentFunction';
 import Project from '../models/Project';
 import Domain from '../models/Domain';
@@ -104,8 +105,21 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${users.length} users\n`);
 
-    // 2. Create Apps, Technologies, and Roles
-    console.log('2️⃣  Creating Apps, Technologies, and Roles...');
+    // 2. Create Baseline Scenario
+    console.log('2️⃣  Creating baseline scenario...');
+    const baselineScenario = await Scenario.create({
+      name: 'Baseline',
+      description: 'Baseline scenario with all current projects and resources',
+      status: 'published',
+      createdBy: admin.id,
+      publishedBy: admin.id,
+      publishedDate: new Date(),
+      isActive: true,
+    });
+    console.log(`   ✅ Created baseline scenario\n`);
+
+    // 3. Create Apps, Technologies, and Roles
+    console.log('3️⃣  Creating Apps, Technologies, and Roles...');
 
     const appsData = [
       { name: 'SAP', code: 'SAP', category: 'ERP', description: 'SAP ERP System', isGlobal: true, status: 'Active' as const },
@@ -180,8 +194,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${roles.length} roles\n`);
 
-    // 3. Create Domains
-    console.log('3️⃣  Creating domains...');
+    // 4. Create Domains
+    console.log('4️⃣  Creating domains...');
     const domains: any[] = [];
     const locations = ['San Francisco', 'New York', 'Austin', 'Chicago', 'Seattle', 'Boston'];
 
@@ -198,8 +212,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${domains.length} domains\n`);
 
-    // 4. Create Segment Functions
-    console.log('4️⃣  Creating segment functions...');
+    // 5. Create Segment Functions
+    console.log('5️⃣  Creating segment functions...');
     const segmentFunctions: any[] = [];
 
     for (const domain of domains) {
@@ -244,8 +258,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${segmentFunctions.length} segment functions\n`);
 
-    // 5. Create Resources with domain and segment function assignments
-    console.log('5️⃣  Creating resources...');
+    // 6. Create Resources with domain and segment function assignments
+    console.log('6️⃣  Creating resources...');
     const resources: any[] = [];
     let empId = 1;
 
@@ -264,6 +278,7 @@ const seedDatabase = async () => {
         const segmentFunction = domainSegmentFunctions[Math.floor(Math.random() * domainSegmentFunctions.length)];
 
         const resource = await Resource.create({
+          scenarioId: baselineScenario.id,
           domainId: domain.id,
           segmentFunctionId: segmentFunction.id,
           employeeId: `EMP${String(empId).padStart(4, '0')}`,
@@ -283,8 +298,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${resources.length} resources\n`);
 
-    // 6. Create Resource Capabilities
-    console.log('6️⃣  Creating resource capabilities...');
+    // 7. Create Resource Capabilities
+    console.log('7️⃣  Creating resource capabilities...');
     let capabilityCount = 0;
     const proficiencyLevels: Array<'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'> = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
@@ -326,8 +341,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${capabilityCount} resource capabilities\n`);
 
-    // 7. Create Projects
-    console.log('7️⃣  Creating projects...');
+    // 8. Create Projects
+    console.log('8️⃣  Creating projects...');
     const projects: any[] = [];
     let projectIndex = 1;
 
@@ -379,6 +394,7 @@ const seedDatabase = async () => {
         const businessDecisions = ['Above Cutline', 'Below Cutline', 'Pending'];
 
         const project = await Project.create({
+          scenarioId: baselineScenario.id,
           projectNumber: `PROJ-${String(projectIndex).padStart(3, '0')}`,
           segmentFunctionId: segmentFunction.id,
           domainId: domain.id,
@@ -517,6 +533,7 @@ const seedDatabase = async () => {
         const owner = users[13 + Math.floor(Math.random() * 35)]; // PM or Team Lead
 
         await Milestone.create({
+          scenarioId: baselineScenario.id,
           projectId: project.id,
           ownerId: owner.id,
           phase: PHASES[i],
@@ -623,6 +640,7 @@ const seedDatabase = async () => {
           const matchScore = 65 + Math.floor(Math.random() * 35); // 65-100
 
           await ResourceAllocation.create({
+            scenarioId: baselineScenario.id,
             projectId: project.id,
             resourceId: resource.id,
             resourceCapabilityId: capability.id,
@@ -737,6 +755,7 @@ const seedDatabase = async () => {
     console.log('\n🎉 Database seeding completed successfully!\n');
     console.log('📊 Summary:');
     console.log(`   - Users: ${users.length}`);
+    console.log(`   - Scenarios: 1 (Baseline)`);
     console.log(`   - Apps: ${apps.length}`);
     console.log(`   - Technologies: ${technologies.length}`);
     console.log(`   - Roles: ${roles.length}`);

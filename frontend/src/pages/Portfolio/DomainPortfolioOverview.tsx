@@ -38,6 +38,7 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -82,6 +83,7 @@ interface Team {
 
 const DomainPortfolioOverview = () => {
   const { domainId } = useParams<{ domainId: string }>();
+  const { activeScenario } = useScenario();
   const [domain, setDomain] = useState<Domain | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -92,17 +94,25 @@ const DomainPortfolioOverview = () => {
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
 
   useEffect(() => {
-    fetchDomainData();
-  }, [domainId]);
+    if (activeScenario) {
+      fetchDomainData();
+    }
+  }, [domainId, activeScenario]);
 
   const fetchDomainData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for DomainPortfolioOverview');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [domainRes, projectsRes, teamsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
-        axios.get(`${API_URL}/projects?domainId=${domainId}`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}&domainId=${domainId}`, config),
         axios.get(`${API_URL}/teams?domainId=${domainId}`, config),
       ]);
 

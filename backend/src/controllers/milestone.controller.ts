@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { literal } from 'sequelize';
 import Milestone from '../models/Milestone';
 import Project from '../models/Project';
 import User from '../models/User';
@@ -15,21 +16,31 @@ export const getAllMilestones = async (req: Request, res: Response) => {
       where.scenarioId = scenarioId;
     }
 
+    // Build include array with scenarioId in JOIN condition
+    const projectInclude: any = {
+      model: Project,
+      as: 'project',
+      attributes: ['id', 'name', 'status', 'fiscalYear'],
+    };
+
+    // Add scenarioId to ON clause if provided
+    if (scenarioId) {
+      projectInclude.on = literal(`\`project\`.\`id\` = \`Milestone\`.\`projectId\` AND \`project\`.\`scenarioId\` = ${parseInt(scenarioId as string)}`);
+    }
+
+    const includeArray: any[] = [
+      projectInclude,
+      {
+        model: User,
+        as: 'owner',
+        attributes: ['id', 'firstName', 'lastName', 'email'],
+        required: false,
+      },
+    ];
+
     const milestones = await Milestone.findAll({
       where,
-      include: [
-        {
-          model: Project,
-          as: 'project',
-          attributes: ['id', 'name', 'status', 'fiscalYear'],
-        },
-        {
-          model: User,
-          as: 'owner',
-          attributes: ['id', 'firstName', 'lastName', 'email'],
-          required: false,
-        },
-      ],
+      include: includeArray,
       order: [['plannedStartDate', 'ASC']],
     });
 

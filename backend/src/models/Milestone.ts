@@ -144,6 +144,13 @@ Milestone.init(
         (milestone as any).modifiedDate = new Date();
       },
     },
+    indexes: [
+      {
+        unique: false,
+        fields: ['scenarioId', 'projectId', 'plannedEndDate'],
+        name: 'idx_scenario_project_milestone',
+      },
+    ],
   }
 );
 

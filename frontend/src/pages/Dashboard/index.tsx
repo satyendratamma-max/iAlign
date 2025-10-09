@@ -180,6 +180,14 @@ const Dashboard = () => {
       );
     }
 
+    // Recalculate segment function stats with filtered projects
+    setSegmentFunctionStats({
+      totalSegmentFunctions: new Set(projects.map((p: any) => p.segmentFunctionId).filter(Boolean)).size,
+      totalValue: projects.reduce((sum, p) => sum + (p.budget || 0), 0),
+      averageROI: 15.5,
+      averageRisk: 3.2,
+    });
+
     // Filter resources by domain if selected
     const resources = selectedDomainIds.length === 0
       ? allResources

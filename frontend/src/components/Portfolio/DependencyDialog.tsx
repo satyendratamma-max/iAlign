@@ -126,11 +126,21 @@ const DependencyDialog: React.FC<DependencyDialogProps> = ({
 
   // Get available items based on type
   const getPredecessorItems = () => {
-    return formData.predecessorType === 'project' ? projects : milestones;
+    const items = formData.predecessorType === 'project' ? projects : milestones;
+    // Exclude the selected successor if both types are the same
+    if (formData.predecessorType === formData.successorType && formData.successorId !== 0) {
+      return items.filter(item => item.id !== formData.successorId);
+    }
+    return items;
   };
 
   const getSuccessorItems = () => {
-    return formData.successorType === 'project' ? projects : milestones;
+    const items = formData.successorType === 'project' ? projects : milestones;
+    // Exclude the selected predecessor if both types are the same
+    if (formData.predecessorType === formData.successorType && formData.predecessorId !== 0) {
+      return items.filter(item => item.id !== formData.predecessorId);
+    }
+    return items;
   };
 
   // Get label for item

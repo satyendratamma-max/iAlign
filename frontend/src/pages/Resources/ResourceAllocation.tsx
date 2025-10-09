@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Box,
@@ -35,6 +35,9 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
+import { useAppSelector, useAppDispatch } from '../../hooks/redux';
+import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -111,6 +114,9 @@ interface Domain {
 }
 
 const ResourceAllocation = () => {
+  const { activeScenario } = useScenario();
+  const dispatch = useAppDispatch();
+  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -135,22 +141,31 @@ const ResourceAllocation = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [activeScenario]);
 
   const fetchData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for ResourceAllocation');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/allocations`, config),
-        axios.get(`${API_URL}/resources`, config),
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/allocations${scenarioParam}`, config),
+        axios.get(`${API_URL}/resources${scenarioParam}`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/domains`, config),
       ]);
 
-      setAllocations(allocationsRes.data.data || []);
+      const allocationData = allocationsRes.data.data || [];
+      setAllocations(allocationData);
       setResources(resourcesRes.data.data || []);
       setProjects(projectsRes.data.data || []);
       setDomains(domainsRes.data.data || []);
@@ -305,39 +320,106 @@ const ResourceAllocation = () => {
     return 'Poor Match';
   };
 
-  // Calculate resource utilization statistics
-  const resourceStats = allocations.reduce((acc: any, allocation) => {
-    const resourceId = allocation.resourceId;
-    if (!acc[resourceId]) {
-      acc[resourceId] = {
-        resource: allocation.resource,
-        totalAllocation: 0,
-        allocations: [],
-        avgMatchScore: 0,
-      };
-    }
-    acc[resourceId].totalAllocation += allocation.allocationPercentage;
-    acc[resourceId].allocations.push(allocation);
+  // Filter allocations based on global and local filters with cross-domain logic
+  const filteredAllocations = useMemo(() => {
+    let filtered = allocations;
 
-    if (allocation.matchScore) {
-      const scores = acc[resourceId].allocations
-        .filter((a: Allocation) => a.matchScore)
-        .map((a: Allocation) => a.matchScore!);
-      acc[resourceId].avgMatchScore = scores.length > 0
-        ? scores.reduce((sum: number, s: number) => sum + s, 0) / scores.length
-        : 0;
+    // Apply global domain filter
+    if (selectedDomainIds.length > 0) {
+      filtered = filtered.filter(a => {
+        // Include allocation if project's domain matches OR resource's domain matches (cross-domain)
+        const projectMatches = a.project && selectedDomainIds.includes(a.project.domainId!);
+        const resourceMatches = a.resource && selectedDomainIds.includes(a.resource.domainId!);
+        return projectMatches || resourceMatches;
+      });
     }
 
-    return acc;
-  }, {});
+    // Apply global business decision filter
+    if (selectedBusinessDecisions.length > 0) {
+      filtered = filtered.filter(a => {
+        return a.project && selectedBusinessDecisions.includes(a.project.businessDecision!);
+      });
+    }
 
-  const overAllocatedResources = Object.values(resourceStats).filter(
-    (stat: any) => stat.totalAllocation > 100
-  );
+    // Apply local filters
+    filtered = filtered.filter((allocation) => {
+      const resourceName = `${allocation.resource?.firstName || ''} ${allocation.resource?.lastName || ''}`.toLowerCase();
 
-  const poorMatchAllocations = allocations.filter(
-    (a) => a.matchScore && a.matchScore < 60
-  );
+      // Basic filters
+      const matchesResourceName = resourceName.includes(filters.resource.toLowerCase());
+      const matchesProject = filters.project.length === 0 || filters.project.includes(allocation.project?.name || '');
+      const matchesAllocationType = filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType);
+      const matchesScore = filters.matchScore === '' ||
+        (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
+        (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
+        (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
+        (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40);
+
+      // Cross-domain filtering logic for local filters
+      let matchesDomain = true;
+      let matchesBusinessDecision = true;
+
+      if (filters.domainId !== '' || filters.businessDecision !== '') {
+        const projectMatchesDomain = filters.domainId === '' || allocation.project?.domainId?.toString() === filters.domainId;
+        const projectMatchesBusinessDecision = filters.businessDecision === '' || allocation.project?.businessDecision === filters.businessDecision;
+
+        // Show allocation if:
+        // 1. Project matches the filter (normal case)
+        // 2. OR resource from selected domain is working on other domain projects (cross-domain outbound)
+        // 3. OR resource from other domain is working on selected domain projects (cross-domain inbound)
+
+        const projectMatchesFilter = projectMatchesDomain && projectMatchesBusinessDecision;
+        const resourceMatchesDomain = filters.domainId === '' || allocation.resource?.domainId?.toString() === filters.domainId;
+
+        matchesDomain = projectMatchesFilter || resourceMatchesDomain;
+        matchesBusinessDecision = projectMatchesBusinessDecision || resourceMatchesDomain;
+      }
+
+      return matchesResourceName && matchesProject && matchesAllocationType && matchesScore && matchesDomain && matchesBusinessDecision;
+    });
+
+    return filtered;
+  }, [allocations, selectedDomainIds, selectedBusinessDecisions, filters]);
+
+  // Calculate resource utilization statistics from filtered allocations
+  const resourceStats = useMemo(() => {
+    return filteredAllocations.reduce((acc: any, allocation) => {
+      const resourceId = allocation.resourceId;
+      if (!acc[resourceId]) {
+        acc[resourceId] = {
+          resource: allocation.resource,
+          totalAllocation: 0,
+          allocations: [],
+          avgMatchScore: 0,
+        };
+      }
+      acc[resourceId].totalAllocation += allocation.allocationPercentage;
+      acc[resourceId].allocations.push(allocation);
+
+      if (allocation.matchScore) {
+        const scores = acc[resourceId].allocations
+          .filter((a: Allocation) => a.matchScore)
+          .map((a: Allocation) => a.matchScore!);
+        acc[resourceId].avgMatchScore = scores.length > 0
+          ? scores.reduce((sum: number, s: number) => sum + s, 0) / scores.length
+          : 0;
+      }
+
+      return acc;
+    }, {});
+  }, [filteredAllocations]);
+
+  const overAllocatedResources = useMemo(() => {
+    return Object.values(resourceStats).filter(
+      (stat: any) => stat.totalAllocation > 100
+    );
+  }, [resourceStats]);
+
+  const poorMatchAllocations = useMemo(() => {
+    return filteredAllocations.filter(
+      (a) => a.matchScore && a.matchScore < 60
+    );
+  }, [filteredAllocations]);
 
   // Calculate cross-domain metrics
   const calculateCrossDomainMetrics = () => {
@@ -395,43 +477,6 @@ const ResourceAllocation = () => {
 
   const { outboundCrossDomain, inboundCrossDomain } = calculateCrossDomainMetrics();
 
-  // Filter allocations based on current filters with cross-domain logic
-  const filteredAllocations = allocations.filter((allocation) => {
-    const resourceName = `${allocation.resource?.firstName || ''} ${allocation.resource?.lastName || ''}`.toLowerCase();
-
-    // Basic filters
-    const matchesResourceName = resourceName.includes(filters.resource.toLowerCase());
-    const matchesProject = filters.project.length === 0 || filters.project.includes(allocation.project?.name || '');
-    const matchesAllocationType = filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType);
-    const matchesScore = filters.matchScore === '' ||
-      (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
-      (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
-      (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
-      (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40);
-
-    // Cross-domain filtering logic
-    let matchesDomain = true;
-    let matchesBusinessDecision = true;
-
-    if (filters.domainId !== '' || filters.businessDecision !== '') {
-      const projectMatchesDomain = filters.domainId === '' || allocation.project?.domainId?.toString() === filters.domainId;
-      const projectMatchesBusinessDecision = filters.businessDecision === '' || allocation.project?.businessDecision === filters.businessDecision;
-
-      // Show allocation if:
-      // 1. Project matches the filter (normal case)
-      // 2. OR resource from selected domain is working on other domain projects (cross-domain outbound)
-      // 3. OR resource from other domain is working on selected domain projects (cross-domain inbound)
-
-      const projectMatchesFilter = projectMatchesDomain && projectMatchesBusinessDecision;
-      const resourceMatchesDomain = filters.domainId === '' || allocation.resource?.domainId?.toString() === filters.domainId;
-
-      matchesDomain = projectMatchesFilter || resourceMatchesDomain;
-      matchesBusinessDecision = projectMatchesBusinessDecision || resourceMatchesDomain;
-    }
-
-    return matchesResourceName && matchesProject && matchesAllocationType && matchesScore && matchesDomain && matchesBusinessDecision;
-  });
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -466,6 +511,76 @@ const ResourceAllocation = () => {
         </Alert>
       )}
 
+      {/* Global Filters */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">Filters</Typography>
+          {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+            <Button
+              size="small"
+              onClick={() => dispatch(clearAllFilters())}
+              variant="outlined"
+            >
+              Clear All Filters
+            </Button>
+          )}
+        </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              select
+              fullWidth
+              label="Domain"
+              value={selectedDomainIds}
+              onChange={(e) => {
+                const value = e.target.value;
+                dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
+              }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => {
+                  const selectedArray = selected as number[];
+                  return selectedArray.length === 0
+                    ? 'All Domains'
+                    : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
+                },
+              }}
+            >
+              {domains.map((domain) => (
+                <MenuItem key={domain.id} value={domain.id}>
+                  <Chip label={domain.name} size="small" />
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              select
+              fullWidth
+              label="Business Decision"
+              value={selectedBusinessDecisions}
+              onChange={(e) => {
+                const value = e.target.value;
+                dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
+              }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => {
+                  const selectedArray = selected as string[];
+                  return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
+                },
+              }}
+            >
+              {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                <MenuItem key={decision} value={decision!}>
+                  <Chip label={decision} size="small" />
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </Grid>
+      </Paper>
+
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -474,7 +589,7 @@ const ResourceAllocation = () => {
               <Typography color="text.secondary" gutterBottom variant="body2">
                 Total Allocations
               </Typography>
-              <Typography variant="h4">{allocations.length}</Typography>
+              <Typography variant="h4">{filteredAllocations.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -512,12 +627,12 @@ const ResourceAllocation = () => {
                 Avg Match Score
               </Typography>
               <Typography variant="h4" color="success.main">
-                {allocations.filter((a) => a.matchScore).length > 0
+                {filteredAllocations.filter((a) => a.matchScore).length > 0
                   ? Math.round(
-                      allocations
+                      filteredAllocations
                         .filter((a) => a.matchScore)
                         .reduce((sum, a) => sum + (a.matchScore || 0), 0) /
-                        allocations.filter((a) => a.matchScore).length
+                        filteredAllocations.filter((a) => a.matchScore).length
                     )
                   : '-'}
               </Typography>

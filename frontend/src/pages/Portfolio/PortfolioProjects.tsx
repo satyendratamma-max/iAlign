@@ -30,6 +30,7 @@ import {
   Hub,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -84,6 +85,7 @@ interface DomainImpact {
 const PortfolioProjects = () => {
   const { segmentFunctionId } = useParams<{ segmentFunctionId: string }>();
   const navigate = useNavigate();
+  const { activeScenario } = useScenario();
   const [projects, setProjects] = useState<Project[]>([]);
   const [segmentFunction, setSegmentFunction] = useState<SegmentFunction | null>(null);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
@@ -94,17 +96,25 @@ const PortfolioProjects = () => {
   const [loadingResources, setLoadingResources] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, [segmentFunctionId]);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [segmentFunctionId, activeScenario]);
 
   const fetchData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for PortfolioProjects');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [segmentFunctionRes, projectsRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions/${segmentFunctionId}`, config),
-        axios.get(`${API_URL}/projects`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
@@ -123,13 +133,19 @@ const PortfolioProjects = () => {
   };
 
   const handleViewResources = async (project: Project) => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected');
+      return;
+    }
+
     setSelectedProject(project);
     setOpenResourcesDialog(true);
     setLoadingResources(true);
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/allocations`, {
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
+      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

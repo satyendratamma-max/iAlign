@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { literal } from 'sequelize';
 import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
@@ -24,7 +25,7 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
 
     const projects = await Project.findAll({
       where,
-      order: [['createdDate', 'DESC']],
+      order: [[literal('COALESCE(sortOrder, 999999)'), 'ASC'], ['createdDate', 'DESC']],
       include: [
         {
           model: Domain,
@@ -269,6 +270,35 @@ export const bulkUpdateProjectRanks = async (req: Request, res: Response, next: 
     res.json({
       success: true,
       message: 'Project ranks updated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkUpdateProjectSortOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { projects } = req.body;
+
+    if (!Array.isArray(projects)) {
+      throw new ValidationError('projects must be an array');
+    }
+
+    // Update each project's sortOrder
+    await Promise.all(
+      projects.map((project: { id: number; sortOrder: number }) =>
+        Project.update(
+          { sortOrder: project.sortOrder },
+          { where: { id: project.id } }
+        )
+      )
+    );
+
+    logger.info(`Updated sort orders for ${projects.length} projects`);
+
+    res.json({
+      success: true,
+      message: 'Project sort orders updated successfully',
     });
   } catch (error) {
     next(error);
