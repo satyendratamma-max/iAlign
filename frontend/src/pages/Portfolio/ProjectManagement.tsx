@@ -3465,112 +3465,47 @@ const ProjectManagement = () => {
             </Box>
           </Box>
 
-          {/* Swimlane Configuration */}
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ViewKanbanIcon fontSize="small" color="primary" />
-                <Typography variant="subtitle2" fontWeight="600">
-                  Swimlanes:
-                </Typography>
-                <Button
-                  size="small"
-                  variant={swimlaneConfig.enabled ? 'contained' : 'outlined'}
-                  onClick={() => setSwimlaneConfig({ ...swimlaneConfig, enabled: !swimlaneConfig.enabled })}
-                  sx={{ minWidth: 70 }}
-                >
-                  {swimlaneConfig.enabled ? 'ON' : 'OFF'}
-                </Button>
-              </Box>
-
-              {swimlaneConfig.enabled && (
-                <>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Level 1:
-                    </Typography>
-                    <TextField
-                      size="small"
-                      select
-                      value={swimlaneConfig.level1}
-                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level1: e.target.value as any })}
-                      sx={{ minWidth: 150 }}
-                    >
-                      <MenuItem value="domain">Domain</MenuItem>
-                      <MenuItem value="segmentFunction">Segment Function</MenuItem>
-                      <MenuItem value="type">Type</MenuItem>
-                    </TextField>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Level 2:
-                    </Typography>
-                    <TextField
-                      size="small"
-                      select
-                      value={swimlaneConfig.level2}
-                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2: e.target.value as any })}
-                      sx={{ minWidth: 150 }}
-                      disabled={swimlaneConfig.level1 === swimlaneConfig.level2}
-                    >
-                      <MenuItem value="domain" disabled={swimlaneConfig.level1 === 'domain'}>Domain</MenuItem>
-                      <MenuItem value="segmentFunction" disabled={swimlaneConfig.level1 === 'segmentFunction'}>Segment Function</MenuItem>
-                      <MenuItem value="type" disabled={swimlaneConfig.level1 === 'type'}>Type</MenuItem>
-                    </TextField>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Checkbox
-                      size="small"
-                      checked={swimlaneConfig.rotateLevel1}
-                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel1: e.target.checked })}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      Rotate Level 1
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Checkbox
-                      size="small"
-                      checked={swimlaneConfig.level2Enabled}
-                      onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2Enabled: e.target.checked })}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                      Enable Level 2
-                    </Typography>
-                  </Box>
-
-                  {swimlaneConfig.level2Enabled && (
-                    <>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Checkbox
-                          size="small"
-                          checked={swimlaneConfig.rotateLevel2}
-                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel2: e.target.checked })}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          Rotate Level 2
-                        </Typography>
-                      </Box>
-                    </>
-                  )}
-
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    {swimlaneConfig.level2Enabled ? 'Level 3: Projects (fixed)' : 'Level 2: Projects (fixed)'}
-                  </Typography>
-                </>
-              )}
-            </Box>
-          </Box>
-
           {/* Gantt Filters */}
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-            <Grid container spacing={1.5}>
-              <Grid item xs={12}>
-                <SharedFilters />
-              </Grid>
+          <Box sx={{ mb: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            {/* Filter Header */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                p: 1.5,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.selected' },
+                borderRadius: '4px 4px 0 0',
+              }}
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <FilterListIcon fontSize="small" color="primary" />
+                <Typography variant="subtitle2" fontWeight="600">
+                  Filters
+                </Typography>
+                {getActiveFilterCount() > 0 && (
+                  <Chip
+                    label={`${getActiveFilterCount()} active`}
+                    size="small"
+                    color="primary"
+                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                  />
+                )}
+              </Box>
+              <IconButton size="small">
+                {filtersExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            </Box>
+
+            {/* Filter Content */}
+            {filtersExpanded && (
+              <Box sx={{ p: 1.5, pt: 0 }}>
+                <Grid container spacing={1.5}>
+                  <Grid item xs={12}>
+                    <SharedFilters />
+                  </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   size="small"
@@ -3748,6 +3683,152 @@ const ProjectManagement = () => {
                 </Button>
               </Grid>
             </Grid>
+              </Box>
+            )}
+          </Box>
+
+          {/* Swimlane Configuration */}
+          <Box sx={{ mb: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            {/* Swimlane Header */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                p: 1.5,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.selected' },
+                borderRadius: '4px 4px 0 0',
+              }}
+              onClick={() => setSwimlanesExpanded(!swimlanesExpanded)}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <ViewKanbanIcon fontSize="small" color="primary" />
+                <Typography variant="subtitle2" fontWeight="600">
+                  Swimlane Configuration
+                </Typography>
+                {swimlaneConfig.enabled && (
+                  <Chip
+                    label="ON"
+                    size="small"
+                    color="success"
+                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                  />
+                )}
+              </Box>
+              <IconButton size="small">
+                {swimlanesExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            </Box>
+
+            {/* Swimlane Content */}
+            {swimlanesExpanded && (
+              <Box sx={{ p: 1.5, pt: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="600">
+                      Enable:
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant={swimlaneConfig.enabled ? 'contained' : 'outlined'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSwimlaneConfig({ ...swimlaneConfig, enabled: !swimlaneConfig.enabled });
+                      }}
+                      sx={{ minWidth: 70 }}
+                    >
+                      {swimlaneConfig.enabled ? 'ON' : 'OFF'}
+                    </Button>
+                  </Box>
+
+                  {swimlaneConfig.enabled && (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Level 1:
+                        </Typography>
+                        <TextField
+                          size="small"
+                          select
+                          value={swimlaneConfig.level1}
+                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level1: e.target.value as any })}
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{ minWidth: 150 }}
+                        >
+                          <MenuItem value="domain">Domain</MenuItem>
+                          <MenuItem value="segmentFunction">Segment Function</MenuItem>
+                          <MenuItem value="type">Type</MenuItem>
+                        </TextField>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Level 2:
+                        </Typography>
+                        <TextField
+                          size="small"
+                          select
+                          value={swimlaneConfig.level2}
+                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2: e.target.value as any })}
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{ minWidth: 150 }}
+                          disabled={swimlaneConfig.level1 === swimlaneConfig.level2}
+                        >
+                          <MenuItem value="domain" disabled={swimlaneConfig.level1 === 'domain'}>Domain</MenuItem>
+                          <MenuItem value="segmentFunction" disabled={swimlaneConfig.level1 === 'segmentFunction'}>Segment Function</MenuItem>
+                          <MenuItem value="type" disabled={swimlaneConfig.level1 === 'type'}>Type</MenuItem>
+                        </TextField>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Checkbox
+                          size="small"
+                          checked={swimlaneConfig.rotateLevel1}
+                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel1: e.target.checked })}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Rotate Level 1
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Checkbox
+                          size="small"
+                          checked={swimlaneConfig.level2Enabled}
+                          onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, level2Enabled: e.target.checked })}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          Enable Level 2
+                        </Typography>
+                      </Box>
+
+                      {swimlaneConfig.level2Enabled && (
+                        <>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Checkbox
+                              size="small"
+                              checked={swimlaneConfig.rotateLevel2}
+                              onChange={(e) => setSwimlaneConfig({ ...swimlaneConfig, rotateLevel2: e.target.checked })}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                              Rotate Level 2
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        {swimlaneConfig.level2Enabled ? 'Level 3: Projects (fixed)' : 'Level 2: Projects (fixed)'}
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            )}
           </Box>
 
           {(() => {
