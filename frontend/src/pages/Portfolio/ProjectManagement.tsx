@@ -30,6 +30,7 @@ import {
   Alert,
   Tooltip,
   Divider,
+  Menu,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -55,8 +56,13 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   Info as InfoIcon,
+  CameraAlt as CameraAltIcon,
+  Image as ImageIcon,
+  PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
@@ -768,6 +774,9 @@ const ProjectManagement = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [swimlanesExpanded, setSwimlanesExpanded] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
+  const [exportViewAnchor, setExportViewAnchor] = useState<null | HTMLElement>(null);
+  const [exportingView, setExportingView] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [allDomainImpacts, setAllDomainImpacts] = useState<DomainImpact[]>([]);
   const [filters, setFilters] = useState({
@@ -1433,6 +1442,50 @@ const ProjectManagement = () => {
 
     // Reset input
     event.target.value = '';
+  };
+
+  const handleViewExport = async (format: 'png' | 'pdf') => {
+    if (!contentRef.current) return;
+
+    try {
+      setExportingView(true);
+      setExportViewAnchor(null);
+
+      // Small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        backgroundColor: null,
+        logging: false,
+        useCORS: true,
+      });
+
+      const viewName = viewMode === 'list' ? 'list' : viewMode === 'gantt' ? 'timeline' : 'kanban';
+      const fileName = `projects-${viewName}-${activeScenario?.name || 'view'}-${new Date().toISOString().split('T')[0]}`;
+
+      if (format === 'png') {
+        const link = document.createElement('a');
+        link.download = `${fileName}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } else {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`${fileName}.pdf`);
+      }
+
+      setExportingView(false);
+    } catch (error) {
+      console.error('Error exporting view:', error);
+      alert('Error exporting view. Please try again.');
+      setExportingView(false);
+    }
   };
 
   const formatCurrency = (value?: number) => {
@@ -2931,7 +2984,7 @@ const ProjectManagement = () => {
             size="small"
             sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
-            Export
+            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Export to </Box>Excel
           </Button>
           <Button
             variant="outlined"
@@ -2940,7 +2993,7 @@ const ProjectManagement = () => {
             size="small"
             sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
-            Import
+            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Import from </Box>Excel
             <input
               type="file"
               hidden
@@ -2948,6 +3001,40 @@ const ProjectManagement = () => {
               onChange={handleImport}
             />
           </Button>
+          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+          <Button
+            variant="contained"
+            startIcon={<CameraAltIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            endIcon={<ExpandMoreIcon />}
+            onClick={(e) => setExportViewAnchor(e.currentTarget)}
+            size="small"
+            disabled={exportingView}
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
+          >
+            {exportingView ? 'Exporting...' : 'Export View'}
+          </Button>
+          <Menu
+            anchorEl={exportViewAnchor}
+            open={Boolean(exportViewAnchor)}
+            onClose={() => setExportViewAnchor(null)}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={() => handleViewExport('png')}>
+              <ImageIcon sx={{ mr: 1, fontSize: 20 }} />
+              Export as PNG
+            </MenuItem>
+            <MenuItem onClick={() => handleViewExport('pdf')}>
+              <PictureAsPdfIcon sx={{ mr: 1, fontSize: 20 }} />
+              Export as PDF
+            </MenuItem>
+          </Menu>
           <Button
             variant="outlined"
             startIcon={<DependencyIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
@@ -2969,6 +3056,7 @@ const ProjectManagement = () => {
         </Box>
       </Box>
 
+      <Box ref={contentRef}>
       {viewMode === 'list' && (
         <>
           <SharedFilters />
@@ -5130,6 +5218,7 @@ const ProjectManagement = () => {
           })()}
         </Paper>
       )}
+      </Box>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
