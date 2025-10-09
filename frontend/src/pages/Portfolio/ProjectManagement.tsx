@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Typography,
   Box,
@@ -29,6 +29,7 @@ import {
   Snackbar,
   Alert,
   Tooltip,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -127,6 +128,7 @@ interface Project {
   submittedById?: number;
   domainManagerId?: number;
   rank?: number;
+  sortOrder?: number;
   isActive: boolean;
   domain?: {
     id: number;
@@ -359,6 +361,361 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
   );
 };
 
+// Sortable Project Row Component for Gantt View - Flat List Mode
+interface SortableGanttProjectRowProps {
+  project: Project;
+  projectMilestones: Milestone[];
+  projectStart: Date | string | undefined;
+  projectEnd: Date | string | undefined;
+  ganttSidebarWidth: number;
+  dateRange: { start: Date; end: Date };
+  cpmData: any;
+  tempPositions: any;
+  draggingItem: any;
+  setDraggingItem: (item: any) => void;
+  calculatePosition: (date: Date, start: Date, end: Date) => number;
+  calculateWidth: (start: Date, end: Date, rangeStart: Date, rangeEnd: Date) => number;
+  handleMilestoneMouseDown: (e: React.MouseEvent, milestone: Milestone, projectId: number) => void;
+}
+
+const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
+  project,
+  projectMilestones,
+  projectStart,
+  projectEnd,
+  ganttSidebarWidth,
+  dateRange,
+  cpmData,
+  tempPositions,
+  draggingItem,
+  setDraggingItem,
+  calculatePosition,
+  calculateWidth,
+  handleMilestoneMouseDown,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    marginBottom: '4px',
+    paddingBottom: '4px',
+    borderBottom: '1px solid #f8f8f8',
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Box ref={setNodeRef} style={style}>
+      {/* Project Row with Milestones */}
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1, display: 'flex', alignItems: 'center' }}>
+          {/* Drag handle */}
+          <Box
+            {...attributes}
+            {...listeners}
+            sx={{
+              cursor: 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              mr: 0.5,
+              '&:active': { cursor: 'grabbing' },
+              color: 'action.active',
+              '&:hover': { color: 'primary.main' },
+            }}
+          >
+            <Box sx={{ fontSize: '1rem', userSelect: 'none' }}>⋮⋮</Box>
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.7rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block',
+              flex: 1,
+            }}
+            title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
+          >
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
+              {project.projectNumber || `PRJ-${project.id}`}
+            </Box>
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {project.name}
+            </Box>
+          </Typography>
+        </Box>
+        <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
+          {/* Project Bar */}
+          {projectStart && projectEnd && (() => {
+            const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+            const slackDays = cpmNode?.slack || 0;
+            const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+            const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+            return (
+                <Box
+                  title={tooltipContent}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const container = document.getElementById(`timeline-container-${project.id}`);
+                    if (!container) return;
+                    const rect = container.getBoundingClientRect();
+                    setDraggingItem({
+                      type: 'project',
+                      operation: 'move',
+                      id: project.id,
+                      initialX: e.clientX,
+                      initialDates: {
+                        startDate: new Date(projectStart),
+                        endDate: new Date(projectEnd),
+                      },
+                      dateRange: dateRange,
+                      containerWidth: rect.width,
+                    });
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                    width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                    height: 18,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
+                            project.healthStatus === 'Yellow' ? '#ff9800' :
+                            project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
+                    borderRadius: 0.5,
+                    border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    px: 0.5,
+                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                    zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
+                    cursor: 'grab',
+                    opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
+                    transition: draggingItem ? 'none' : 'all 0.2s',
+                    userSelect: 'none',
+                    '&:active': {
+                      cursor: 'grabbing',
+                    },
+                    '&:hover': {
+                      boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
+                      filter: 'brightness(1.1)',
+                    },
+                  }}
+                >
+                  {/* Left Resize Handle */}
+                  <Box
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const container = document.getElementById(`timeline-container-${project.id}`);
+                      if (!container) return;
+                      const rect = container.getBoundingClientRect();
+                      setDraggingItem({
+                        type: 'project',
+                        operation: 'resize-left',
+                        id: project.id,
+                        initialX: e.clientX,
+                        initialDates: {
+                          startDate: new Date(projectStart),
+                          endDate: new Date(projectEnd),
+                        },
+                        dateRange: dateRange,
+                        containerWidth: rect.width,
+                      });
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 6,
+                      cursor: 'ew-resize',
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      borderTopLeftRadius: 0.5,
+                      borderBottomLeftRadius: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      },
+                    }}
+                  />
+
+                  {project.progress}%
+
+                  {/* Right Resize Handle */}
+                  <Box
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const container = document.getElementById(`timeline-container-${project.id}`);
+                      if (!container) return;
+                      const rect = container.getBoundingClientRect();
+                      setDraggingItem({
+                        type: 'project',
+                        operation: 'resize-right',
+                        id: project.id,
+                        initialX: e.clientX,
+                        initialDates: {
+                          startDate: new Date(projectStart),
+                          endDate: new Date(projectEnd),
+                        },
+                        dateRange: dateRange,
+                        containerWidth: rect.width,
+                      });
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 6,
+                      cursor: 'ew-resize',
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      borderTopRightRadius: 0.5,
+                      borderBottomRightRadius: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      },
+                    }}
+                  />
+                </Box>
+            );
+          })()}
+
+          {/* Milestones */}
+          {projectMilestones.map((milestone) => {
+            if (!milestone.plannedEndDate) return null;
+            const milestoneDate = new Date(milestone.plannedEndDate);
+            const milestonePos = tempPositions[`milestone-${milestone.id}`]?.left ||
+              calculatePosition(milestoneDate, dateRange.start, dateRange.end);
+
+            return (
+              <Box
+                key={milestone.id}
+                title={`${milestone.name} - ${new Date(milestone.plannedEndDate).toLocaleDateString()}`}
+                onMouseDown={(e) => handleMilestoneMouseDown(e, milestone, project.id)}
+                sx={{
+                    position: 'absolute',
+                    left: `${milestonePos}%`,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '6px solid transparent',
+                    borderRight: '6px solid transparent',
+                    borderBottom: '10px solid #9c27b0',
+                    cursor: 'grab',
+                    zIndex: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 10 : 2,
+                    opacity: draggingItem?.type === 'milestone' && draggingItem.id === milestone.id ? 0.7 : 1,
+                    transition: draggingItem ? 'none' : 'all 0.2s',
+                    '&:active': {
+                      cursor: 'grabbing',
+                    },
+                    '&:hover': {
+                      filter: 'brightness(1.2)',
+                      transform: 'translate(-50%, -50%) scale(1.2)',
+                    },
+                  }}
+                />
+            );
+          })}
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+// Sortable Project Row Component for Gantt View - Swimlane Mode (Project Name Column)
+interface SortableSwimlaneProjectNameProps {
+  project: Project;
+  ganttSidebarWidth: number;
+  borderStyle: string;
+}
+
+const SortableSwimlaneProjectName: React.FC<SortableSwimlaneProjectNameProps> = ({
+  project,
+  ganttSidebarWidth,
+  borderStyle,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    height: 32,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        px: 1,
+        display: 'flex',
+        alignItems: 'center',
+        borderBottom: borderStyle,
+      }}
+    >
+      {/* Drag handle */}
+      <Box
+        {...attributes}
+        {...listeners}
+        sx={{
+          cursor: 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          mr: 0.5,
+          '&:active': { cursor: 'grabbing' },
+          color: 'action.active',
+          '&:hover': { color: 'primary.main' },
+        }}
+      >
+        <Box sx={{ fontSize: '1rem', userSelect: 'none' }}>⋮⋮</Box>
+      </Box>
+      <Typography
+        variant="caption"
+        sx={{
+          fontSize: '0.7rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'block',
+          flex: 1,
+        }}
+        title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
+      >
+        <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
+          {project.projectNumber || `PRJ-${project.id}`}
+        </Box>
+        <Box component="span" sx={{ color: 'text.secondary' }}>
+          {project.name}
+        </Box>
+      </Typography>
+    </Box>
+  );
+};
+
 const ProjectManagement = () => {
   // Redux state
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
@@ -385,6 +742,7 @@ const ProjectManagement = () => {
   });
   const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'domain' | 'fiscalYear' | 'priority' | 'healthStatus' | 'currentPhase'>('status');
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [ganttActiveId, setGanttActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [allDomainImpacts, setAllDomainImpacts] = useState<DomainImpact[]>([]);
@@ -418,6 +776,12 @@ const ProjectManagement = () => {
       }
     }
     return { enabled: false, level1: 'domain', level2: 'type', rotateLevel1: true, rotateLevel2: false };
+  });
+
+  // Show gridlines option
+  const [showGridlines, setShowGridlines] = useState(() => {
+    const saved = localStorage.getItem('ganttShowGridlines');
+    return saved !== null ? JSON.parse(saved) : true;
   });
 
   // Project Order State (for drag-and-drop reordering)
@@ -460,6 +824,8 @@ const ProjectManagement = () => {
     description: string;
   } | null>(null);
   const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState<string>('');
+  const [notificationSeverity, setNotificationSeverity] = useState<'success' | 'error'>('success');
 
   // Dependencies State
   const [dependencies, setDependencies] = useState<ProjectDependency[]>([]);
@@ -470,12 +836,18 @@ const ProjectManagement = () => {
   const ganttContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
+    // Guard: Don't fetch data without an active scenario
+    if (!activeScenario?.id) {
+      console.warn('fetchData called without activeScenario - skipping');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Build query parameters with scenarioId if active scenario is selected
-      const scenarioParam = activeScenario?.id ? `?scenarioId=${activeScenario.id}` : '';
+      // Build query parameters with scenarioId
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/projects${scenarioParam}`, config),
@@ -485,10 +857,18 @@ const ProjectManagement = () => {
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
-      setProjects(projectsRes.data.data);
+      // Deduplicate data by id
+      const uniqueProjects = Array.from(
+        new Map(projectsRes.data.data.map((p: any) => [p.id, p])).values()
+      );
+      const uniqueMilestones = Array.from(
+        new Map((milestonesRes.data.data || []).map((m: any) => [m.id, m])).values()
+      );
+
+      setProjects(uniqueProjects);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
-      setMilestones(milestonesRes.data.data || []);
+      setMilestones(uniqueMilestones);
       setAllDomainImpacts(impactsRes.data.data || []);
 
       // Fetch dependencies
@@ -638,9 +1018,9 @@ const ProjectManagement = () => {
 
         const newDate = new Date(draggingItem.initialDates.plannedEndDate!.getTime() + msDelta);
 
-        // Apply constraints
+        // Apply constraints (including project bounds)
         const { previous, next } = getAdjacentMilestones(draggingItem.projectId!, draggingItem.id);
-        const constrainedDate = constrainDate(newDate, previous, next);
+        const constrainedDate = constrainDate(newDate, previous, next, draggingItem.projectId);
 
         const newLeft = calculatePosition(constrainedDate, dateRange.start, dateRange.end);
         setTempPositions({
@@ -710,7 +1090,7 @@ const ProjectManagement = () => {
       } else if (draggingItem.type === 'milestone') {
         const newDate = new Date(draggingItem.initialDates.plannedEndDate!.getTime() + msDelta);
         const { previous, next } = getAdjacentMilestones(draggingItem.projectId!, draggingItem.id);
-        const constrainedDate = constrainDate(newDate, previous, next);
+        const constrainedDate = constrainDate(newDate, previous, next, draggingItem.projectId);
         const daysDelta = getTimeDeltaDays(draggingItem.initialDates.plannedEndDate!, constrainedDate);
 
         if (Math.abs(daysDelta) > 0) {
@@ -720,6 +1100,9 @@ const ProjectManagement = () => {
 
       setDraggingItem(null);
       setTempPositions({});
+
+      // Re-fetch all data to update UI with latest changes
+      await fetchData();
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -870,7 +1253,8 @@ const ProjectManagement = () => {
       const updatedDependencies = await getAllDependencies();
       setDependencies(updatedDependencies);
 
-      alert('Dependency created successfully!');
+      setNotificationMessage('Dependency created successfully!');
+      setNotificationSeverity('success');
     } catch (error: any) {
       console.error('Error creating dependency:', error);
       throw error; // Re-throw to let dialog handle it
@@ -889,10 +1273,12 @@ const ProjectManagement = () => {
       const updatedDependencies = await getAllDependencies();
       setDependencies(updatedDependencies);
 
-      alert('Dependency deleted successfully!');
+      setNotificationMessage('Dependency deleted successfully!');
+      setNotificationSeverity('success');
     } catch (error) {
       console.error('Error deleting dependency:', error);
-      alert('Failed to delete dependency. Please try again.');
+      setNotificationMessage('Failed to delete dependency. Please try again.');
+      setNotificationSeverity('error');
     }
   };
 
@@ -903,12 +1289,18 @@ const ProjectManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/allocations`, {
+      const scenarioParam = activeScenario?.id ? `?scenarioId=${activeScenario.id}` : '';
+      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Deduplicate allocations by ID first (in case of SQL join duplicates)
+      const uniqueAllocations = Array.from(
+        new Map(response.data.data.map((a: any) => [a.id, a])).values()
+      );
+
       // Filter allocations by project ID
-      const projectAllocations = response.data.data.filter(
+      const projectAllocations = uniqueAllocations.filter(
         (allocation: any) => allocation.projectId === project.id
       );
 
@@ -1064,6 +1456,17 @@ const ProjectManagement = () => {
       (filters.health.length === 0 || filters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain
     );
+  }).sort((a, b) => {
+    // Sort by sortOrder first, then by createdDate DESC (matching backend ordering)
+    const aSortOrder = a.sortOrder ?? 999999;
+    const bSortOrder = b.sortOrder ?? 999999;
+    if (aSortOrder !== bSortOrder) {
+      return aSortOrder - bSortOrder;
+    }
+    // Fallback to createdDate DESC (most recent first)
+    const aDate = a.createdDate ? new Date(a.createdDate).getTime() : 0;
+    const bDate = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+    return bDate - aDate;
   });
 
   // Swimlane grouping helper functions
@@ -1117,45 +1520,69 @@ const ProjectManagement = () => {
       structure[level1Key][level2Key].push(project);
     });
 
-    // Apply custom project order within each swimlane
+    // Sort projects within each swimlane by sortOrder
     Object.keys(structure).forEach((level1Key) => {
       Object.keys(structure[level1Key]).forEach((level2Key) => {
-        const swimlaneKey = `${level1Key}::${level2Key}`;
         const projects = structure[level1Key][level2Key];
 
-        if (projectOrder[swimlaneKey] && projectOrder[swimlaneKey].length > 0) {
-          // Sort projects according to custom order
-          const orderedProjects: Project[] = [];
-          const orderedIds = projectOrder[swimlaneKey];
-
-          orderedIds.forEach((id) => {
-            const project = projects.find((p) => p.id === id);
-            if (project) orderedProjects.push(project);
-          });
-
-          // Add any projects that aren't in the custom order
-          projects.forEach((project) => {
-            if (!orderedIds.includes(project.id)) {
-              orderedProjects.push(project);
-            }
-          });
-
-          structure[level1Key][level2Key] = orderedProjects;
-        }
+        // Sort by sortOrder (with fallback to createdDate DESC, matching backend)
+        structure[level1Key][level2Key] = projects.sort((a, b) => {
+          const aSortOrder = a.sortOrder ?? 999999;
+          const bSortOrder = b.sortOrder ?? 999999;
+          if (aSortOrder !== bSortOrder) {
+            return aSortOrder - bSortOrder;
+          }
+          // Fallback to createdDate DESC (matching backend and filteredProjects)
+          const aDate = a.createdDate ? new Date(a.createdDate).getTime() : 0;
+          const bDate = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+          return bDate - aDate;
+        });
       });
     });
 
     return structure;
   };
 
-  const swimlaneStructure = swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
+  // Memoize swimlane structure so it's consistent across rendering and arrow positioning
+  const swimlaneStructure = useMemo(() => {
+    return swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
+  }, [swimlaneConfig.enabled, swimlaneConfig.level1, swimlaneConfig.level2, filteredProjects]);
 
-  // Calculate total row count for swimlane layout
+  // Memoize the row index map to ensure consistency
+  const projectRowIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+
+    if (!swimlaneConfig.enabled || !swimlaneStructure) {
+      // Flat list mode: row index = position in filteredProjects array
+      filteredProjects.forEach((project, index) => {
+        map.set(project.id, index);
+      });
+    } else {
+      // Swimlane mode: cumulative row indices across all swimlane groups
+      // CRITICAL: Must iterate in EXACTLY the same order as rendering (line 3715)
+      let absoluteRowIndex = 0;
+
+      Object.entries(swimlaneStructure).forEach(([level1Key, level2Groups]) => {
+        Object.entries(level2Groups).forEach(([level2Key, projects]) => {
+          projects.forEach((project) => {
+            map.set(project.id, absoluteRowIndex);
+            absoluteRowIndex++;
+          });
+        });
+      });
+    }
+
+    return map;
+  }, [swimlaneConfig.enabled, swimlaneStructure, filteredProjects]);
+
+  // Calculate total row count for swimlane layout (count all projects, not groups)
   const getTotalSwimlaneRows = (): number => {
     if (!swimlaneStructure) return 0;
     let totalRows = 0;
     Object.values(swimlaneStructure).forEach((level2Groups) => {
-      totalRows += Object.keys(level2Groups).length;
+      Object.values(level2Groups).forEach((projects) => {
+        totalRows += projects.length;
+      });
     });
     return totalRows;
   };
@@ -1282,20 +1709,51 @@ const ProjectManagement = () => {
     };
   };
 
-  const constrainDate = (date: Date, previousMilestone: Milestone | null, nextMilestone: Milestone | null) => {
+  const constrainDate = (
+    date: Date,
+    previousMilestone: Milestone | null,
+    nextMilestone: Milestone | null,
+    projectId?: number
+  ) => {
     let constrainedDate = new Date(date);
 
+    // Constrain within project bounds
+    if (projectId) {
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        const projectStart = project.startDate || project.desiredStartDate;
+        const projectEnd = project.endDate || project.desiredCompletionDate;
+
+        if (projectStart) {
+          const startDate = new Date(projectStart);
+          if (constrainedDate < startDate) {
+            constrainedDate = new Date(startDate);
+          }
+        }
+
+        if (projectEnd) {
+          const endDate = new Date(projectEnd);
+          if (constrainedDate > endDate) {
+            constrainedDate = new Date(endDate);
+          }
+        }
+      }
+    }
+
+    // Constrain based on adjacent milestones (prevent order changes)
     if (previousMilestone && previousMilestone.plannedEndDate) {
       const prevDate = new Date(previousMilestone.plannedEndDate);
+      // Milestone must be after previous milestone
       if (constrainedDate <= prevDate) {
-        constrainedDate = new Date(prevDate.getTime() + 24 * 60 * 60 * 1000); // 1 day after previous
+        constrainedDate = new Date(prevDate.getTime() + 24 * 60 * 60 * 1000);
       }
     }
 
     if (nextMilestone && nextMilestone.plannedEndDate) {
       const nextDate = new Date(nextMilestone.plannedEndDate);
+      // Milestone must be before next milestone
       if (constrainedDate >= nextDate) {
-        constrainedDate = new Date(nextDate.getTime() - 24 * 60 * 60 * 1000); // 1 day before next
+        constrainedDate = new Date(nextDate.getTime() - 24 * 60 * 60 * 1000);
       }
     }
 
@@ -1566,9 +2024,11 @@ const ProjectManagement = () => {
     point: 'start' | 'end',
     dateRange: { start: Date; end: Date }
   ): { x: number; y: number; rowIndex: number } | null => {
-    const projectIndex = filteredProjects.findIndex(p => p.id === id);
-    if (type === 'project' && projectIndex >= 0) {
-      const project = filteredProjects[projectIndex];
+
+    if (type === 'project') {
+      const project = filteredProjects.find(p => p.id === id);
+      if (!project) return null;
+
       const projectStart = project.startDate || project.desiredStartDate;
       const projectEnd = project.endDate || project.desiredCompletionDate;
 
@@ -1576,20 +2036,29 @@ const ProjectManagement = () => {
 
       const date = point === 'start' ? new Date(projectStart) : new Date(projectEnd);
       const x = calculatePosition(date, dateRange.start, dateRange.end);
+      const rowIndex = projectRowIndexMap.get(id) ?? 0;
 
-      return { x, y: 16, rowIndex: projectIndex }; // y=16 is middle of 32px row height
+      // In flat list mode: each row has height:28 + marginBottom:4 + paddingBottom:4 = 36px total
+      // Bar is centered at top:50% of 28px container = 14px
+      // In swimlane mode: bars are positioned at: top = projectIdx * 32 + 16 with transform: translateY(-50%)
+      // translateY(-50%) with 18px height moves it up by 9px, so actual top is projectIdx * 32 + 7
+      // Center is at: projectIdx * 32 + 7 + 9 = projectIdx * 32 + 16
+      const y = swimlaneConfig.enabled ? 16 : 14;
+      return { x, y, rowIndex };
     } else if (type === 'milestone') {
       const milestone = milestones.find(m => m.id === id);
       if (!milestone) return null;
 
-      const projectIndex = filteredProjects.findIndex(p => p.id === milestone.projectId);
-      if (projectIndex < 0) return null;
+      const rowIndex = projectRowIndexMap.get(milestone.projectId);
+      if (rowIndex === undefined) return null;
 
       const milestoneDate = milestone.actualEndDate || milestone.plannedEndDate;
       if (!milestoneDate) return null;
 
       const x = calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end);
-      return { x, y: 16, rowIndex: projectIndex }; // y=16 is middle of 32px row height
+      // Use same y-position as projects for consistency
+      const y = swimlaneConfig.enabled ? 16 : 14;
+      return { x, y, rowIndex };
     }
 
     return null;
@@ -2107,6 +2576,97 @@ const ProjectManagement = () => {
       }
     } catch (error) {
       console.error('Error updating project:', error);
+      // Revert on error
+      fetchData();
+    }
+  };
+
+  // Gantt drag and drop handlers for reordering
+  const handleGanttDragStart = (event: DragStartEvent) => {
+    setGanttActiveId(event.active.id as number);
+  };
+
+  const handleGanttDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setGanttActiveId(null);
+
+    if (!over) return;
+
+    const activeId = active.id as number;
+    const overId = over.id as number;
+
+    if (activeId === overId) return;
+
+    const activeProject = filteredProjects.find(p => p.id === activeId);
+    const overProject = filteredProjects.find(p => p.id === overId);
+
+    if (!activeProject || !overProject) return;
+
+    // Helper function to get group keys for a project
+    const getGroupKeys = (project: Project) => {
+      if (!swimlaneConfig.enabled) {
+        return { level1: 'all', level2: 'all' };
+      }
+      return {
+        level1: getGroupKey(project, swimlaneConfig.level1),
+        level2: getGroupKey(project, swimlaneConfig.level2),
+      };
+    };
+
+    const activeKeys = getGroupKeys(activeProject);
+    const overKeys = getGroupKeys(overProject);
+
+    // Only allow reordering within the same level2 group
+    if (activeKeys.level1 !== overKeys.level1 || activeKeys.level2 !== overKeys.level2) {
+      console.log('Cannot reorder across different swimlane groups');
+      return;
+    }
+
+    // Get all projects in the same group
+    const groupKey = `${activeKeys.level1}-${activeKeys.level2}`;
+    const groupProjects = filteredProjects.filter(p => {
+      const keys = getGroupKeys(p);
+      return keys.level1 === activeKeys.level1 && keys.level2 === activeKeys.level2;
+    });
+
+    // Find indices within the group
+    const activeIndex = groupProjects.findIndex(p => p.id === activeId);
+    const overIndex = groupProjects.findIndex(p => p.id === overId);
+
+    // Reorder within the group
+    const reorderedGroup = [...groupProjects];
+    const [removed] = reorderedGroup.splice(activeIndex, 1);
+    reorderedGroup.splice(overIndex, 0, removed);
+
+    // Assign new sortOrder values
+    const updatedSortOrders = reorderedGroup.map((project, index) => ({
+      id: project.id,
+      sortOrder: index,
+    }));
+
+    // Update local state optimistically
+    const updatedProjects = projects.map(project => {
+      const update = updatedSortOrders.find(u => u.id === project.id);
+      if (update) {
+        return { ...project, sortOrder: update.sortOrder };
+      }
+      return project;
+    });
+
+    setProjects(updatedProjects);
+
+    // Persist changes to backend
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      await axios.put(
+        `${API_URL}/projects/bulk-update-sort-orders`,
+        { projects: updatedSortOrders },
+        config
+      );
+    } catch (error) {
+      console.error('Error updating project sort orders:', error);
       // Revert on error
       fetchData();
     }
@@ -2688,6 +3248,24 @@ const ProjectManagement = () => {
               >
                 Wide
               </Button>
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              <Typography variant="caption" color="text.secondary">
+                Gridlines:
+              </Typography>
+              <Button
+                size="small"
+                variant={showGridlines ? 'contained' : 'outlined'}
+                onClick={() => {
+                  const newValue = !showGridlines;
+                  setShowGridlines(newValue);
+                  localStorage.setItem('ganttShowGridlines', JSON.stringify(newValue));
+                }}
+                sx={{ minWidth: 60, px: 1, py: 0.5 }}
+              >
+                {showGridlines ? 'ON' : 'OFF'}
+              </Button>
             </Box>
           </Box>
 
@@ -2984,13 +3562,21 @@ const ProjectManagement = () => {
                           position: 'absolute',
                           left: `${marker.position}%`,
                           transform: 'translateX(-50%)',
-                          fontSize: '0.7rem',
+                          fontSize: '0.65rem',
                           fontWeight: 600,
                           color: 'text.secondary',
-                          textAlign: 'center',
+                          textAlign: 'left',
+                          transformOrigin: 'left center',
                         }}
                       >
-                        {marker.label}
+                        <Box
+                          sx={{
+                            transform: 'rotate(-45deg) translateY(-4px)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {marker.label}
+                        </Box>
                         <Box
                           sx={{
                             position: 'absolute',
@@ -3009,180 +3595,394 @@ const ProjectManagement = () => {
 
                 {/* Gantt Chart Container with Relative Positioning for SVG Overlay */}
                 <Box ref={ganttContainerRef} sx={{ position: 'relative' }}>
+                  {/* Vertical Gridlines */}
+                  {showGridlines && monthMarkers.map((marker, idx) => (
+                    <Box
+                      key={idx}
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: `calc(${swimlaneConfig.enabled
+                          ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
+                          : ganttSidebarWidth}px + ${marker.position}%)`,
+                        width: 0,
+                        height: '100%',
+                        borderLeft: '1px dotted rgba(0, 0, 0, 0.2)',
+                        pointerEvents: 'none',
+                        zIndex: 0,
+                      }}
+                    />
+                  ))}
+
                   {/* Projects and Milestones */}
                   {!swimlaneConfig.enabled ? (
-                    // Flat list rendering when swimlanes are disabled
-                    filteredProjects.map((project) => {
-                      const projectMilestones = milestones.filter(m => m.projectId === project.id);
-                      const projectStart = project.startDate || project.desiredStartDate;
-                      const projectEnd = project.endDate || project.desiredCompletionDate;
+                    // Flat list rendering when swimlanes are disabled - with drag and drop reordering
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleGanttDragStart}
+                      onDragEnd={handleGanttDragEnd}
+                    >
+                      <SortableContext items={filteredProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                        {filteredProjects.map((project) => {
+                          const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                          const projectStart = project.startDate || project.desiredStartDate;
+                          const projectEnd = project.endDate || project.desiredCompletionDate;
 
-                      return (
-                        <Box key={project.id} sx={{ mb: 0.5, pb: 0.5, borderBottom: '1px solid #f8f8f8' }}>
-                        {/* Project Row with Milestones */}
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1 }}>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontSize: '0.7rem',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                display: 'block',
+                          return (
+                            <SortableGanttProjectRow
+                              key={project.id}
+                              project={project}
+                              projectMilestones={projectMilestones}
+                              projectStart={projectStart}
+                              projectEnd={projectEnd}
+                              ganttSidebarWidth={ganttSidebarWidth}
+                              dateRange={dateRange}
+                              cpmData={cpmData}
+                              tempPositions={tempPositions}
+                              draggingItem={draggingItem}
+                              setDraggingItem={setDraggingItem}
+                              calculatePosition={calculatePosition}
+                              calculateWidth={calculateWidth}
+                              handleMilestoneMouseDown={(e, milestone, projectId) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const container = document.getElementById(`timeline-container-${projectId}`);
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                setDraggingItem({
+                                  type: 'milestone',
+                                  id: milestone.id,
+                                  projectId: projectId,
+                                  initialX: e.clientX,
+                                  initialDates: {
+                                    plannedEndDate: new Date(milestone.plannedEndDate!),
+                                  },
+                                  dateRange: dateRange,
+                                  containerWidth: rect.width,
+                                });
                               }}
-                              title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
-                            >
-                              <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
-                                {project.projectNumber || `PRJ-${project.id}`}
-                              </Box>
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {project.name}
-                              </Box>
-                            </Typography>
-                          </Box>
-                          <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
-                            {/* Project Bar */}
-                            {projectStart && projectEnd && (() => {
-                              const cpmNode = cpmData.nodes.get(`project-${project.id}`);
-                              const slackDays = cpmNode?.slack || 0;
-                              const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
-                              const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+                            />
+                          );
+                        })}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    // Swimlane layout
+                    true ? (
+                    // Traditional swimlane layout with vertical Level 1 and horizontal Level 2 (with sortable project names)
+                    <Box sx={{ display: 'flex' }}>
+                      {/* Level 1 Vertical Column */}
+                      <Box sx={{ width: swimlaneConfig.rotateLevel1 ? 50 : 120, flexShrink: 0, borderRight: '2px solid #ccc' }}>
+                        {Object.entries(swimlaneStructure || {}).map(([level1Key, level2Groups]) => {
+                          // Calculate total height for this Level 1 group
+                          const totalHeight = Object.values(level2Groups).reduce((sum, projects) => {
+                            return sum + (projects.length * 32);
+                          }, 0);
 
-                              return (
-                                <Tooltip title={tooltipContent} arrow>
-                                  <Box
-                                    onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  const container = document.getElementById(`timeline-container-${project.id}`);
-                                  if (!container) return;
-                                  const rect = container.getBoundingClientRect();
-                                  setDraggingItem({
-                                    type: 'project',
-                                    operation: 'move',
-                                    id: project.id,
-                                    initialX: e.clientX,
-                                    initialDates: {
-                                      startDate: new Date(projectStart),
-                                      endDate: new Date(projectEnd),
-                                    },
-                                    dateRange: dateRange,
-                                    containerWidth: rect.width,
-                                  });
-                                }}
+                          return (
+                            <Box
+                              key={level1Key}
+                              sx={{
+                                height: totalHeight,
+                                bgcolor: getLevel1Color(level1Key),
+                                borderBottom: '2px solid #fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Typography
                                 sx={{
-                                  position: 'absolute',
-                                  left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
-                                  width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
-                                  height: 18,
-                                  top: '50%',
-                                  transform: 'translateY(-50%)',
-                                  bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
-                                          project.healthStatus === 'Yellow' ? '#ff9800' :
-                                          project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
-                                  borderRadius: 0.5,
-                                  border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
+                                  ...(swimlaneConfig.rotateLevel1 ? {
+                                    writingMode: 'vertical-lr',
+                                    transform: 'rotate(180deg)',
+                                  } : {}),
+                                  fontSize: swimlaneConfig.rotateLevel1 ? '0.9rem' : '0.75rem',
+                                  fontWeight: 700,
                                   color: 'white',
-                                  fontSize: '0.6rem',
-                                  fontWeight: 600,
-                                  px: 0.5,
-                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
-                                  zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
-                                  cursor: 'grab',
-                                  opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
-                                  transition: draggingItem ? 'none' : 'all 0.2s',
-                                  userSelect: 'none',
-                                  '&:active': {
-                                    cursor: 'grabbing',
-                                  },
-                                  '&:hover': {
-                                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
-                                    filter: 'brightness(1.1)',
-                                  },
+                                  textTransform: 'uppercase',
+                                  letterSpacing: 1,
                                 }}
                               >
-                                {/* Left Resize Handle */}
-                                <Box
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const container = document.getElementById(`timeline-container-${project.id}`);
-                                    if (!container) return;
-                                    const rect = container.getBoundingClientRect();
-                                    setDraggingItem({
-                                      type: 'project',
-                                      operation: 'resize-left',
-                                      id: project.id,
-                                      initialX: e.clientX,
-                                      initialDates: {
-                                        startDate: new Date(projectStart),
-                                        endDate: new Date(projectEnd),
-                                      },
-                                      dateRange: dateRange,
-                                      containerWidth: rect.width,
-                                    });
-                                  }}
-                                  sx={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: 6,
-                                    cursor: 'ew-resize',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                                    borderTopLeftRadius: 0.5,
-                                    borderBottomLeftRadius: 0.5,
-                                    '&:hover': {
-                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                    },
-                                  }}
-                                />
+                                {level1Key}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </Box>
 
-                                {project.progress}%
+                      {/* Level 2 Column + Timeline */}
+                      <Box sx={{ flex: 1 }}>
+                        {Object.entries(swimlaneStructure || {}).flatMap(([level1Key, level2Groups]) => {
+                          const level2Entries = Object.entries(level2Groups);
+                          return level2Entries.map(([level2Key, projects], level2Index) => {
+                            const rowKey = `${level1Key}-${level2Key}`;
+                            const isLastLevel2InGroup = level2Index === level2Entries.length - 1;
 
-                                {/* Right Resize Handle */}
-                                <Box
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const container = document.getElementById(`timeline-container-${project.id}`);
-                                    if (!container) return;
-                                    const rect = container.getBoundingClientRect();
-                                    setDraggingItem({
-                                      type: 'project',
-                                      operation: 'resize-right',
-                                      id: project.id,
-                                      initialX: e.clientX,
-                                      initialDates: {
-                                        startDate: new Date(projectStart),
-                                        endDate: new Date(projectEnd),
-                                      },
-                                      dateRange: dateRange,
-                                      containerWidth: rect.width,
-                                    });
-                                  }}
-                                  sx={{
-                                    position: 'absolute',
-                                    right: 0,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: 6,
-                                    cursor: 'ew-resize',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                                    borderTopRightRadius: 0.5,
-                                    borderBottomRightRadius: 0.5,
-                                    '&:hover': {
-                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                    },
-                                  }}
-                                />
-                              </Box>
-                            </Tooltip>
-                              );
-                            })()}
+                            return (
+                              <Box key={rowKey} sx={{ display: 'flex', height: projects.length * 32 }}>
+                                {/* Level 2 Label */}
+                                <Box sx={{
+                                  width: swimlaneConfig.rotateLevel2 ? 50 : 180,
+                                  flexShrink: 0,
+                                  bgcolor: '#f5f5f5',
+                                  px: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: swimlaneConfig.rotateLevel2 ? 'center' : 'flex-start',
+                                  borderRight: '1px solid #e0e0e0',
+                                  borderBottom: isLastLevel2InGroup ? '2px solid #9e9e9e' : '1px dotted #bdbdbd',
+                                  position: 'relative',
+                                }}>
+                                  <Typography
+                                    variant="caption"
+                                    fontWeight={500}
+                                    sx={{
+                                      ...(swimlaneConfig.rotateLevel2 ? {
+                                        writingMode: 'vertical-lr',
+                                        transform: 'rotate(180deg)',
+                                      } : {}),
+                                      fontSize: '0.7rem',
+                                    }}
+                                  >
+                                    {level2Key}
+                                  </Typography>
+
+                                  {/* Grid line overlays to match project rows */}
+                                  {projects.slice(0, -1).map((_, idx) => (
+                                    <Box
+                                      key={`level2-grid-${idx}`}
+                                      sx={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        right: 0,
+                                        top: (idx + 1) * 32,
+                                        height: 0,
+                                        borderTop: '1px dotted #e0e0e0',
+                                      }}
+                                    />
+                                  ))}
+                                </Box>
+
+                                {/* Level 3 Project Names Column */}
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragStart={handleGanttDragStart}
+                                  onDragEnd={handleGanttDragEnd}
+                                >
+                                  <SortableContext items={projects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                                    <Box sx={{
+                                      width: ganttSidebarWidth,
+                                      flexShrink: 0,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      borderRight: '1px solid #e0e0e0',
+                                      bgcolor: 'background.paper',
+                                    }}>
+                                      {projects.map((project, idx) => {
+                                        const isLastProject = idx === projects.length - 1;
+                                        // Determine border style based on hierarchy
+                                        let borderStyle = '1px dotted #e0e0e0'; // Default: thin dotted line between projects
+                                        if (isLastProject) {
+                                          if (isLastLevel2InGroup) {
+                                            borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                          } else {
+                                            borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                          }
+                                        }
+                                        return (
+                                          <SortableSwimlaneProjectName
+                                            key={project.id}
+                                            project={project}
+                                            ganttSidebarWidth={ganttSidebarWidth}
+                                            borderStyle={borderStyle}
+                                          />
+                                        );
+                                      })}
+                                    </Box>
+                                  </SortableContext>
+                                </DndContext>
+
+                                {/* Timeline Container for ALL projects in this row */}
+                                <Box sx={{ flex: 1, position: 'relative', height: projects.length * 32 }}>
+                                  {/* Grid lines to match project rows */}
+                                  {projects.map((_, idx) => {
+                                    const isLastProject = idx === projects.length - 1;
+                                    let borderStyle = '1px dotted #e0e0e0'; // Thin dotted line between projects
+                                    if (isLastProject) {
+                                      if (isLastLevel2InGroup) {
+                                        borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                      } else {
+                                        borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                      }
+                                    }
+                                    return (
+                                      <Box
+                                        key={`timeline-grid-${idx}`}
+                                        sx={{
+                                          position: 'absolute',
+                                          left: 0,
+                                          right: 0,
+                                          top: (idx + 1) * 32,
+                                          height: 0,
+                                          borderTop: borderStyle,
+                                          zIndex: 0,
+                                        }}
+                                      />
+                                    );
+                                  })}
+
+                                  {projects.map((project, projectIdx) => {
+                                    const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                                    const projectStart = project.startDate || project.desiredStartDate;
+                                    const projectEnd = project.endDate || project.desiredCompletionDate;
+
+                                    return (
+                                      <React.Fragment key={project.id}>
+                                        {/* Project Bar */}
+                                        {projectStart && projectEnd && (() => {
+                                          const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+                                          const slackDays = cpmNode?.slack || 0;
+                                          const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+                                          const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+                                          return (
+                                            <Box
+                                              title={tooltipContent}
+                                              onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  const container = document.getElementById(`timeline-container-${project.id}`);
+                                                  if (!container) return;
+                                                  const rect = container.getBoundingClientRect();
+                                                  setDraggingItem({
+                                                    type: 'project',
+                                                    operation: 'move',
+                                                    id: project.id,
+                                                    initialX: e.clientX,
+                                                    initialDates: {
+                                                      startDate: new Date(projectStart),
+                                                      endDate: new Date(projectEnd),
+                                                    },
+                                                    dateRange: dateRange,
+                                                    containerWidth: rect.width,
+                                                  });
+                                                }}
+                                                data-project-id={project.id}
+                                                data-project-bar="true"
+                                                sx={{
+                                                  position: 'absolute',
+                                                  left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                                                  width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                                                  height: 18,
+                                                  top: `${projectIdx * 32 + 16}px`,
+                                                  transform: 'translateY(-50%)',
+                                                  bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
+                                                          project.healthStatus === 'Yellow' ? '#ff9800' :
+                                                          project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
+                                                  borderRadius: 0.5,
+                                                  border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                  color: 'white',
+                                                  fontSize: '0.6rem',
+                                                  fontWeight: 600,
+                                                  px: 0.5,
+                                                  boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                                                  zIndex: draggingItem?.type === 'project' && draggingItem.id === project.id ? 10 : 1,
+                                                  cursor: 'grab',
+                                                  opacity: draggingItem?.type === 'project' && draggingItem.id === project.id ? 0.7 : 1,
+                                                  transition: draggingItem ? 'none' : 'all 0.2s',
+                                                  userSelect: 'none',
+                                                  '&:active': {
+                                                    cursor: 'grabbing',
+                                                  },
+                                                  '&:hover': {
+                                                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 4 : 2,
+                                                    filter: 'brightness(1.1)',
+                                                  },
+                                                }}
+                                              >
+                                                {/* Left Resize Handle */}
+                                                <Box
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const container = document.getElementById(`timeline-container-${project.id}`);
+                                                    if (!container) return;
+                                                    const rect = container.getBoundingClientRect();
+                                                    setDraggingItem({
+                                                      type: 'project',
+                                                      operation: 'resize-left',
+                                                      id: project.id,
+                                                      initialX: e.clientX,
+                                                      initialDates: {
+                                                        startDate: new Date(projectStart),
+                                                        endDate: new Date(projectEnd),
+                                                      },
+                                                      dateRange: dateRange,
+                                                      containerWidth: rect.width,
+                                                    });
+                                                  }}
+                                                  sx={{
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    width: 6,
+                                                    cursor: 'ew-resize',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                                    borderTopLeftRadius: 0.5,
+                                                    borderBottomLeftRadius: 0.5,
+                                                    '&:hover': {
+                                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                                    },
+                                                  }}
+                                                />
+
+                                                {project.progress}%
+
+                                                {/* Right Resize Handle */}
+                                                <Box
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const container = document.getElementById(`timeline-container-${project.id}`);
+                                                    if (!container) return;
+                                                    const rect = container.getBoundingClientRect();
+                                                    setDraggingItem({
+                                                      type: 'project',
+                                                      operation: 'resize-right',
+                                                      id: project.id,
+                                                      initialX: e.clientX,
+                                                      initialDates: {
+                                                        startDate: new Date(projectStart),
+                                                        endDate: new Date(projectEnd),
+                                                      },
+                                                      dateRange: dateRange,
+                                                      containerWidth: rect.width,
+                                                    });
+                                                  }}
+                                                  sx={{
+                                                    position: 'absolute',
+                                                    right: 0,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    width: 6,
+                                                    cursor: 'ew-resize',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                                    borderTopRightRadius: 0.5,
+                                                    borderBottomRightRadius: 0.5,
+                                                    '&:hover': {
+                                                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                                    },
+                                                  }}
+                                                />
+                                              </Box>
+                                          );
+                                        })()}
 
                             {/* Milestone Markers */}
                             {projectMilestones.map((milestone) => {
@@ -3219,7 +4019,7 @@ const ProjectManagement = () => {
                                   sx={{
                                     position: 'absolute',
                                     left: tempPositions[`milestone-${milestone.id}`]?.left || `${calculatePosition(new Date(milestoneDate), dateRange.start, dateRange.end)}%`,
-                                    top: '50%',
+                                    top: `${projectIdx * 32 + 16}px`,
                                     transform: 'translate(-50%, -50%) rotate(45deg)',
                                     width: 11,
                                     height: 11,
@@ -3245,19 +4045,50 @@ const ProjectManagement = () => {
                                 />
                               );
                             })}
-                          </Box>
-                          <Box sx={{ width: 100, textAlign: 'center', pl: 1 }}>
-                            <Chip
-                              label={project.status}
-                              size="small"
-                              color={getStatusColor(project.status)}
-                              sx={{ fontSize: '0.6rem', height: 18 }}
-                            />
-                          </Box>
-                          </Box>
-                        </Box>
-                      );
-                    })
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </Box>
+
+                                {/* Status column */}
+                                <Box sx={{ width: 100, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                                  {projects.map((project, idx) => {
+                                    const isLastProject = idx === projects.length - 1;
+                                    let borderStyle = '1px dotted #e0e0e0'; // Thin dotted line between projects
+                                    if (isLastProject) {
+                                      if (isLastLevel2InGroup) {
+                                        borderStyle = '2px solid #9e9e9e'; // Thick solid line between Level 1 groups
+                                      } else {
+                                        borderStyle = '1px dotted #bdbdbd'; // Medium dotted line between Level 2 groups
+                                      }
+                                    }
+                                    return (
+                                      <Box
+                                        key={project.id}
+                                        sx={{
+                                          height: 32,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderBottom: borderStyle,
+                                        }}
+                                      >
+                                        <Chip
+                                          label={project.status}
+                                          size="small"
+                                          color={getStatusColor(project.status)}
+                                          sx={{ fontSize: '0.55rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+                                        />
+                                      </Box>
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            );
+                          });
+                        })}
+                      </Box>
+                    </Box>
                   ) : (
                     // Traditional swimlane layout with vertical Level 1 and horizontal Level 2
                     <Box sx={{ display: 'flex' }}>
@@ -3452,9 +4283,10 @@ const ProjectManagement = () => {
                                           const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
 
                                           return (
-                                            <Tooltip title={tooltipContent} arrow key={`bar-${project.id}`}>
-                                              <Box
-                                                onMouseDown={(e) => {
+                                            <Box
+                                              key={`bar-${project.id}`}
+                                              title={tooltipContent}
+                                              onMouseDown={(e) => {
                                                   e.preventDefault();
                                                   const timelineContainer = e.currentTarget.parentElement;
                                                   if (!timelineContainer) return;
@@ -3582,7 +4414,6 @@ const ProjectManagement = () => {
                                                   }}
                                                 />
                                               </Box>
-                                            </Tooltip>
                                           );
                                         })()}
 
@@ -3691,11 +4522,12 @@ const ProjectManagement = () => {
                         })}
                       </Box>
                     </Box>
+                    )
                   )}
 
                   {/* Dependency Arrows Overlay */}
                   <svg
-                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 32}`}
+                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36}`}
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
@@ -3703,8 +4535,10 @@ const ProjectManagement = () => {
                       left: swimlaneConfig.enabled
                         ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth
                         : ganttSidebarWidth,
-                      width: swimlaneConfig.enabled ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth}px - 100px)` : `calc(100% - ${ganttSidebarWidth + 100}px)`,
-                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 32,
+                      width: swimlaneConfig.enabled
+                        ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.rotateLevel2 ? 50 : 180) + ganttSidebarWidth}px - 100px)`
+                        : `calc(100% - ${ganttSidebarWidth}px)`,
+                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36,
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',
@@ -3722,14 +4556,18 @@ const ProjectManagement = () => {
                         <marker
                           key={id}
                           id={id}
-                          markerWidth="10"
+                          viewBox="0 0 10 10"
+                          refX="10"
+                          refY="5"
+                          markerWidth="4"
                           markerHeight="4"
-                          refX="9"
-                          refY="2"
                           orient="auto"
-                          markerUnits="userSpaceOnUse"
+                          markerUnits="strokeWidth"
                         >
-                          <polygon points="0 0.5, 10 2, 0 3.5" fill={markerColor} />
+                          <path
+                            d="M 0 0 L 10 5 L 0 10 z"
+                            fill={markerColor}
+                          />
                         </marker>
                       ))}
                     </defs>
@@ -3759,27 +4597,100 @@ const ProjectManagement = () => {
                         const markerId = `arrow-${markerColor}`;
 
                         // Use percentage coordinates directly (viewBox is 0-100 for x)
+                        // In flat view: 36px per row, in swimlane: 32px per row
+                        const rowHeight = swimlaneConfig.enabled ? 32 : 36;
                         const x1 = predPos.x;
-                        const y1 = predPos.rowIndex * 32 + predPos.y;
+                        const y1 = predPos.rowIndex * rowHeight + predPos.y;
                         const x2 = succPos.x;
-                        const y2 = succPos.rowIndex * 32 + succPos.y;
+                        const y2 = succPos.rowIndex * rowHeight + succPos.y;
 
-                        // Create curved path
-                        const midX = (x1 + x2) / 2;
-                        const controlOffset = Math.abs(y2 - y1) * 0.3;
+                        // MS Project style routing: edge-to-edge with clean step patterns
+                        // Exit horizontally from predecessor end, enter horizontally to successor start
+                        const horizontalExit = 2; // Horizontal distance to exit from predecessor (percentage units)
+                        const horizontalEnter = 1; // Horizontal distance before entering successor (percentage units)
+                        const verticalClearance = 14; // Vertical clearance between rows (pixels)
+                        const arrowClearance = 0.8; // Space reserved for the arrow (percentage units)
+                        const minHorizontalSpace = 3; // Minimum space needed for simple L-shaped routing (percentage units)
 
-                        const pathD = `M ${x1} ${y1} Q ${midX} ${y1 + (y2 > y1 ? controlOffset : -controlOffset)}, ${x2} ${y2}`;
+                        let pathD: string;
+                        const horizontalGap = x2 - x1;
+
+                        if (x2 > x1) {
+                          // Forward dependency (left to right)
+                          const startX = x1 + horizontalExit;
+                          const endX = x2 - arrowClearance; // Leave space for arrow
+
+                          if (Math.abs(y2 - y1) < 5) {
+                            // Same row - check if enough space for direct line
+                            if (horizontalGap > minHorizontalSpace) {
+                              // Enough space - direct horizontal line
+                              pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
+                            } else {
+                              // Not enough space - use U-shaped routing above
+                              const clearanceY = y1 - verticalClearance;
+                              // End with horizontal segment for proper arrow direction
+                              pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                            }
+                          } else {
+                            // Different rows - check if enough space for L-shaped routing
+                            if (horizontalGap > minHorizontalSpace) {
+                              // Enough space - simple L-shaped routing
+                              pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${y2} L ${x2} ${y2}`;
+                            } else {
+                              // Not enough space - use U-shaped routing
+                              // End with horizontal segment for proper arrow direction
+                              if (y1 < y2) {
+                                // Going down - route above
+                                const clearanceY = y1 - verticalClearance;
+                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                              } else {
+                                // Going up - route below
+                                const clearanceY = y1 + verticalClearance;
+                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                              }
+                            }
+                          }
+                        } else if (x2 === x1) {
+                          // Same position - use U-shaped routing
+                          const offsetX = x1 + horizontalExit;
+                          const endX = x2 - arrowClearance;
+                          const clearanceY = y1 < y2 ? y1 - verticalClearance : y1 + verticalClearance;
+                          // End with horizontal segment for proper arrow direction
+                          pathD = `M ${x1} ${y1} L ${offsetX} ${y1} L ${offsetX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                        } else {
+                          // Backward dependency (right to left) - always route around with vertical offset
+                          const startX = x1 + horizontalExit;
+                          const endX = x2 - arrowClearance;
+
+                          // Route with proper clearance to avoid overlapping bars
+                          // Always end with horizontal segment pointing toward successor for correct arrow direction
+                          if (y1 < y2) {
+                            // Going down and back - route above predecessor, then down to successor
+                            const clearanceY = y1 - verticalClearance;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                          } else if (y1 > y2) {
+                            // Going up and back - route below predecessor, then up to successor
+                            const clearanceY = y1 + verticalClearance;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                          } else {
+                            // Same row going backward - route above
+                            const clearanceY = y1 - verticalClearance;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                          }
+                        }
 
                         return (
                           <g key={dep.id}>
                             <path
                               d={pathD}
                               stroke={color}
-                              strokeWidth={isViolated ? "3" : "2"}
+                              strokeWidth={isViolated ? "2.5" : "2"}
                               fill="none"
                               markerEnd={`url(#${markerId})`}
-                              opacity={isViolated ? "1" : "0.8"}
+                              opacity="1"
                               vectorEffect="non-scaling-stroke"
+                              strokeLinejoin="miter"
+                              strokeLinecap="square"
                             />
                             <title>
                               {`${getEntityName(dep.predecessorType, dep.predecessorId)} (${dep.predecessorPoint}) → ${getEntityName(dep.successorType, dep.successorId)} (${dep.successorPoint})\nType: ${dep.dependencyType}${dep.lagDays !== 0 ? `\nLag: ${dep.lagDays} days` : ''}${isViolated ? '\n⚠️ CONSTRAINT VIOLATED' : ''}`}
@@ -4766,6 +5677,22 @@ const ProjectManagement = () => {
           }
         >
           {lastAction?.description} - Press Ctrl+Z to undo
+        </Alert>
+      </Snackbar>
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={!!notificationMessage}
+        autoHideDuration={4000}
+        onClose={() => setNotificationMessage('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setNotificationMessage('')}
+          severity={notificationSeverity}
+          sx={{ width: '100%' }}
+        >
+          {notificationMessage}
         </Alert>
       </Snackbar>
 
