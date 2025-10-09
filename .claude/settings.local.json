@@ -47,7 +47,8 @@
       "Bash(npm run seed:scenarios:*)",
       "Bash(npm run seed:notifications:*)",
       "Bash(npm run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

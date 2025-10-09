@@ -1059,16 +1059,6 @@ const ProjectManagement = () => {
         const constrainedDate = constrainDate(newDate, previous, next, draggingItem.projectId);
 
         const newLeft = calculatePosition(constrainedDate, dateRange.start, dateRange.end);
-        console.log('Milestone drag move:', {
-          deltaX,
-          containerWidth,
-          totalMs,
-          pixelPerMs,
-          msDelta,
-          newDate,
-          constrainedDate,
-          newLeft
-        });
         setTempPositions({
           [`milestone-${draggingItem.id}`]: { left: `${newLeft}%` }
         });
@@ -2727,7 +2717,7 @@ const ProjectManagement = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <Box
         display="flex"
         flexDirection={{ xs: 'column', sm: 'row' }}
@@ -3261,7 +3251,7 @@ const ProjectManagement = () => {
       )}
 
       {viewMode === 'gantt' && (
-        <Paper sx={{ p: 2, overflowX: 'auto' }}>
+        <Paper sx={{ p: 2, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
               Project Timeline
@@ -3709,17 +3699,8 @@ const ProjectManagement = () => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 const container = document.getElementById(`timeline-container-${projectId}`);
-                                if (!container) {
-                                  console.log('Flat view: No container found for', projectId);
-                                  return;
-                                }
+                                if (!container) return;
                                 const rect = container.getBoundingClientRect();
-                                console.log('Flat view milestone drag start:', {
-                                  projectId,
-                                  containerWidth: rect.width,
-                                  containerHeight: rect.height,
-                                  containerId: container.id,
-                                });
                                 setDraggingItem({
                                   type: 'milestone',
                                   id: milestone.id,
@@ -4094,22 +4075,10 @@ const ProjectManagement = () => {
                                     e.stopPropagation(); // Prevent project bar drag
                                     // Get the timeline container (go up two levels: milestone -> wrapper -> timeline container)
                                     const wrapper = e.currentTarget.parentElement;
-                                    if (!wrapper) {
-                                      console.log('No wrapper found');
-                                      return;
-                                    }
+                                    if (!wrapper) return;
                                     const timelineContainer = wrapper.parentElement;
-                                    if (!timelineContainer) {
-                                      console.log('No timeline container found');
-                                      return;
-                                    }
+                                    if (!timelineContainer) return;
                                     const rect = timelineContainer.getBoundingClientRect();
-                                    console.log('Swimlane milestone drag start:', {
-                                      projectId: project.id,
-                                      wrapperWidth: wrapper.getBoundingClientRect().width,
-                                      timelineWidth: rect.width,
-                                      containerWidth: rect.width,
-                                    });
                                     setDraggingItem({
                                       type: 'milestone',
                                       id: milestone.id,
@@ -4562,22 +4531,10 @@ const ProjectManagement = () => {
                                                 e.stopPropagation(); // Prevent project bar drag
                                                 // Get the timeline container (go up two levels: milestone -> wrapper -> timeline container)
                                                 const wrapper = e.currentTarget.parentElement;
-                                                if (!wrapper) {
-                                                  console.log('No wrapper found');
-                                                  return;
-                                                }
+                                                if (!wrapper) return;
                                                 const timelineContainer = wrapper.parentElement;
-                                                if (!timelineContainer) {
-                                                  console.log('No timeline container found');
-                                                  return;
-                                                }
+                                                if (!timelineContainer) return;
                                                 const rect = timelineContainer.getBoundingClientRect();
-                                                console.log('Swimlane milestone drag start:', {
-                                                  projectId: project.id,
-                                                  wrapperWidth: wrapper.getBoundingClientRect().width,
-                                                  timelineWidth: rect.width,
-                                                  containerWidth: rect.width,
-                                                });
                                                 setDraggingItem({
                                                   type: 'milestone',
                                                   id: milestone.id,
