@@ -391,6 +391,7 @@ interface SortableGanttProjectRowProps {
   calculatePosition: (date: Date, start: Date, end: Date) => number;
   calculateWidth: (start: Date, end: Date, rangeStart: Date, rangeEnd: Date) => number;
   handleMilestoneMouseDown: (e: React.MouseEvent, milestone: Milestone, projectId: number) => void;
+  getStatusColor: (status: string) => 'default' | 'primary' | 'success' | 'error' | 'warning';
 }
 
 const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
@@ -407,6 +408,7 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
   calculatePosition,
   calculateWidth,
   handleMilestoneMouseDown,
+  getStatusColor,
 }) => {
   const {
     attributes,
@@ -422,12 +424,11 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
     transition,
     marginBottom: '4px',
     paddingBottom: '4px',
-    borderBottom: '1px solid #f8f8f8',
     opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <Box ref={setNodeRef} style={style}>
+    <Box ref={setNodeRef} style={style} sx={{ borderBottom: '1px dotted', borderColor: 'divider' }}>
       {/* Project Row with Milestones */}
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1, display: 'flex', alignItems: 'center' }}>
@@ -4053,7 +4054,7 @@ const ProjectManagement = () => {
                     flexShrink: 0,
                     pr: 1
                   }} />
-                  <Box sx={{ flex: 1, position: 'relative', height: 35, mb: 1, borderBottom: '2px solid #e0e0e0' }}>
+                  <Box sx={{ flex: 1, position: 'relative', height: 35, mb: 1, borderBottom: '2px dotted', borderColor: 'divider' }}>
                     {monthMarkers.map((marker, idx) => (
                       <Box
                         key={idx}
@@ -4076,16 +4077,6 @@ const ProjectManagement = () => {
                         >
                           {marker.label}
                         </Box>
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: 18,
-                            width: 1,
-                            height: 12,
-                            bgcolor: '#e0e0e0',
-                          }}
-                        />
                       </Box>
                     ))}
                   </Box>
@@ -4095,23 +4086,37 @@ const ProjectManagement = () => {
                 {/* Gantt Chart Container with Relative Positioning for SVG Overlay */}
                 <Box ref={ganttContainerRef} sx={{ position: 'relative' }}>
                   {/* Vertical Gridlines */}
-                  {showGridlines && monthMarkers.map((marker, idx) => (
+                  {showGridlines && (
                     <Box
-                      key={idx}
                       sx={{
                         position: 'absolute',
                         top: 0,
-                        left: `calc(${swimlaneConfig.enabled
+                        left: swimlaneConfig.enabled
                           ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
-                          : ganttSidebarWidth}px + ${marker.position}%)`,
-                        width: 0,
+                          : ganttSidebarWidth,
+                        right: swimlaneConfig.enabled ? 100 : 100,
                         height: '100%',
-                        borderLeft: '1px dotted rgba(0, 0, 0, 0.2)',
                         pointerEvents: 'none',
-                        zIndex: 0,
+                        zIndex: 1,
                       }}
-                    />
-                  ))}
+                    >
+                      {monthMarkers.map((marker, idx) => (
+                        <Box
+                          key={idx}
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: `${marker.position}%`,
+                            width: 0,
+                            height: '100%',
+                            borderLeft: '1px dotted',
+                            borderColor: 'divider',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
 
                   {/* Projects and Milestones */}
                   {!swimlaneConfig.enabled ? (
@@ -4162,6 +4167,7 @@ const ProjectManagement = () => {
                                   containerWidth: rect.width,
                                 });
                               }}
+                              getStatusColor={getStatusColor}
                             />
                           );
                         })}
@@ -5085,7 +5091,7 @@ const ProjectManagement = () => {
                         : ganttSidebarWidth,
                       width: swimlaneConfig.enabled
                         ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth}px - 100px)`
-                        : `calc(100% - ${ganttSidebarWidth}px)`,
+                        : `calc(100% - ${ganttSidebarWidth}px - 100px)`,
                       height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36,
                       pointerEvents: 'none',
                       zIndex: 5,
