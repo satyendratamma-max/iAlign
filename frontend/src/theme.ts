@@ -21,12 +21,14 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             main: '#6366f1',
             light: '#818cf8',
             dark: '#4f46e5',
+            lighter: '#e0e7ff',
             contrastText: '#fff',
           },
           secondary: {
             main: '#10b981',
             light: '#34d399',
             dark: '#059669',
+            lighter: '#d1fae5',
           },
           error: {
             main: '#ef4444',
@@ -71,12 +73,14 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             main: '#818cf8',
             light: '#a5b4fc',
             dark: '#6366f1',
+            lighter: 'rgba(129, 140, 248, 0.15)',
             contrastText: '#fff',
           },
           secondary: {
             main: '#34d399',
             light: '#6ee7b7',
             dark: '#10b981',
+            lighter: 'rgba(52, 211, 153, 0.15)',
           },
           error: {
             main: '#f87171',

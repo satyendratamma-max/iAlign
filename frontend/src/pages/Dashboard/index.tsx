@@ -389,30 +389,28 @@ const Dashboard = () => {
       value: formatCompact(segmentFunctionStats?.totalValue || 0),
       subtitle: `${segmentFunctionStats?.totalSegmentFunctions || 0} Segment Functions`,
       icon: <Business sx={{ fontSize: 40 }} />,
-      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      colorScheme: 'primary',
     },
     {
       title: 'Active Projects',
       value: metrics?.activeProjects || 0,
       subtitle: `${metrics?.averageProgress || 0}% Avg Progress`,
       icon: <Folder sx={{ fontSize: 40 }} />,
-      color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      colorScheme: 'secondary',
     },
     {
       title: 'Resource Utilization',
       value: `${resourceMetrics?.averageUtilization || 0}%`,
       subtitle: `${resourceMetrics?.totalResources || 0} Resources`,
       icon: <People sx={{ fontSize: 40 }} />,
-      color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      colorScheme: 'info',
     },
     {
       title: 'Budget Status',
       value: formatCompact(Math.abs(metrics?.budgetVariance || 0)),
       subtitle: metrics && metrics.budgetVariance >= 0 ? 'Under Budget' : 'Over Budget',
       icon: metrics && metrics.budgetVariance >= 0 ? <TrendingUp sx={{ fontSize: 40 }} /> : <TrendingDown sx={{ fontSize: 40 }} />,
-      color: metrics && metrics.budgetVariance >= 0
-        ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-        : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      colorScheme: metrics && metrics.budgetVariance >= 0 ? 'success' : 'warning',
     },
   ];
 
@@ -506,28 +504,66 @@ const Dashboard = () => {
               <Card
                 sx={{
                   height: '100%',
-                  background: metric.color,
-                  color: 'white',
+                  position: 'relative',
+                  overflow: 'visible',
                   boxShadow: presentationMode ? 4 : 2,
+                  borderLeft: 4,
+                  borderColor: `${metric.colorScheme}.main`,
+                  '&:hover': {
+                    boxShadow: 6,
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease',
+                  },
                 }}
               >
                 <CardContent sx={{ p: 2.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        {metric.title}
-                      </Typography>
-                      <Typography variant="h3" fontWeight="bold" sx={{ my: 1, fontSize: '2rem' }}>
-                        {metric.value}
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
-                        {metric.subtitle}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ opacity: 0.3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {metric.title}
+                    </Typography>
+                    <Box
+                      sx={{
+                        bgcolor: `${metric.colorScheme}.lighter`,
+                        color: `${metric.colorScheme}.main`,
+                        borderRadius: 2,
+                        p: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       {metric.icon}
                     </Box>
                   </Box>
+                  <Typography
+                    variant="h3"
+                    fontWeight="bold"
+                    sx={{
+                      mb: 0.5,
+                      fontSize: '2rem',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {metric.value}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: '0.875rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {metric.subtitle}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
