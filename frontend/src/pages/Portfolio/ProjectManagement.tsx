@@ -655,20 +655,12 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
 
         {/* Status column */}
         <Box sx={{ width: 100, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {project.healthStatus && (
-            <Chip
-              label={project.healthStatus}
-              size="small"
-              sx={{
-                bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
-                         project.healthStatus === 'Yellow' ? '#ff9800' : '#f44336',
-                color: 'white',
-                fontSize: '0.65rem',
-                height: 18,
-                fontWeight: 600,
-              }}
-            />
-          )}
+          <Chip
+            label={project.status}
+            size="small"
+            color={getStatusColor(project.status)}
+            sx={{ fontSize: '0.55rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+          />
         </Box>
       </Box>
     </Box>
