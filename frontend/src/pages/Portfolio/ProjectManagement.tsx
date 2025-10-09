@@ -46,6 +46,15 @@ import {
   ViewKanban as ViewKanbanIcon,
   Undo as UndoIcon,
   AccountTree as DependencyIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  FilterList as FilterListIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
@@ -756,6 +765,9 @@ const ProjectManagement = () => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [ganttActiveId, setGanttActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [swimlanesExpanded, setSwimlanesExpanded] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [allDomainImpacts, setAllDomainImpacts] = useState<DomainImpact[]>([]);
   const [filters, setFilters] = useState({
@@ -1441,6 +1453,117 @@ const ProjectManagement = () => {
       'Cancelled': 'error',
     };
     return colors[status] || 'default';
+  };
+
+  const getBusinessDecisionIcon = (businessDecision?: string) => {
+    if (!businessDecision) return null;
+
+    switch (businessDecision) {
+      case 'Above Cutline':
+        return (
+          <Tooltip title="Above Cutline - Approved" arrow placement="top">
+            <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', ml: 0.5 }} />
+          </Tooltip>
+        );
+      case 'Below Cutline':
+        return (
+          <Tooltip title="Below Cutline - Not Approved" arrow placement="top">
+            <CancelIcon sx={{ fontSize: 16, color: 'error.main', ml: 0.5 }} />
+          </Tooltip>
+        );
+      case 'Pending':
+        return (
+          <Tooltip title="Pending Decision" arrow placement="top">
+            <HourglassEmptyIcon sx={{ fontSize: 16, color: 'warning.main', ml: 0.5 }} />
+          </Tooltip>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.projectNumber) count++;
+    if (filters.name) count++;
+    if (filters.segmentFunction.length > 0) count++;
+    if (filters.type) count++;
+    if (filters.fiscalYear.length > 0) count++;
+    if (filters.status.length > 0) count++;
+    if (filters.priority) count++;
+    if (filters.currentPhase) count++;
+    if (filters.health.length > 0) count++;
+    if (filters.impactedDomain.length > 0) count++;
+    return count;
+  };
+
+  const getActiveFilterChips = () => {
+    const chips: Array<{ label: string; onDelete: () => void }> = [];
+
+    if (filters.projectNumber) {
+      chips.push({
+        label: `Project #: ${filters.projectNumber}`,
+        onDelete: () => setFilters({ ...filters, projectNumber: '' })
+      });
+    }
+    if (filters.name) {
+      chips.push({
+        label: `Name: ${filters.name}`,
+        onDelete: () => setFilters({ ...filters, name: '' })
+      });
+    }
+    if (filters.segmentFunction.length > 0) {
+      filters.segmentFunction.forEach(sf => {
+        chips.push({
+          label: `SF: ${sf}`,
+          onDelete: () => setFilters({ ...filters, segmentFunction: filters.segmentFunction.filter(x => x !== sf) })
+        });
+      });
+    }
+    if (filters.type) {
+      chips.push({
+        label: `Type: ${filters.type}`,
+        onDelete: () => setFilters({ ...filters, type: '' })
+      });
+    }
+    if (filters.fiscalYear.length > 0) {
+      filters.fiscalYear.forEach(year => {
+        chips.push({
+          label: `FY: ${year}`,
+          onDelete: () => setFilters({ ...filters, fiscalYear: filters.fiscalYear.filter(x => x !== year) })
+        });
+      });
+    }
+    if (filters.status.length > 0) {
+      filters.status.forEach(status => {
+        chips.push({
+          label: `Status: ${status}`,
+          onDelete: () => setFilters({ ...filters, status: filters.status.filter(x => x !== status) })
+        });
+      });
+    }
+    if (filters.priority) {
+      chips.push({
+        label: `Priority: ${filters.priority}`,
+        onDelete: () => setFilters({ ...filters, priority: '' })
+      });
+    }
+    if (filters.currentPhase) {
+      chips.push({
+        label: `Phase: ${filters.currentPhase}`,
+        onDelete: () => setFilters({ ...filters, currentPhase: '' })
+      });
+    }
+    if (filters.health.length > 0) {
+      filters.health.forEach(health => {
+        chips.push({
+          label: `Health: ${health}`,
+          onDelete: () => setFilters({ ...filters, health: filters.health.filter(x => x !== health) })
+        });
+      });
+    }
+
+    return chips;
   };
 
   const getHealthColor = (health?: string) => {
@@ -2861,7 +2984,6 @@ const ProjectManagement = () => {
               <TableCell sx={{ minWidth: 100 }}>Fiscal Year</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Priority</TableCell>
-              <TableCell sx={{ minWidth: 130 }}>Business Decision</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Current Phase</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Budget</TableCell>
@@ -2996,7 +3118,6 @@ const ProjectManagement = () => {
                   <MenuItem value="Critical">Critical</MenuItem>
                 </TextField>
               </TableCell>
-              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -3067,9 +3188,12 @@ const ProjectManagement = () => {
             {filteredProjects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
-                    {project.projectNumber || '-'}
-                  </Typography>
+                  <Box display="flex" alignItems="center">
+                    <Typography variant="body2" fontWeight="medium">
+                      {project.projectNumber || '-'}
+                    </Typography>
+                    {getBusinessDecisionIcon(project.businessDecision)}
+                  </Box>
                 </TableCell>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -3108,7 +3232,6 @@ const ProjectManagement = () => {
                 <TableCell>
                   <Chip label={project.priority} size="small" variant="outlined" />
                 </TableCell>
-                <TableCell>{project.businessDecision || '-'}</TableCell>
                 <TableCell>{project.currentPhase || '-'}</TableCell>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
