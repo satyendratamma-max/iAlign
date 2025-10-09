@@ -213,22 +213,47 @@ const Reports = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
+              height: '100%',
+              borderLeft: 4,
+              borderColor: 'primary.main',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-2px)',
+                transition: 'all 0.3s ease',
+              },
             }}
           >
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Total Users
-                  </Typography>
-                  <Typography variant="h3" fontWeight="bold">
-                    {metrics.totalUsers}
-                  </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                  }}
+                >
+                  Total Users
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: 'primary.lighter',
+                    color: 'primary.main',
+                    borderRadius: 2,
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <People sx={{ fontSize: 28 }} />
                 </Box>
-                <People sx={{ fontSize: 40, opacity: 0.8 }} />
               </Box>
+              <Typography variant="h3" fontWeight="bold" color="text.primary">
+                {metrics.totalUsers}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -236,22 +261,47 @@ const Reports = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-              color: 'white',
+              height: '100%',
+              borderLeft: 4,
+              borderColor: 'success.main',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-2px)',
+                transition: 'all 0.3s ease',
+              },
             }}
           >
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Active Users
-                  </Typography>
-                  <Typography variant="h3" fontWeight="bold">
-                    {metrics.activeUsers}
-                  </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                  }}
+                >
+                  Active Users
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: 'success.lighter',
+                    color: 'success.main',
+                    borderRadius: 2,
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <PersonAdd sx={{ fontSize: 28 }} />
                 </Box>
-                <PersonAdd sx={{ fontSize: 40, opacity: 0.8 }} />
               </Box>
+              <Typography variant="h3" fontWeight="bold" color="text.primary">
+                {metrics.activeUsers}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -259,22 +309,47 @@ const Reports = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-              color: 'white',
+              height: '100%',
+              borderLeft: 4,
+              borderColor: 'warning.main',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-2px)',
+                transition: 'all 0.3s ease',
+              },
             }}
           >
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Inactive Users
-                  </Typography>
-                  <Typography variant="h3" fontWeight="bold">
-                    {metrics.inactiveUsers}
-                  </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                  }}
+                >
+                  Inactive Users
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: 'warning.lighter',
+                    color: 'warning.main',
+                    borderRadius: 2,
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <People sx={{ fontSize: 28 }} />
                 </Box>
-                <People sx={{ fontSize: 40, opacity: 0.8 }} />
               </Box>
+              <Typography variant="h3" fontWeight="bold" color="text.primary">
+                {metrics.inactiveUsers}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -282,22 +357,47 @@ const Reports = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              color: 'white',
+              height: '100%',
+              borderLeft: 4,
+              borderColor: 'info.main',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-2px)',
+                transition: 'all 0.3s ease',
+              },
             }}
           >
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Recent Logins (7d)
-                  </Typography>
-                  <Typography variant="h3" fontWeight="bold">
-                    {metrics.recentLogins}
-                  </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                  }}
+                >
+                  Recent Logins (7d)
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: 'info.lighter',
+                    color: 'info.main',
+                    borderRadius: 2,
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Login sx={{ fontSize: 28 }} />
                 </Box>
-                <Login sx={{ fontSize: 40, opacity: 0.8 }} />
               </Box>
+              <Typography variant="h3" fontWeight="bold" color="text.primary">
+                {metrics.recentLogins}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
