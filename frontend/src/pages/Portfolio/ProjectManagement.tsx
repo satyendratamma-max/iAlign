@@ -2386,7 +2386,7 @@ const ProjectManagement = () => {
       const x = calculatePosition(date, dateRange.start, dateRange.end);
       const rowIndex = projectRowIndexMap.get(id) ?? 0;
 
-      // In flat list mode: each row has height:28 + marginBottom:4 + paddingBottom:4 = 36px total
+      // In flat list mode: each row has height:28 + marginBottom:4 + paddingBottom:4 + border:1 = 37px total
       // Bar is centered at top:50% of 28px container = 14px
       // In swimlane mode: each row has height 32px, bars are wrapped in containers positioned at projectIdx * 32
       // Bars are centered within their 32px wrapper at top:50% with transform: translateY(-50%)
@@ -5081,7 +5081,7 @@ const ProjectManagement = () => {
 
                   {/* Dependency Arrows Overlay */}
                   <svg
-                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36}`}
+                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37}`}
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
@@ -5092,7 +5092,7 @@ const ProjectManagement = () => {
                       width: swimlaneConfig.enabled
                         ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth}px - 100px)`
                         : `calc(100% - ${ganttSidebarWidth}px - 100px)`,
-                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 36,
+                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37,
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',
@@ -5151,8 +5151,9 @@ const ProjectManagement = () => {
                         const markerId = `arrow-${markerColor}`;
 
                         // Use percentage coordinates directly (viewBox is 0-100 for x)
-                        // In flat view: 36px per row, in swimlane: 32px per row
-                        const rowHeight = swimlaneConfig.enabled ? 32 : 36;
+                        // In flat view: 28px + 4px marginBottom + 4px paddingBottom + 1px border = 37px per row
+                        // In swimlane: 32px per row + 1px border (but swimlane borders overlap, no extra accumulation)
+                        const rowHeight = swimlaneConfig.enabled ? 32 : 37;
                         const x1 = predPos.x;
                         const y1 = predPos.rowIndex * rowHeight + predPos.y;
                         const x2 = succPos.x;

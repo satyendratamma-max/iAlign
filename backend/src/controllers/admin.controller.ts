@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import sequelize from '../config/database';
 import logger from '../config/logger';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import seedDatabase from '../scripts/seed-comprehensive';
 
 export const resetAllData = async (_req: Request, res: Response, next: NextFunction) => {
   const transaction = await sequelize.transaction();
@@ -17,6 +14,7 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
     await sequelize.query('DELETE FROM ResourceAllocations', { transaction });
     await sequelize.query('DELETE FROM ProjectPipelines', { transaction });
     await sequelize.query('DELETE FROM ProjectDomainImpacts', { transaction });
+    await sequelize.query('DELETE FROM ProjectDependencies', { transaction });
 
     // 2. Delete dependent entities
     await sequelize.query('DELETE FROM Milestones', { transaction });
@@ -28,13 +26,16 @@ export const resetAllData = async (_req: Request, res: Response, next: NextFunct
     await sequelize.query('DELETE FROM Resources', { transaction });
     await sequelize.query('DELETE FROM Pipelines', { transaction });
 
-    // 4. Delete SegmentFunctions (references Domains)
+    // 4. Delete Scenarios (before deleting SegmentFunctions which it may reference)
+    await sequelize.query('DELETE FROM Scenarios', { transaction });
+
+    // 5. Delete SegmentFunctions (references Domains)
     await sequelize.query('DELETE FROM SegmentFunctions', { transaction });
 
-    // 5. Delete Domains
+    // 6. Delete Domains
     await sequelize.query('DELETE FROM Domains', { transaction });
 
-    // 6. Delete hierarchy tables (Roles -> Technologies -> Apps)
+    // 7. Delete hierarchy tables (Roles -> Technologies -> Apps)
     await sequelize.query('DELETE FROM Roles', { transaction });
     await sequelize.query('DELETE FROM Technologies', { transaction });
     await sequelize.query('DELETE FROM Apps', { transaction });
@@ -77,16 +78,8 @@ export const resetAndReseedData = async (_req: Request, res: Response, next: Nex
   try {
     logger.warn('Database reset and reseed initiated by admin');
 
-    // Run the seed script (it will handle database sync internally)
-    // Increase maxBuffer to 10MB to handle large seed script output
-    const { stdout, stderr } = await execAsync('npm run seed:dev', { maxBuffer: 10 * 1024 * 1024 });
-
-    if (stderr) {
-      logger.warn('Seed script stderr:', stderr);
-    }
-    if (stdout) {
-      logger.info('Seed script output:', stdout);
-    }
+    // Call the seed function directly
+    await seedDatabase();
 
     logger.info('Database reset and reseed completed successfully');
 
@@ -94,7 +87,7 @@ export const resetAndReseedData = async (_req: Request, res: Response, next: Nex
       success: true,
       message: 'Database has been reset and reseeded with sample data successfully.',
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error resetting and reseeding database:', error);
     next(error);
   }

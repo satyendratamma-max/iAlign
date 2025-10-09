@@ -18,6 +18,7 @@ import Role from '../models/Role';
 import ResourceCapability from '../models/ResourceCapability';
 import ProjectRequirement from '../models/ProjectRequirement';
 import ProjectDomainImpact from '../models/ProjectDomainImpact';
+import ProjectDependency from '../models/ProjectDependency';
 
 const DOMAIN_NAMES = [
   'Engineering', 'VC', 'Make', 'Buy', 'Quality',
@@ -621,9 +622,11 @@ const seedDatabase = async () => {
       const domainResources = resources.filter(r => r.domainId === project.domainId);
       const allocCount = Math.floor(Math.random() * 4) + 3; // 3-6 allocations per project
 
-      for (let i = 0; i < Math.min(allocCount, domainResources.length); i++) {
-        const resource = domainResources[Math.floor(Math.random() * domainResources.length)];
+      // Shuffle resources to avoid duplicates
+      const shuffledResources = [...domainResources].sort(() => Math.random() - 0.5);
+      const resourcesToAllocate = shuffledResources.slice(0, Math.min(allocCount, domainResources.length));
 
+      for (const resource of resourcesToAllocate) {
         // Get resource capabilities
         const resourceCapabilities = await ResourceCapability.findAll({
           where: { resourceId: resource.id, isActive: true },
@@ -665,8 +668,142 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${allocationCount} resource allocations\n`);
 
-    // 14. Create Capacity Models
-    console.log('1️⃣4️⃣ Creating capacity models...');
+    // 14. Create Project Dependencies
+    console.log('1️⃣4️⃣ Creating project dependencies...');
+    let dependencyCount = 0;
+    const MAX_DEPENDENCIES = 10;
+
+    // Get all milestones for dependency linking
+    const allMilestones = await Milestone.findAll({
+      where: { scenarioId: baselineScenario.id, isActive: true },
+    });
+
+    // Group projects by domain for realistic dependencies
+    const projectsByDomain = domains.map(domain => ({
+      domainId: domain.id,
+      projects: projects.filter(p => p.domainId === domain.id).slice(0, 5) // Get up to 5 projects per domain
+    }));
+
+    for (const { projects: domainProjects } of projectsByDomain) {
+      if (domainProjects.length < 2 || dependencyCount >= MAX_DEPENDENCIES) break;
+
+      // Create sequential project-to-project dependencies within domain
+      for (let i = 0; i < domainProjects.length - 1 && dependencyCount < MAX_DEPENDENCIES; i++) {
+        const predecessor = domainProjects[i];
+        const successor = domainProjects[i + 1];
+
+        // Create a Finish-to-Start dependency (most common)
+        await ProjectDependency.create({
+          scenarioId: baselineScenario.id,
+          predecessorType: 'project',
+          predecessorId: predecessor.id,
+          predecessorPoint: 'end',
+          successorType: 'project',
+          successorId: successor.id,
+          successorPoint: 'start',
+          dependencyType: 'FS',
+          lagDays: Math.floor(Math.random() * 10) + 5, // 5-15 days lag
+          isActive: true,
+        });
+        dependencyCount++;
+
+        // Add some milestone-to-milestone dependencies
+        if (dependencyCount < MAX_DEPENDENCIES) {
+          const predecessorMilestones = allMilestones.filter((m: any) => m.projectId === predecessor.id);
+          const successorMilestones = allMilestones.filter((m: any) => m.projectId === successor.id);
+
+          if (predecessorMilestones.length > 0 && successorMilestones.length > 0) {
+            // Link UAT of predecessor to Requirements of successor
+            const predUAT = predecessorMilestones.find((m: any) => m.phase === 'UAT');
+            const succReq = successorMilestones.find((m: any) => m.phase === 'Requirements');
+
+            if (predUAT && succReq) {
+              await ProjectDependency.create({
+                scenarioId: baselineScenario.id,
+                predecessorType: 'milestone',
+                predecessorId: predUAT.id,
+                predecessorPoint: 'end',
+                successorType: 'milestone',
+                successorId: succReq.id,
+                successorPoint: 'start',
+                dependencyType: 'FS',
+                lagDays: 3,
+                isActive: true,
+              });
+              dependencyCount++;
+            }
+          }
+        }
+      }
+
+      // Create some Start-to-Start dependencies (parallel work)
+      if (domainProjects.length >= 3 && dependencyCount < MAX_DEPENDENCIES) {
+        const proj1 = domainProjects[0];
+        const proj2 = domainProjects[1];
+
+        await ProjectDependency.create({
+          scenarioId: baselineScenario.id,
+          predecessorType: 'project',
+          predecessorId: proj1.id,
+          predecessorPoint: 'start',
+          successorType: 'project',
+          successorId: proj2.id,
+          successorPoint: 'start',
+          dependencyType: 'SS',
+          lagDays: 7, // Start 7 days after predecessor starts
+          isActive: true,
+        });
+        dependencyCount++;
+      }
+
+      // Create some Finish-to-Finish dependencies
+      if (domainProjects.length >= 4 && dependencyCount < MAX_DEPENDENCIES) {
+        const proj2 = domainProjects[1];
+        const proj3 = domainProjects[2];
+
+        await ProjectDependency.create({
+          scenarioId: baselineScenario.id,
+          predecessorType: 'project',
+          predecessorId: proj2.id,
+          predecessorPoint: 'end',
+          successorType: 'project',
+          successorId: proj3.id,
+          successorPoint: 'end',
+          dependencyType: 'FF',
+          lagDays: 0,
+          isActive: true,
+        });
+        dependencyCount++;
+      }
+    }
+
+    // Create some cross-domain dependencies
+    if (projectsByDomain.length >= 2 && dependencyCount < MAX_DEPENDENCIES) {
+      const domain1Projects = projectsByDomain[0].projects;
+      const domain2Projects = projectsByDomain[1].projects;
+
+      if (domain1Projects.length > 0 && domain2Projects.length > 0) {
+        // Infrastructure project must finish before application project starts
+        await ProjectDependency.create({
+          scenarioId: baselineScenario.id,
+          predecessorType: 'project',
+          predecessorId: domain1Projects[0].id,
+          predecessorPoint: 'end',
+          successorType: 'project',
+          successorId: domain2Projects[0].id,
+          successorPoint: 'start',
+          dependencyType: 'FS',
+          lagDays: 14, // 2 week buffer between domains
+          isActive: true,
+        });
+        dependencyCount++;
+      }
+    }
+
+    console.log(`   ✅ Created ${dependencyCount} project dependencies (max ${MAX_DEPENDENCIES})\n`);
+
+    // 15. Create Capacity Models
+    console.log('1️⃣5️⃣ Creating capacity models...');
     const models: any[] = [];
 
     const modelTypes = ['Baseline', 'Optimistic', 'Pessimistic'];
@@ -696,8 +833,8 @@ const seedDatabase = async () => {
 
     console.log(`   ✅ Created ${models.length} capacity models\n`);
 
-    // 15. Create Capacity Scenarios
-    console.log('1️⃣5️⃣ Creating capacity scenarios...');
+    // 16. Create Capacity Scenarios
+    console.log('1️⃣6️⃣ Creating capacity scenarios...');
     let scenarioCount = 0;
 
     for (const model of models) {
@@ -777,11 +914,18 @@ const seedDatabase = async () => {
     console.log('   Password: Admin@123');
     console.log('\n✨ All users have the same password: Admin@123\n');
 
-    process.exit(0);
+    return true;
   } catch (error) {
     console.error('❌ Seeding failed:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-seedDatabase();
+// Only run if executed directly (not imported)
+if (require.main === module) {
+  seedDatabase()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+export default seedDatabase;
