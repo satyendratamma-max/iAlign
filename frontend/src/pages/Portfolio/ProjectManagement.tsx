@@ -1469,6 +1469,21 @@ const ProjectManagement = () => {
       .filter(Boolean) as string[];
   };
 
+  // Get dependency counts for a project
+  const getDependencyCounts = (projectId: number) => {
+    const impacting = dependencies.filter(dep =>
+      (dep.predecessorType === 'project' && dep.predecessorId === projectId) ||
+      (dep.predecessorType === 'milestone' && milestones.find(m => m.id === dep.predecessorId && m.projectId === projectId))
+    ).length;
+
+    const impactedBy = dependencies.filter(dep =>
+      (dep.successorType === 'project' && dep.successorId === projectId) ||
+      (dep.successorType === 'milestone' && milestones.find(m => m.id === dep.successorId && m.projectId === projectId))
+    ).length;
+
+    return { impacting, impactedBy };
+  };
+
   // Get unique fiscal years from projects
   const uniqueFiscalYears = Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
 
@@ -2853,7 +2868,7 @@ const ProjectManagement = () => {
               <TableCell sx={{ minWidth: 110 }}>Start Date</TableCell>
               <TableCell sx={{ minWidth: 110 }}>End Date</TableCell>
               <TableCell sx={{ minWidth: 90 }}>Health</TableCell>
-              <TableCell sx={{ minWidth: 150 }}>Impacted Domains</TableCell>
+              <TableCell sx={{ minWidth: 180 }}>Dependencies & Impact</TableCell>
               <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
@@ -3130,22 +3145,44 @@ const ProjectManagement = () => {
                 </TableCell>
                 <TableCell>
                   {(() => {
+                    const { impacting, impactedBy } = getDependencyCounts(project.id);
                     const impactedDomains = getImpactedDomains(project.id);
-                    return impactedDomains.length > 0 ? (
-                      <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {impactedDomains.map((domainName, index) => (
+
+                    return (
+                      <Box>
+                        <Box display="flex" gap={1} mb={0.5}>
                           <Chip
-                            key={index}
-                            label={domainName}
+                            label={`↑ ${impacting}`}
                             size="small"
-                            color="info"
+                            color={impacting > 0 ? 'primary' : 'default'}
                             variant="outlined"
-                            sx={{ fontSize: '0.7rem' }}
+                            sx={{ fontSize: '0.7rem', minWidth: 45 }}
+                            title="This project impacts"
                           />
-                        ))}
+                          <Chip
+                            label={`↓ ${impactedBy}`}
+                            size="small"
+                            color={impactedBy > 0 ? 'warning' : 'default'}
+                            variant="outlined"
+                            sx={{ fontSize: '0.7rem', minWidth: 45 }}
+                            title="This project is impacted by"
+                          />
+                        </Box>
+                        {impactedDomains.length > 0 && (
+                          <Box display="flex" flexWrap="wrap" gap={0.5}>
+                            {impactedDomains.map((domainName, index) => (
+                              <Chip
+                                key={index}
+                                label={domainName}
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                                sx={{ fontSize: '0.65rem' }}
+                              />
+                            ))}
+                          </Box>
+                        )}
                       </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
                     );
                   })()}
                 </TableCell>
