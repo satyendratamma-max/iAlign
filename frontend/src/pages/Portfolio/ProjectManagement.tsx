@@ -1454,11 +1454,11 @@ const ProjectManagement = () => {
       // Longer delay to ensure SVG dependency lines and all elements are fully rendered
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Clone SVG elements to ensure they're properly captured
+      // Clone SVG elements and render them inline with all styles
       const svgElements = contentRef.current.querySelectorAll('svg');
       const svgClones: { original: SVGElement; clone: HTMLCanvasElement; parent: HTMLElement }[] = [];
 
-      // Pre-render SVGs to canvas for better compatibility
+      // Pre-render SVGs to canvas with improved handling
       for (const svg of Array.from(svgElements)) {
         const svgRect = svg.getBoundingClientRect();
         const canvas = document.createElement('canvas');
@@ -1469,13 +1469,57 @@ const ProjectManagement = () => {
           canvas.height = svgRect.height * 2;
           canvas.style.width = `${svgRect.width}px`;
           canvas.style.height = `${svgRect.height}px`;
-          canvas.style.position = 'absolute';
-          canvas.style.top = svg.style.top || '0';
-          canvas.style.left = svg.style.left || '0';
+          canvas.style.position = svg.style.position || 'absolute';
 
-          // Serialize SVG to data URL
-          const svgData = new XMLSerializer().serializeToString(svg);
-          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          // Copy computed position styles
+          const computedStyle = window.getComputedStyle(svg);
+          canvas.style.top = computedStyle.top;
+          canvas.style.left = computedStyle.left;
+          canvas.style.right = computedStyle.right;
+          canvas.style.bottom = computedStyle.bottom;
+          canvas.style.transform = computedStyle.transform;
+
+          // Clone SVG and inline all styles
+          const svgClone = svg.cloneNode(true) as SVGElement;
+
+          // Set explicit dimensions on the cloned SVG
+          svgClone.setAttribute('width', String(svgRect.width));
+          svgClone.setAttribute('height', String(svgRect.height));
+
+          // Get all computed styles and apply them inline
+          const allElements = svgClone.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const element = el as HTMLElement;
+            const originalElement = svg.querySelector(`[data-id="${element.getAttribute('data-id')}"]`) ||
+                                   Array.from(svg.querySelectorAll(element.tagName)).find(e => {
+                                     return e.getAttribute('d') === element.getAttribute('d');
+                                   });
+
+            if (originalElement) {
+              const styles = window.getComputedStyle(originalElement as Element);
+              let styleString = '';
+
+              // Copy critical SVG presentation attributes
+              ['fill', 'stroke', 'stroke-width', 'opacity', 'stroke-linecap', 'stroke-linejoin', 'marker-end'].forEach(prop => {
+                const value = originalElement.getAttribute(prop) || styles.getPropertyValue(prop);
+                if (value && value !== 'none' && value !== '') {
+                  element.setAttribute(prop, value);
+                }
+              });
+            }
+          });
+
+          // Serialize the styled SVG
+          const svgData = new XMLSerializer().serializeToString(svgClone);
+
+          // Wrap in proper SVG with namespace
+          const svgWithNamespace = `<?xml version="1.0" encoding="UTF-8"?>
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                 width="${svgRect.width}" height="${svgRect.height}">
+              ${svgData.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '')}
+            </svg>`;
+
+          const svgBlob = new Blob([svgWithNamespace], { type: 'image/svg+xml;charset=utf-8' });
           const svgUrl = URL.createObjectURL(svgBlob);
 
           // Load and draw SVG
@@ -1487,7 +1531,8 @@ const ProjectManagement = () => {
               URL.revokeObjectURL(svgUrl);
               resolve();
             };
-            img.onerror = () => {
+            img.onerror = (e) => {
+              console.error('SVG rendering error:', e);
               URL.revokeObjectURL(svgUrl);
               resolve(); // Continue even if this fails
             };
@@ -1512,7 +1557,7 @@ const ProjectManagement = () => {
 
       const mainCanvas = await html2canvas(contentRef.current, {
         scale: 2,
-        backgroundColor: null,
+        backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
         allowTaint: true,
