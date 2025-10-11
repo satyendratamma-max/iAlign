@@ -671,136 +671,139 @@ const seedDatabase = async () => {
     // 14. Create Project Dependencies
     console.log('1️⃣4️⃣ Creating project dependencies...');
     let dependencyCount = 0;
-    const MAX_DEPENDENCIES = 10;
+    const MAX_DEPENDENCIES = 15;
 
     // Get all milestones for dependency linking
     const allMilestones = await Milestone.findAll({
       where: { scenarioId: baselineScenario.id, isActive: true },
     });
 
+    // Track created dependencies to avoid duplicates and conflicts
+    const createdDependencies = new Set<string>();
+
+    const addDependency = async (
+      predType: 'project' | 'milestone',
+      predId: number,
+      succType: 'project' | 'milestone',
+      succId: number,
+      depType: 'FS' | 'SS' | 'FF' | 'SF',
+      lagDays: number = 0
+    ) => {
+      // Create unique key to track this dependency pair
+      const key = `${predType}:${predId}-${succType}:${succId}`;
+
+      // Skip if we already have a dependency between these entities
+      if (createdDependencies.has(key)) {
+        return false;
+      }
+
+      // Skip if this would create a self-dependency
+      if (predType === succType && predId === succId) {
+        return false;
+      }
+
+      const predPoint = depType === 'FS' || depType === 'FF' ? 'end' : 'start';
+      const succPoint = depType === 'FS' || depType === 'SS' ? 'start' : 'end';
+
+      await ProjectDependency.create({
+        scenarioId: baselineScenario.id,
+        predecessorType: predType,
+        predecessorId: predId,
+        predecessorPoint: predPoint,
+        successorType: succType,
+        successorId: succId,
+        successorPoint: succPoint,
+        dependencyType: depType,
+        lagDays,
+        isActive: true,
+      });
+
+      createdDependencies.add(key);
+      return true;
+    };
+
     // Group projects by domain for realistic dependencies
     const projectsByDomain = domains.map(domain => ({
       domainId: domain.id,
-      projects: projects.filter(p => p.domainId === domain.id).slice(0, 5) // Get up to 5 projects per domain
+      domainName: domain.name,
+      projects: projects.filter(p => p.domainId === domain.id).slice(0, 4) // Get up to 4 projects per domain
     }));
 
+    // 1. Create sequential Finish-to-Start dependencies within each domain
     for (const { projects: domainProjects } of projectsByDomain) {
-      if (domainProjects.length < 2 || dependencyCount >= MAX_DEPENDENCIES) break;
+      if (domainProjects.length < 2 || dependencyCount >= MAX_DEPENDENCIES) continue;
 
-      // Create sequential project-to-project dependencies within domain
+      // Create chain: Project 0 -> Project 1 -> Project 2
       for (let i = 0; i < domainProjects.length - 1 && dependencyCount < MAX_DEPENDENCIES; i++) {
         const predecessor = domainProjects[i];
         const successor = domainProjects[i + 1];
 
-        // Create a Finish-to-Start dependency (most common)
-        await ProjectDependency.create({
-          scenarioId: baselineScenario.id,
-          predecessorType: 'project',
-          predecessorId: predecessor.id,
-          predecessorPoint: 'end',
-          successorType: 'project',
-          successorId: successor.id,
-          successorPoint: 'start',
-          dependencyType: 'FS',
-          lagDays: Math.floor(Math.random() * 10) + 5, // 5-15 days lag
-          isActive: true,
-        });
-        dependencyCount++;
+        const added = await addDependency(
+          'project',
+          predecessor.id,
+          'project',
+          successor.id,
+          'FS',
+          Math.floor(Math.random() * 10) + 5 // 5-14 days lag
+        );
 
-        // Add some milestone-to-milestone dependencies
-        if (dependencyCount < MAX_DEPENDENCIES) {
-          const predecessorMilestones = allMilestones.filter((m: any) => m.projectId === predecessor.id);
-          const successorMilestones = allMilestones.filter((m: any) => m.projectId === successor.id);
-
-          if (predecessorMilestones.length > 0 && successorMilestones.length > 0) {
-            // Link UAT of predecessor to Requirements of successor
-            const predUAT = predecessorMilestones.find((m: any) => m.phase === 'UAT');
-            const succReq = successorMilestones.find((m: any) => m.phase === 'Requirements');
-
-            if (predUAT && succReq) {
-              await ProjectDependency.create({
-                scenarioId: baselineScenario.id,
-                predecessorType: 'milestone',
-                predecessorId: predUAT.id,
-                predecessorPoint: 'end',
-                successorType: 'milestone',
-                successorId: succReq.id,
-                successorPoint: 'start',
-                dependencyType: 'FS',
-                lagDays: 3,
-                isActive: true,
-              });
-              dependencyCount++;
-            }
-          }
-        }
-      }
-
-      // Create some Start-to-Start dependencies (parallel work)
-      if (domainProjects.length >= 3 && dependencyCount < MAX_DEPENDENCIES) {
-        const proj1 = domainProjects[0];
-        const proj2 = domainProjects[1];
-
-        await ProjectDependency.create({
-          scenarioId: baselineScenario.id,
-          predecessorType: 'project',
-          predecessorId: proj1.id,
-          predecessorPoint: 'start',
-          successorType: 'project',
-          successorId: proj2.id,
-          successorPoint: 'start',
-          dependencyType: 'SS',
-          lagDays: 7, // Start 7 days after predecessor starts
-          isActive: true,
-        });
-        dependencyCount++;
-      }
-
-      // Create some Finish-to-Finish dependencies
-      if (domainProjects.length >= 4 && dependencyCount < MAX_DEPENDENCIES) {
-        const proj2 = domainProjects[1];
-        const proj3 = domainProjects[2];
-
-        await ProjectDependency.create({
-          scenarioId: baselineScenario.id,
-          predecessorType: 'project',
-          predecessorId: proj2.id,
-          predecessorPoint: 'end',
-          successorType: 'project',
-          successorId: proj3.id,
-          successorPoint: 'end',
-          dependencyType: 'FF',
-          lagDays: 0,
-          isActive: true,
-        });
-        dependencyCount++;
+        if (added) dependencyCount++;
       }
     }
 
-    // Create some cross-domain dependencies
-    if (projectsByDomain.length >= 2 && dependencyCount < MAX_DEPENDENCIES) {
-      const domain1Projects = projectsByDomain[0].projects;
-      const domain2Projects = projectsByDomain[1].projects;
+    // 2. Create some milestone-to-project dependencies (within same domain)
+    for (const { projects: domainProjects } of projectsByDomain) {
+      if (domainProjects.length < 2 || dependencyCount >= MAX_DEPENDENCIES) continue;
 
-      if (domain1Projects.length > 0 && domain2Projects.length > 0) {
-        // Infrastructure project must finish before application project starts
-        await ProjectDependency.create({
-          scenarioId: baselineScenario.id,
-          predecessorType: 'project',
-          predecessorId: domain1Projects[0].id,
-          predecessorPoint: 'end',
-          successorType: 'project',
-          successorId: domain2Projects[0].id,
-          successorPoint: 'start',
-          dependencyType: 'FS',
-          lagDays: 14, // 2 week buffer between domains
-          isActive: true,
-        });
-        dependencyCount++;
+      const predecessor = domainProjects[0];
+      const successor = domainProjects[domainProjects.length - 1];
+
+      const predecessorMilestones = allMilestones.filter((m: any) => m.projectId === predecessor.id);
+
+      // Find UAT milestone of predecessor
+      const predUAT = predecessorMilestones.find((m: any) => m.phase === 'UAT');
+
+      if (predUAT && dependencyCount < MAX_DEPENDENCIES) {
+        const added = await addDependency(
+          'milestone',
+          predUAT.id,
+          'project',
+          successor.id,
+          'FS',
+          7 // 1 week after UAT completes
+        );
+
+        if (added) dependencyCount++;
       }
     }
 
-    console.log(`   ✅ Created ${dependencyCount} project dependencies (max ${MAX_DEPENDENCIES})\n`);
+    // 3. Create a few cross-domain dependencies (Infrastructure domain enables other domains)
+    const infraDomain = projectsByDomain.find(d => d.domainName === 'Infrastructure');
+    if (infraDomain && infraDomain.projects.length > 0 && dependencyCount < MAX_DEPENDENCIES) {
+      const infraProject = infraDomain.projects[0];
+
+      // Pick 2-3 other domains that depend on infrastructure
+      const otherDomains = projectsByDomain
+        .filter(d => d.domainName !== 'Infrastructure' && d.projects.length > 0)
+        .slice(0, 3);
+
+      for (const otherDomain of otherDomains) {
+        if (dependencyCount >= MAX_DEPENDENCIES) break;
+
+        const added = await addDependency(
+          'project',
+          infraProject.id,
+          'project',
+          otherDomain.projects[0].id,
+          'FS',
+          14 // 2 weeks after infrastructure completes
+        );
+
+        if (added) dependencyCount++;
+      }
+    }
+
+    console.log(`   ✅ Created ${dependencyCount} project dependencies\n`);
 
     // 15. Create Capacity Models
     console.log('1️⃣5️⃣ Creating capacity models...');

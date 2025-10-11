@@ -53,12 +53,29 @@ const DependencyManagerDialog: React.FC<DependencyManagerDialogProps> = ({
   onDelete,
   onAddNew,
 }) => {
-  const getEntityLabel = (type: 'project' | 'milestone', id: number, point: 'start' | 'end') => {
+  const getEntityLabel = (
+    type: 'project' | 'milestone',
+    id: number,
+    point: 'start' | 'end',
+    associatedProject?: any,
+    associatedMilestone?: any
+  ) => {
     if (type === 'project') {
+      // First try to use the associated project data from the dependency
+      if (associatedProject) {
+        return `${associatedProject.projectNumber || `PRJ-${associatedProject.id}`} - ${associatedProject.name} (${point})`;
+      }
+      // Fallback to searching in the projects array
       const project = projects.find((p) => p.id === id);
       if (!project) return `Unknown Project (${id})`;
       return `${project.projectNumber || `PRJ-${project.id}`} - ${project.name} (${point})`;
     } else {
+      // First try to use the associated milestone data from the dependency
+      if (associatedMilestone) {
+        const project = projects.find((p) => p.id === associatedMilestone.projectId);
+        return `${associatedMilestone.name} - ${project?.projectNumber || `PRJ-${associatedMilestone.projectId}`} (${point})`;
+      }
+      // Fallback to searching in the milestones array
       const milestone = milestones.find((m) => m.id === id);
       if (!milestone) return `Unknown Milestone (${id})`;
       const project = projects.find((p) => p.id === milestone.projectId);
@@ -116,11 +133,17 @@ const DependencyManagerDialog: React.FC<DependencyManagerDialogProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {dependencies.map((dep) => (
+                {dependencies.map((dep: any) => (
                   <TableRow key={dep.id} hover>
                     <TableCell>
                       <Typography variant="body2">
-                        {getEntityLabel(dep.predecessorType, dep.predecessorId, dep.predecessorPoint)}
+                        {getEntityLabel(
+                          dep.predecessorType,
+                          dep.predecessorId,
+                          dep.predecessorPoint,
+                          dep.predecessorProject,
+                          dep.predecessorMilestone
+                        )}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {dep.predecessorType === 'project' ? 'Project' : 'Milestone'}
@@ -139,7 +162,13 @@ const DependencyManagerDialog: React.FC<DependencyManagerDialogProps> = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {getEntityLabel(dep.successorType, dep.successorId, dep.successorPoint)}
+                        {getEntityLabel(
+                          dep.successorType,
+                          dep.successorId,
+                          dep.successorPoint,
+                          dep.successorProject,
+                          dep.successorMilestone
+                        )}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {dep.successorType === 'project' ? 'Project' : 'Milestone'}

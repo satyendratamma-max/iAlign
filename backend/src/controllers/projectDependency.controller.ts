@@ -1,13 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import ProjectDependency from '../models/ProjectDependency';
-import Project from '../models/Project';
-import Milestone from '../models/Milestone';
+// Import from index to get associations
+import { ProjectDependency, Project, Milestone } from '../models';
 import logger from '../config/logger';
 
 export const getAllDependencies = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const dependencies = await ProjectDependency.findAll({
       where: { isActive: true },
+      include: [
+        {
+          model: Project,
+          as: 'predecessorProject',
+          attributes: ['id', 'projectNumber', 'name'],
+          required: false,
+        },
+        {
+          model: Project,
+          as: 'successorProject',
+          attributes: ['id', 'projectNumber', 'name'],
+          required: false,
+        },
+        {
+          model: Milestone,
+          as: 'predecessorMilestone',
+          attributes: ['id', 'phase', 'name', 'projectId'],
+          required: false,
+        },
+        {
+          model: Milestone,
+          as: 'successorMilestone',
+          attributes: ['id', 'phase', 'name', 'projectId'],
+          required: false,
+        },
+      ],
       order: [['createdDate', 'DESC']],
     });
 
@@ -24,7 +49,34 @@ export const getAllDependencies = async (_req: Request, res: Response, next: Nex
 export const getDependencyById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const dependency = await ProjectDependency.findByPk(id);
+    const dependency = await ProjectDependency.findByPk(id, {
+      include: [
+        {
+          model: Project,
+          as: 'predecessorProject',
+          attributes: ['id', 'projectNumber', 'name'],
+          required: false,
+        },
+        {
+          model: Project,
+          as: 'successorProject',
+          attributes: ['id', 'projectNumber', 'name'],
+          required: false,
+        },
+        {
+          model: Milestone,
+          as: 'predecessorMilestone',
+          attributes: ['id', 'phase', 'name', 'projectId'],
+          required: false,
+        },
+        {
+          model: Milestone,
+          as: 'successorMilestone',
+          attributes: ['id', 'phase', 'name', 'projectId'],
+          required: false,
+        },
+      ],
+    });
 
     if (!dependency) {
       return res.status(404).json({

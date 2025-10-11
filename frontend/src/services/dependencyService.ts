@@ -1,5 +1,18 @@
 import api from './api';
 
+export interface ProjectData {
+  id: number;
+  projectNumber: string;
+  name: string;
+}
+
+export interface MilestoneData {
+  id: number;
+  phase: string;
+  name: string;
+  projectId: number;
+}
+
 export interface ProjectDependency {
   id: number;
   predecessorType: 'project' | 'milestone';
@@ -12,6 +25,11 @@ export interface ProjectDependency {
   lagDays: number;
   isActive: boolean;
   createdDate: string;
+  // Associated data from backend
+  predecessorProject?: ProjectData;
+  successorProject?: ProjectData;
+  predecessorMilestone?: MilestoneData;
+  successorMilestone?: MilestoneData;
 }
 
 export interface CreateDependencyData {

@@ -172,6 +172,63 @@ ProjectDomainImpact.belongsTo(Project, { foreignKey: 'projectId', as: 'project' 
 Domain.hasMany(ProjectDomainImpact, { foreignKey: 'domainId', as: 'impactedProjects' });
 ProjectDomainImpact.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 
+// ⭐ ProjectDependency Associations
+// Predecessor Project associations
+Project.hasMany(ProjectDependency, {
+  foreignKey: 'predecessorId',
+  constraints: false,
+  scope: { predecessorType: 'project' },
+  as: 'successorDependencies'
+});
+
+ProjectDependency.belongsTo(Project, {
+  foreignKey: 'predecessorId',
+  constraints: false,
+  as: 'predecessorProject'
+});
+
+// Successor Project associations
+Project.hasMany(ProjectDependency, {
+  foreignKey: 'successorId',
+  constraints: false,
+  scope: { successorType: 'project' },
+  as: 'predecessorDependencies'
+});
+
+ProjectDependency.belongsTo(Project, {
+  foreignKey: 'successorId',
+  constraints: false,
+  as: 'successorProject'
+});
+
+// Predecessor Milestone associations
+Milestone.hasMany(ProjectDependency, {
+  foreignKey: 'predecessorId',
+  constraints: false,
+  scope: { predecessorType: 'milestone' },
+  as: 'successorDependencies'
+});
+
+ProjectDependency.belongsTo(Milestone, {
+  foreignKey: 'predecessorId',
+  constraints: false,
+  as: 'predecessorMilestone'
+});
+
+// Successor Milestone associations
+Milestone.hasMany(ProjectDependency, {
+  foreignKey: 'successorId',
+  constraints: false,
+  scope: { successorType: 'milestone' },
+  as: 'predecessorDependencies'
+});
+
+ProjectDependency.belongsTo(Milestone, {
+  foreignKey: 'successorId',
+  constraints: false,
+  as: 'successorMilestone'
+});
+
 export {
   User,
   SegmentFunction,
