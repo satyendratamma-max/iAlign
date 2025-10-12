@@ -189,6 +189,16 @@ const ResourceAllocation = () => {
       setEditMode(true);
       setCurrentAllocation(allocation);
 
+      // Ensure the allocated resource is in the resources list
+      if (allocation.resource && !resources.some(r => r.id === allocation.resource!.id)) {
+        setResources(prev => [...prev, allocation.resource!]);
+      }
+
+      // Ensure the allocated project is in the projects list
+      if (allocation.project && !projects.some(p => p.id === allocation.project!.id)) {
+        setProjects(prev => [...prev, allocation.project!]);
+      }
+
       // Pre-populate with existing capability/requirement if available
       if (allocation.resourceCapability) {
         setSelectedResourceCapabilities([allocation.resourceCapability]);

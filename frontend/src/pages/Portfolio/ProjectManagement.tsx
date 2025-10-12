@@ -69,6 +69,7 @@ import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
 import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
+import EnhancedRequirementsTab from '../../components/Projects/EnhancedRequirementsTab';
 import {
   getAllDependencies,
   createDependency,
@@ -5355,6 +5356,7 @@ const ProjectManagement = () => {
           <Tab label="Dates & Timeline" />
           <Tab label="Management" />
           <Tab label="Cross-Domain Impact" />
+          {editMode && currentProject.id && <Tab label="Requirements" />}
         </Tabs>
         <DialogContent>
           {/* Tab 0: Basic Info */}
@@ -6139,6 +6141,26 @@ const ProjectManagement = () => {
                   Use this section to track additional domains that are impacted by or involved in this project.
                 </Typography>
               </Box>
+            </Box>
+          )}
+
+          {/* Tab 6: Requirements */}
+          {dialogTab === 6 && editMode && currentProject.id && (
+            <Box sx={{ mt: 1 }}>
+              <EnhancedRequirementsTab
+                projectId={currentProject.id}
+                project={{
+                  id: currentProject.id,
+                  name: currentProject.name || '',
+                  status: currentProject.status || '',
+                  startDate: currentProject.startDate instanceof Date
+                    ? currentProject.startDate.toISOString()
+                    : currentProject.startDate,
+                  endDate: currentProject.endDate instanceof Date
+                    ? currentProject.endDate.toISOString()
+                    : currentProject.endDate,
+                }}
+              />
             </Box>
           )}
         </DialogContent>
