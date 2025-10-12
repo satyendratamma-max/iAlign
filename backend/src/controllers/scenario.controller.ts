@@ -238,17 +238,27 @@ export const cloneScenario = async (req: Request, res: Response, next: NextFunct
 
     const projectIdMap = new Map<number, number>();
 
+    // Get the highest project number to generate unique numbers for cloned projects
+    const maxProjectNumber = await Project.max('projectNumber', {
+      where: { scenarioId: newScenario.id },
+    });
+    let projectCounter = maxProjectNumber ? parseInt(maxProjectNumber.toString().replace(/\D/g, '')) || 0 : 0;
+
     for (const sourceProject of sourceProjects) {
       const projectData = sourceProject.toJSON();
       delete projectData.id;
-      delete projectData.projectNumber; // Remove unique project number
       delete projectData.createdDate;
       delete projectData.modifiedDate;
+
+      // Generate new unique project number for the cloned project
+      projectCounter++;
+      const newProjectNumber = `PROJ-${String(projectCounter).padStart(3, '0')}`;
 
       const newProject = await Project.create(
         {
           ...projectData,
           scenarioId: newScenario.id,
+          projectNumber: newProjectNumber,
         },
         { transaction }
       );
