@@ -32,6 +32,29 @@ export const getAllAllocations = async (req: Request, res: Response) => {
           as: 'domain',
           attributes: ['id', 'name'],
         },
+        {
+          model: ResourceCapability,
+          as: 'capabilities',
+          where: { isActive: true },
+          required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
+        },
       ],
     };
 
@@ -141,6 +164,36 @@ export const getAllocationById = async (req: Request, res: Response) => {
         {
           model: Resource,
           as: 'resource',
+          include: [
+            {
+              model: Domain,
+              as: 'domain',
+              attributes: ['id', 'name'],
+            },
+            {
+              model: ResourceCapability,
+              as: 'capabilities',
+              where: { isActive: true },
+              required: false,
+              include: [
+                {
+                  model: App,
+                  as: 'app',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Technology,
+                  as: 'technology',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Role,
+                  as: 'role',
+                  attributes: ['id', 'name', 'code', 'level'],
+                },
+              ],
+            },
+          ],
         },
         {
           model: Project,
@@ -239,6 +292,36 @@ export const createAllocation = async (req: Request, res: Response) => {
         {
           model: Resource,
           as: 'resource',
+          include: [
+            {
+              model: Domain,
+              as: 'domain',
+              attributes: ['id', 'name'],
+            },
+            {
+              model: ResourceCapability,
+              as: 'capabilities',
+              where: { isActive: true },
+              required: false,
+              include: [
+                {
+                  model: App,
+                  as: 'app',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Technology,
+                  as: 'technology',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Role,
+                  as: 'role',
+                  attributes: ['id', 'name', 'code', 'level'],
+                },
+              ],
+            },
+          ],
         },
         {
           model: Project,
@@ -311,6 +394,36 @@ export const updateAllocation = async (req: Request, res: Response) => {
         {
           model: Resource,
           as: 'resource',
+          include: [
+            {
+              model: Domain,
+              as: 'domain',
+              attributes: ['id', 'name'],
+            },
+            {
+              model: ResourceCapability,
+              as: 'capabilities',
+              where: { isActive: true },
+              required: false,
+              include: [
+                {
+                  model: App,
+                  as: 'app',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Technology,
+                  as: 'technology',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Role,
+                  as: 'role',
+                  attributes: ['id', 'name', 'code', 'level'],
+                },
+              ],
+            },
+          ],
         },
         {
           model: Project,
@@ -456,6 +569,36 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
         {
           model: Resource,
           as: 'resource',
+          include: [
+            {
+              model: Domain,
+              as: 'domain',
+              attributes: ['id', 'name'],
+            },
+            {
+              model: ResourceCapability,
+              as: 'capabilities',
+              where: { isActive: true },
+              required: false,
+              include: [
+                {
+                  model: App,
+                  as: 'app',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Technology,
+                  as: 'technology',
+                  attributes: ['id', 'name', 'code'],
+                },
+                {
+                  model: Role,
+                  as: 'role',
+                  attributes: ['id', 'name', 'code', 'level'],
+                },
+              ],
+            },
+          ],
         },
         {
           model: ResourceCapability,
