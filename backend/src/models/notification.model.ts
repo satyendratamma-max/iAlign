@@ -28,7 +28,6 @@ Notification.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       defaultValue: 'info',
-      comment: 'Notification type: info, success, warning, error',
     },
     title: {
       type: DataTypes.STRING(200),

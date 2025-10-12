@@ -75,12 +75,10 @@ ResourceAllocation.init(
     resourceCapabilityId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      comment: 'FK to ResourceCapabilities - Links allocation to specific capability',
     },
     projectRequirementId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      comment: 'FK to ProjectRequirements - Links to which requirement this fulfills',
     },
     allocationType: {
       type: DataTypes.STRING(50),
@@ -107,7 +105,6 @@ ResourceAllocation.init(
         min: 0,
         max: 100,
       },
-      comment: 'Calculated match score (0-100) between resource capability and project requirement',
     },
     startDate: {
       type: DataTypes.DATE,

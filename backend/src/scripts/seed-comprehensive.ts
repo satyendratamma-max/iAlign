@@ -38,13 +38,18 @@ const PHASES = [
 
 const FISCAL_YEARS = ['FY24', 'FY25', 'FY26', 'FY27'];
 
-const seedDatabase = async () => {
+const seedDatabase = async (dropTables: boolean = true) => {
   try {
     console.log('🌱 Starting comprehensive database seeding...\n');
 
     // Sync database
-    await sequelize.sync({ force: true });
-    console.log('✅ Database synced\n');
+    if (dropTables) {
+      await sequelize.sync({ force: true });
+      console.log('✅ Database synced (tables dropped and recreated)\n');
+    } else {
+      await sequelize.sync();
+      console.log('✅ Tables synced (non-destructive - missing tables created)\n');
+    }
 
     // 1. Create Users
     console.log('1️⃣  Creating users...');
