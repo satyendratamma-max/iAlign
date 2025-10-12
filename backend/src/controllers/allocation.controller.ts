@@ -25,7 +25,7 @@ export const getAllAllocations = async (req: Request, res: Response) => {
     const resourceInclude: any = {
       model: Resource,
       as: 'resource',
-      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'primarySkill', 'domainId'],
+      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'email', 'primarySkill', 'domainId'],
       include: [
         {
           model: Domain,
