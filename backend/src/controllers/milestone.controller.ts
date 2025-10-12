@@ -25,7 +25,7 @@ export const getAllMilestones = async (req: Request, res: Response) => {
 
     // Add scenarioId to ON clause if provided
     if (scenarioId) {
-      projectInclude.on = literal(`\`project\`.\`id\` = \`Milestone\`.\`projectId\` AND \`project\`.\`scenarioId\` = ${parseInt(scenarioId as string)}`);
+      projectInclude.on = literal(`[project].[id] = [Milestone].[projectId] AND [project].[scenarioId] = ${parseInt(scenarioId as string)}`);
     }
 
     const includeArray: any[] = [
