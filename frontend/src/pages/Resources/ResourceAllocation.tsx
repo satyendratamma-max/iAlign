@@ -25,6 +25,8 @@ import {
   TextField,
   MenuItem,
   IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -33,11 +35,16 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  TableChart as TableChartIcon,
+  Timeline as TimelineIcon,
+  ViewKanban as ViewKanbanIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
+import TimelineView from '../../components/TimelineView';
+import KanbanView from '../../components/KanbanView';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -131,6 +138,7 @@ const ResourceAllocation = () => {
   });
   const [selectedResourceCapabilities, setSelectedResourceCapabilities] = useState<Capability[]>([]);
   const [selectedProjectRequirements, setSelectedProjectRequirements] = useState<Requirement[]>([]);
+  const [currentView, setCurrentView] = useState<'table' | 'timeline' | 'kanban'>('table');
   const [filters, setFilters] = useState({
     resource: '',
     project: [] as string[],
@@ -505,14 +513,68 @@ const ResourceAllocation = () => {
         </Button>
       </Box>
 
+      {/* View Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={currentView}
+          onChange={(_, newValue) => setCurrentView(newValue)}
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab
+            value="table"
+            icon={<TableChartIcon />}
+            label="Table View"
+            iconPosition="start"
+          />
+          <Tab
+            value="timeline"
+            icon={<TimelineIcon />}
+            label="Timeline View"
+            iconPosition="start"
+          />
+          <Tab
+            value="kanban"
+            icon={<ViewKanbanIcon />}
+            label="Kanban View"
+            iconPosition="start"
+          />
+        </Tabs>
+      </Paper>
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
-      {/* Global Filters */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      {/* Render appropriate view */}
+      {currentView === 'timeline' && (
+        <TimelineView
+          resources={resources}
+          projects={projects}
+          allocations={filteredAllocations}
+          scenarioId={activeScenario?.id || 0}
+          onRefresh={fetchData}
+          onEdit={handleOpenDialog}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {currentView === 'kanban' && (
+        <KanbanView
+          resources={resources}
+          projects={projects}
+          allocations={filteredAllocations}
+          scenarioId={activeScenario?.id || 0}
+          onRefresh={fetchData}
+        />
+      )}
+
+      {currentView === 'table' && (
+        <>
+          {/* Global Filters */}
+          <Paper sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Filters</Typography>
           {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
@@ -1013,6 +1075,8 @@ const ResourceAllocation = () => {
               .join(', ')}
           </Typography>
         </Alert>
+      )}
+        </>
       )}
 
       {/* Add/Edit Dialog */}
