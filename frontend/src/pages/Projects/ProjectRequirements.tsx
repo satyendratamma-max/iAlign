@@ -404,11 +404,11 @@ const ProjectRequirements = () => {
                 fullWidth
                 type="number"
                 label="Min Years Experience"
-                value={currentRequirement.minYearsExp || ''}
+                value={currentRequirement.minYearsExp ?? ''}
                 onChange={(e) =>
                   setCurrentRequirement({
                     ...currentRequirement,
-                    minYearsExp: parseInt(e.target.value) || undefined,
+                    minYearsExp: e.target.value === '' ? undefined : parseInt(e.target.value),
                   })
                 }
                 inputProps={{ min: 0, max: 50 }}
@@ -497,6 +497,11 @@ const ProjectRequirements = () => {
                   })
                 }
                 placeholder="Additional details about this requirement..."
+                sx={{
+                  '& .MuiInputBase-root': {
+                    bgcolor: 'background.paper',
+                  },
+                }}
               />
             </Grid>
           </Grid>
