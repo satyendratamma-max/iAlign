@@ -79,6 +79,7 @@ interface CapabilityBuilderProps {
   value: Capability;
   onChange: (capability: Capability) => void;
   showPrimary?: boolean;
+  showProficiencyLevel?: boolean;
   showYearsOfExperience?: boolean;
   disabled?: boolean;
 }
@@ -87,6 +88,7 @@ const CapabilityBuilder: React.FC<CapabilityBuilderProps> = ({
   value,
   onChange,
   showPrimary = true,
+  showProficiencyLevel = true,
   showYearsOfExperience = true,
   disabled = false,
 }) => {
@@ -340,21 +342,23 @@ const CapabilityBuilder: React.FC<CapabilityBuilderProps> = ({
         </Grid>
 
         {/* Proficiency Level */}
-        <Grid item xs={12} md={6}>
-          <FormControl fullWidth required disabled={disabled}>
-            <InputLabel>Proficiency Level</InputLabel>
-            <Select
-              value={value.proficiencyLevel || 'Intermediate'}
-              onChange={handleProficiencyChange}
-              label="Proficiency Level"
-            >
-              <MenuItem value="Beginner">Beginner</MenuItem>
-              <MenuItem value="Intermediate">Intermediate</MenuItem>
-              <MenuItem value="Advanced">Advanced</MenuItem>
-              <MenuItem value="Expert">Expert</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
+        {showProficiencyLevel && (
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth required disabled={disabled}>
+              <InputLabel>Proficiency Level</InputLabel>
+              <Select
+                value={value.proficiencyLevel || 'Intermediate'}
+                onChange={handleProficiencyChange}
+                label="Proficiency Level"
+              >
+                <MenuItem value="Beginner">Beginner</MenuItem>
+                <MenuItem value="Intermediate">Intermediate</MenuItem>
+                <MenuItem value="Advanced">Advanced</MenuItem>
+                <MenuItem value="Expert">Expert</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        )}
 
         {/* Years of Experience */}
         {showYearsOfExperience && (

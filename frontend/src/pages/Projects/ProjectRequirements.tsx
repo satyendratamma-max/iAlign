@@ -376,6 +376,7 @@ const ProjectRequirements = () => {
                   });
                 }}
                 showPrimary={false}
+                showProficiencyLevel={false}
                 showYearsOfExperience={false}
               />
             </Grid>

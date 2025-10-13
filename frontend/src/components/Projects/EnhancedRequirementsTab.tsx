@@ -561,6 +561,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
                   });
                 }}
                 showPrimary={false}
+                showProficiencyLevel={false}
                 showYearsOfExperience={false}
               />
             </Grid>
