@@ -20,6 +20,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 3000,
+    allowedHosts: [
+      'localhost',
+      'SurfacePro',
+      'surfacepro',
+      '.local', // Allow all .local domains
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
