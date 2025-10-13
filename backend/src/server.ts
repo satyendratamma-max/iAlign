@@ -26,11 +26,19 @@ const startServer = async () => {
       await syncDatabase(false); // Set to true to drop and recreate tables
     }
 
-    // Start Express server
-    app.listen(PORT, () => {
+    // Get hostname
+    const os = require('os');
+    const hostname = os.hostname();
+
+    // Start Express server on all network interfaces
+    app.listen(PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
-      logger.info(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
-      logger.info(`🏥 Health check available at http://localhost:${PORT}/health`);
+      logger.info(`📚 API Documentation available at:`);
+      logger.info(`   - http://localhost:${PORT}/api-docs`);
+      logger.info(`   - http://${hostname}:${PORT}/api-docs`);
+      logger.info(`🏥 Health check available at:`);
+      logger.info(`   - http://localhost:${PORT}/health`);
+      logger.info(`   - http://${hostname}:${PORT}/health`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
