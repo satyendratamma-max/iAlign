@@ -264,12 +264,17 @@ const ResourceRow = ({
       ref={setNodeRef}
       sx={{
         display: 'flex',
-        borderBottom: '1px solid',
-        borderColor: isOver ? 'primary.main' : 'divider',
+        ...(isOver
+          ? {
+              border: '2px solid',
+              borderColor: 'primary.main',
+            }
+          : {
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }),
         bgcolor: isOver ? 'primary.lighter' : 'transparent',
         transition: 'all 0.2s',
-        border: isOver ? '2px solid' : 'none',
-        borderColor: isOver ? 'primary.main' : 'transparent',
         boxShadow: isOver ? 4 : 0,
         transform: isOver ? 'scale(1.01)' : 'scale(1)',
       }}
