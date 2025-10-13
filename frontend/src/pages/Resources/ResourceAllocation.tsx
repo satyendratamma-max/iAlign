@@ -560,25 +560,171 @@ const ResourceAllocation = () => {
 
       {/* Render appropriate view */}
       {currentView === 'timeline' && (
-        <TimelineView
-          resources={resources}
-          projects={projects}
-          allocations={filteredAllocations}
-          scenarioId={activeScenario?.id || 0}
-          onRefresh={fetchData}
-          onEdit={handleOpenDialog}
-          onDelete={handleDelete}
-        />
+        <>
+          {/* Global Filters for Timeline */}
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Filters</Typography>
+              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                <Button
+                  size="small"
+                  onClick={() => dispatch(clearAllFilters())}
+                  variant="outlined"
+                >
+                  Clear All Filters
+                </Button>
+              )}
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Domain"
+                  value={selectedDomainIds}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as number[];
+                      return selectedArray.length === 0
+                        ? 'All Domains'
+                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
+                    },
+                  }}
+                >
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.id}>
+                      <Chip label={domain.name} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Business Decision"
+                  value={selectedBusinessDecisions}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as string[];
+                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
+                    },
+                  }}
+                >
+                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                    <MenuItem key={decision} value={decision!}>
+                      <Chip label={decision} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
+          </Paper>
+          <TimelineView
+            resources={resources}
+            projects={projects}
+            allocations={filteredAllocations}
+            scenarioId={activeScenario?.id || 0}
+            onRefresh={fetchData}
+            onEdit={handleOpenDialog}
+            onDelete={handleDelete}
+          />
+        </>
       )}
 
       {currentView === 'kanban' && (
-        <KanbanView
-          resources={resources}
-          projects={projects}
-          allocations={filteredAllocations}
-          scenarioId={activeScenario?.id || 0}
-          onRefresh={fetchData}
-        />
+        <>
+          {/* Global Filters for Kanban */}
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Filters</Typography>
+              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                <Button
+                  size="small"
+                  onClick={() => dispatch(clearAllFilters())}
+                  variant="outlined"
+                >
+                  Clear All Filters
+                </Button>
+              )}
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Domain"
+                  value={selectedDomainIds}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as number[];
+                      return selectedArray.length === 0
+                        ? 'All Domains'
+                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
+                    },
+                  }}
+                >
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.id}>
+                      <Chip label={domain.name} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Business Decision"
+                  value={selectedBusinessDecisions}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as string[];
+                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
+                    },
+                  }}
+                >
+                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                    <MenuItem key={decision} value={decision!}>
+                      <Chip label={decision} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
+          </Paper>
+          <KanbanView
+            resources={resources}
+            projects={projects}
+            allocations={filteredAllocations}
+            scenarioId={activeScenario?.id || 0}
+            onRefresh={fetchData}
+          />
+        </>
       )}
 
       {currentView === 'table' && (
