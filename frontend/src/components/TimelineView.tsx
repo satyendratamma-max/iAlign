@@ -93,7 +93,7 @@ const DraggableProject = ({ project }: { project: Project }) => {
       {...listeners}
       {...attributes}
       sx={{
-        p: 1.5,
+        p: 1,
         cursor: 'grab',
         opacity: isDragging ? 0.5 : 1,
         bgcolor: 'primary.lighter',
@@ -105,17 +105,17 @@ const DraggableProject = ({ project }: { project: Project }) => {
           boxShadow: 3,
         },
         transition: 'all 0.2s',
-        minWidth: 150,
+        minWidth: 130,
       }}
     >
-      <Typography variant="body2" fontWeight="medium" noWrap>
+      <Typography variant="caption" fontWeight="medium" noWrap fontSize="0.75rem">
         {project.name}
       </Typography>
-      <Typography variant="caption" color="text.secondary" display="block">
+      <Typography variant="caption" color="text.secondary" display="block" fontSize="0.65rem">
         {project.domain?.name || 'No domain'}
       </Typography>
       {project.startDate && project.endDate && (
-        <Typography variant="caption" color="text.secondary" display="block">
+        <Typography variant="caption" color="text.secondary" display="block" fontSize="0.65rem">
           {format(new Date(project.startDate), 'MMM yy')} -{' '}
           {format(new Date(project.endDate), 'MMM yy')}
         </Typography>
@@ -186,15 +186,15 @@ const AllocationBar = ({
           position: 'absolute',
           left: `${left}%`,
           width: `${width}%`,
-          height: 32,
+          height: 24,
           bgcolor: getBarColor(),
-          borderRadius: 1,
+          borderRadius: 0.5,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          px: 1,
+          px: 0.75,
           color: 'white',
-          fontSize: '0.75rem',
+          fontSize: '0.65rem',
           fontWeight: 'medium',
           cursor: 'pointer',
           '&:hover': {
@@ -207,7 +207,7 @@ const AllocationBar = ({
           whiteSpace: 'nowrap',
         }}
       >
-        <Typography variant="caption" noWrap sx={{ flex: 1, color: 'white' }}>
+        <Typography variant="caption" noWrap sx={{ flex: 1, color: 'white', fontSize: '0.65rem' }}>
           {allocation.project?.name} ({allocation.allocationPercentage}%)
         </Typography>
         <Box className="action-buttons" sx={{ display: 'none', gap: 0.5 }}>
@@ -285,35 +285,33 @@ const ResourceRow = ({
       {/* Resource Info Column */}
       <Box
         sx={{
-          width: 250,
-          p: 2,
+          width: 200,
+          p: 1,
           borderRight: '1px solid',
           borderColor: isOver ? 'primary.main' : 'divider',
           bgcolor: isOver ? 'primary.lighter' : 'background.paper',
           transition: 'all 0.2s',
         }}
       >
-        <Typography variant="body2" fontWeight="medium">
+        <Typography variant="caption" fontWeight="medium" fontSize="0.75rem">
           {resource.firstName} {resource.lastName}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
-          {resource.employeeId}
+        <Typography variant="caption" color="text.secondary" display="block" fontSize="0.65rem">
+          {resource.employeeId} • {resource.domain?.name || 'No domain'}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
-          {resource.domain?.name || 'No domain'}
-        </Typography>
-        <Box sx={{ mt: 1 }}>
+        <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Chip
-            label={`${availablePercentage}% Available`}
+            label={`${availablePercentage}%`}
             size="small"
             color={isOverAllocated ? 'error' : availablePercentage > 50 ? 'success' : 'warning'}
+            sx={{ height: 18, fontSize: '0.65rem' }}
           />
+          {resource.capabilities && resource.capabilities.length > 0 && (
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem" noWrap>
+              {resource.capabilities.slice(0, 2).map(c => c.role.code).join(', ')}
+            </Typography>
+          )}
         </Box>
-        {resource.capabilities && resource.capabilities.length > 0 && (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            {resource.capabilities.slice(0, 2).map(c => c.role.code).join(', ')}
-          </Typography>
-        )}
       </Box>
 
       {/* Timeline Column */}
@@ -321,8 +319,8 @@ const ResourceRow = ({
         sx={{
           flex: 1,
           position: 'relative',
-          height: 70,
-          p: 2,
+          height: 50,
+          p: 1,
           bgcolor: isOver ? 'primary.lighter' : 'transparent',
           transition: 'background-color 0.2s',
         }}
@@ -341,14 +339,14 @@ const ResourceRow = ({
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 4,
+              right: 4,
               bgcolor: 'primary.main',
               color: 'white',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
+              px: 1,
+              py: 0.25,
+              borderRadius: 0.5,
+              fontSize: '0.65rem',
               fontWeight: 'bold',
               animation: 'pulse 1s infinite',
               '@keyframes pulse': {
@@ -513,8 +511,8 @@ const TimelineView = ({
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* Timeline Header */}
         <Box sx={{ display: 'flex', borderBottom: 2, borderColor: 'divider', bgcolor: 'background.paper' }}>
-          <Box sx={{ width: 250, p: 2, borderRight: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" fontWeight="bold">
+          <Box sx={{ width: 200, p: 1, borderRight: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" fontWeight="bold" fontSize="0.85rem">
               Resources
             </Typography>
           </Box>
@@ -580,8 +578,8 @@ const TimelineView = ({
         {/* Drag Overlay */}
         <DragOverlay>
           {draggedProject && (
-            <Card sx={{ p: 1.5, bgcolor: 'primary.main', color: 'white', minWidth: 150, opacity: 0.9 }}>
-              <Typography variant="body2" fontWeight="medium">
+            <Card sx={{ p: 1, bgcolor: 'primary.main', color: 'white', minWidth: 130, opacity: 0.9 }}>
+              <Typography variant="caption" fontWeight="medium" fontSize="0.75rem">
                 {draggedProject.name}
               </Typography>
             </Card>

@@ -132,30 +132,30 @@ const DraggableResourceCard = ({
       sx={{
         cursor: 'grab',
         opacity: isDragging ? 0.5 : 1,
-        mb: 2,
+        mb: 1,
         bgcolor: isOver ? 'primary.lighter' : (isAvailable ? 'success.lighter' : 'action.hover'),
-        border: isOver ? '3px solid' : '2px solid',
+        border: isOver ? '2px solid' : '1px solid',
         borderColor: isOver ? 'primary.main' : (isAvailable ? 'success.main' : 'divider'),
-        boxShadow: isOver ? 6 : 1,
-        transform: isOver ? 'scale(1.05)' : 'scale(1)',
+        boxShadow: isOver ? 4 : 0,
+        transform: isOver ? 'scale(1.03)' : 'scale(1)',
         '&:hover': {
-          transform: isOver ? 'scale(1.05)' : 'translateY(-4px)',
-          boxShadow: isOver ? 6 : 4,
+          transform: isOver ? 'scale(1.03)' : 'translateY(-2px)',
+          boxShadow: isOver ? 4 : 2,
         },
         transition: 'all 0.2s',
         position: 'relative',
       }}
     >
-      <CardContent>
-        <Box display="flex" alignItems="center" gap={1} mb={1}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-            <PersonIcon fontSize="small" />
+      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+        <Box display="flex" alignItems="center" gap={0.75} mb={0.5}>
+          <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}>
+            <PersonIcon sx={{ fontSize: '0.9rem' }} />
           </Avatar>
           <Box flex={1}>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="caption" fontWeight="bold" fontSize="0.75rem">
               {resource.firstName} {resource.lastName}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" display="block" fontSize="0.65rem">
               {resource.employeeId}
             </Typography>
           </Box>
@@ -164,38 +164,33 @@ const DraggableResourceCard = ({
         <Chip
           label={resource.domain?.name || 'No domain'}
           size="small"
-          sx={{ mb: 1 }}
+          sx={{ mb: 0.5, height: 18, fontSize: '0.65rem' }}
           variant="outlined"
         />
 
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            Capacity: {availablePercentage}% available
+        <Box sx={{ mb: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+            {availablePercentage}% available
           </Typography>
           <LinearProgress
             variant="determinate"
             value={totalAllocation}
             color={totalAllocation > 100 ? 'error' : totalAllocation > 75 ? 'warning' : 'success'}
-            sx={{ height: 6, borderRadius: 1, mt: 0.5 }}
+            sx={{ height: 4, borderRadius: 0.5, mt: 0.25 }}
           />
         </Box>
 
         {resource.capabilities && resource.capabilities.length > 0 && (
-          <Box>
-            <Typography variant="caption" color="text.secondary" fontWeight="medium">
-              Skills:
-            </Typography>
-            <Box display="flex" gap={0.5} flexWrap="wrap" mt={0.5}>
-              {resource.capabilities.slice(0, 3).map((cap) => (
-                <Chip
-                  key={cap.id}
-                  label={`${cap.role.code}`}
-                  size="small"
-                  color={cap.isPrimary ? 'primary' : 'default'}
-                  sx={{ fontSize: '0.65rem', height: 20 }}
-                />
-              ))}
-            </Box>
+          <Box display="flex" gap={0.5} flexWrap="wrap">
+            {resource.capabilities.slice(0, 3).map((cap) => (
+              <Chip
+                key={cap.id}
+                label={`${cap.role.code}`}
+                size="small"
+                color={cap.isPrimary ? 'primary' : 'default'}
+                sx={{ fontSize: '0.6rem', height: 16 }}
+              />
+            ))}
           </Box>
         )}
         {isOver && (
@@ -228,47 +223,47 @@ const AllocatedResourceCard = ({ resource, allocations }: { resource: Resource; 
   return (
     <Card
       sx={{
-        mb: 2,
+        mb: 1,
         bgcolor: 'info.lighter',
         border: '1px solid',
         borderColor: 'info.main',
       }}
     >
-      <CardContent>
-        <Box display="flex" alignItems="center" gap={1} mb={1}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'info.main' }}>
-            <PersonIcon fontSize="small" />
+      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+        <Box display="flex" alignItems="center" gap={0.75} mb={0.5}>
+          <Avatar sx={{ width: 24, height: 24, bgcolor: 'info.main' }}>
+            <PersonIcon sx={{ fontSize: '0.9rem' }} />
           </Avatar>
           <Box flex={1}>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="caption" fontWeight="bold" fontSize="0.75rem">
               {resource.firstName} {resource.lastName}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
               {totalAllocation}% allocated
             </Typography>
           </Box>
         </Box>
 
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 0.5 }} />
 
         {allocations.map((allocation) => (
-          <Box key={allocation.id} sx={{ mb: 1 }}>
-            <Typography variant="caption" fontWeight="medium">
+          <Box key={allocation.id} sx={{ mb: 0.5 }}>
+            <Typography variant="caption" fontWeight="medium" fontSize="0.7rem" noWrap>
               → {allocation.project?.name}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={0.5}>
               <Chip
                 label={`${allocation.allocationPercentage}%`}
                 size="small"
                 color="info"
-                sx={{ fontSize: '0.65rem', height: 20 }}
+                sx={{ fontSize: '0.6rem', height: 16 }}
               />
               {allocation.matchScore && (
                 <Chip
-                  label={`Match: ${allocation.matchScore}%`}
+                  label={`${allocation.matchScore}%`}
                   size="small"
                   color={allocation.matchScore >= 80 ? 'success' : allocation.matchScore >= 60 ? 'warning' : 'error'}
-                  sx={{ fontSize: '0.65rem', height: 20 }}
+                  sx={{ fontSize: '0.6rem', height: 16 }}
                 />
               )}
             </Box>
@@ -311,30 +306,30 @@ const DraggableProjectCard = ({
       sx={{
         cursor: 'grab',
         opacity: isDragging ? 0.5 : 1,
-        mb: 2,
+        mb: 1,
         bgcolor: isOver ? 'primary.lighter' : (needsMoreResources ? 'warning.lighter' : 'success.lighter'),
-        border: isOver ? '3px solid' : '2px solid',
+        border: isOver ? '2px solid' : '1px solid',
         borderColor: isOver ? 'primary.main' : (needsMoreResources ? 'warning.main' : 'success.main'),
-        boxShadow: isOver ? 6 : 1,
-        transform: isOver ? 'scale(1.05)' : 'scale(1)',
+        boxShadow: isOver ? 4 : 0,
+        transform: isOver ? 'scale(1.03)' : 'scale(1)',
         '&:hover': {
-          transform: isOver ? 'scale(1.05)' : 'translateY(-4px)',
-          boxShadow: isOver ? 6 : 4,
+          transform: isOver ? 'scale(1.03)' : 'translateY(-2px)',
+          boxShadow: isOver ? 4 : 2,
         },
         transition: 'all 0.2s',
         position: 'relative',
       }}
     >
-      <CardContent>
-        <Box display="flex" alignItems="center" gap={1} mb={1}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: needsMoreResources ? 'warning.main' : 'success.main' }}>
-            <AssignmentIcon fontSize="small" />
+      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+        <Box display="flex" alignItems="center" gap={0.75} mb={0.5}>
+          <Avatar sx={{ width: 24, height: 24, bgcolor: needsMoreResources ? 'warning.main' : 'success.main' }}>
+            <AssignmentIcon sx={{ fontSize: '0.9rem' }} />
           </Avatar>
           <Box flex={1}>
-            <Typography variant="body2" fontWeight="bold" noWrap>
+            <Typography variant="caption" fontWeight="bold" noWrap fontSize="0.75rem">
               {project.name}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
               {project.status}
             </Typography>
           </Box>
@@ -343,25 +338,22 @@ const DraggableProjectCard = ({
         <Chip
           label={project.domain?.name || 'No domain'}
           size="small"
-          sx={{ mb: 1 }}
+          sx={{ mb: 0.5, height: 18, fontSize: '0.65rem' }}
           variant="outlined"
         />
 
         {project.requirements && project.requirements.length > 0 && (
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight="medium">
-              Needs:
-            </Typography>
+          <Box sx={{ mt: 0.5 }}>
             {project.requirements.slice(0, 2).map((req) => (
-              <Box key={req.id} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption">
+              <Box key={req.id} display="flex" justifyContent="space-between" alignItems="center" mb={0.25}>
+                <Typography variant="caption" fontSize="0.65rem" noWrap sx={{ flex: 1, mr: 0.5 }}>
                   {req.role.code} - {req.proficiencyLevel}
                 </Typography>
                 <Chip
                   label={`${req.fulfilledCount}/${req.requiredCount}`}
                   size="small"
                   color={req.fulfilledCount >= req.requiredCount ? 'success' : 'error'}
-                  sx={{ fontSize: '0.65rem', height: 18 }}
+                  sx={{ fontSize: '0.6rem', height: 16 }}
                 />
               </Box>
             ))}
@@ -369,9 +361,9 @@ const DraggableProjectCard = ({
         )}
 
         {project.startDate && project.endDate && (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-            {new Date(project.startDate).toLocaleDateString()} -{' '}
-            {new Date(project.endDate).toLocaleDateString()}
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }} fontSize="0.65rem">
+            {new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
+            {new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </Typography>
         )}
         {isOver && (
@@ -417,21 +409,21 @@ const DroppableColumn = ({
     <Paper
       ref={setNodeRef}
       sx={{
-        p: 2,
+        p: 1.5,
         height: '100%',
         minHeight: 400,
         bgcolor: isOver ? 'primary.lighter' : 'action.hover',
-        border: isOver ? '3px dashed' : '2px dashed',
+        border: isOver ? '2px dashed' : '1px dashed',
         borderColor: isOver ? 'primary.main' : 'divider',
-        boxShadow: isOver ? 4 : 0,
-        transform: isOver ? 'scale(1.02)' : 'scale(1)',
+        boxShadow: isOver ? 3 : 0,
+        transform: isOver ? 'scale(1.01)' : 'scale(1)',
         transition: 'all 0.2s',
         position: 'relative',
       }}
     >
-      <Box display="flex" alignItems="center" gap={1} mb={2}>
+      <Box display="flex" alignItems="center" gap={0.75} mb={1.5}>
         {icon}
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="subtitle1" fontWeight="bold" fontSize="0.9rem">
           {title}
         </Typography>
       </Box>
@@ -447,17 +439,17 @@ const DroppableColumn = ({
             transform: 'translate(-50%, -50%)',
             bgcolor: 'primary.main',
             color: 'white',
-            px: 3,
-            py: 1.5,
-            borderRadius: 2,
-            fontSize: '1rem',
+            px: 2,
+            py: 1,
+            borderRadius: 1,
+            fontSize: '0.85rem',
             fontWeight: 'bold',
-            boxShadow: 6,
+            boxShadow: 4,
             zIndex: 10,
             animation: 'bounce 0.5s infinite',
             '@keyframes bounce': {
               '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
-              '50%': { transform: 'translate(-50%, -50%) scale(1.1)' },
+              '50%': { transform: 'translate(-50%, -50%) scale(1.05)' },
             },
           }}
         >
@@ -732,15 +724,15 @@ const KanbanView = ({ resources, projects, allocations, scenarioId, onRefresh }:
         {/* Drag Overlay */}
         <DragOverlay>
           {draggedItem?.resource && (
-            <Card sx={{ p: 2, bgcolor: 'success.main', color: 'white', minWidth: 200, opacity: 0.9 }}>
-              <Typography variant="body2" fontWeight="bold">
+            <Card sx={{ p: 1, bgcolor: 'success.main', color: 'white', minWidth: 150, opacity: 0.9 }}>
+              <Typography variant="caption" fontWeight="bold" fontSize="0.75rem">
                 {draggedItem.resource.firstName} {draggedItem.resource.lastName}
               </Typography>
             </Card>
           )}
           {draggedItem?.project && (
-            <Card sx={{ p: 2, bgcolor: 'warning.main', color: 'white', minWidth: 200, opacity: 0.9 }}>
-              <Typography variant="body2" fontWeight="bold">
+            <Card sx={{ p: 1, bgcolor: 'warning.main', color: 'white', minWidth: 150, opacity: 0.9 }}>
+              <Typography variant="caption" fontWeight="bold" fontSize="0.75rem">
                 {draggedItem.project.name}
               </Typography>
             </Card>
