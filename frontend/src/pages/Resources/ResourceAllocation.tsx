@@ -338,6 +338,41 @@ const ResourceAllocation = () => {
     return 'Poor Match';
   };
 
+  // Filter resources based on global filters
+  const filteredResources = useMemo(() => {
+    let filtered = resources;
+
+    // Apply global domain filter
+    if (selectedDomainIds.length > 0) {
+      filtered = filtered.filter(r => {
+        return r.domainId && selectedDomainIds.includes(r.domainId);
+      });
+    }
+
+    return filtered;
+  }, [resources, selectedDomainIds]);
+
+  // Filter projects based on global filters
+  const filteredProjects = useMemo(() => {
+    let filtered = projects;
+
+    // Apply global domain filter
+    if (selectedDomainIds.length > 0) {
+      filtered = filtered.filter(p => {
+        return p.domainId && selectedDomainIds.includes(p.domainId);
+      });
+    }
+
+    // Apply global business decision filter
+    if (selectedBusinessDecisions.length > 0) {
+      filtered = filtered.filter(p => {
+        return p.businessDecision && selectedBusinessDecisions.includes(p.businessDecision);
+      });
+    }
+
+    return filtered;
+  }, [projects, selectedDomainIds, selectedBusinessDecisions]);
+
   // Filter allocations based on global and local filters with cross-domain logic
   const filteredAllocations = useMemo(() => {
     let filtered = allocations;
@@ -633,8 +668,8 @@ const ResourceAllocation = () => {
             </Grid>
           </Paper>
           <TimelineView
-            resources={resources}
-            projects={projects}
+            resources={filteredResources}
+            projects={filteredProjects}
             allocations={filteredAllocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
@@ -718,8 +753,8 @@ const ResourceAllocation = () => {
             </Grid>
           </Paper>
           <KanbanView
-            resources={resources}
-            projects={projects}
+            resources={filteredResources}
+            projects={filteredProjects}
             allocations={filteredAllocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
