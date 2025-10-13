@@ -79,6 +79,7 @@ interface CapabilityBuilderProps {
   value: Capability;
   onChange: (capability: Capability) => void;
   showPrimary?: boolean;
+  showYearsOfExperience?: boolean;
   disabled?: boolean;
 }
 
@@ -86,6 +87,7 @@ const CapabilityBuilder: React.FC<CapabilityBuilderProps> = ({
   value,
   onChange,
   showPrimary = true,
+  showYearsOfExperience = true,
   disabled = false,
 }) => {
   const [apps, setApps] = useState<App[]>([]);
@@ -355,17 +357,19 @@ const CapabilityBuilder: React.FC<CapabilityBuilderProps> = ({
         </Grid>
 
         {/* Years of Experience */}
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Years of Experience"
-            type="number"
-            value={value.yearsOfExperience || ''}
-            onChange={handleYearsChange}
-            disabled={disabled}
-            inputProps={{ min: 0, max: 50 }}
-          />
-        </Grid>
+        {showYearsOfExperience && (
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Years of Experience"
+              type="number"
+              value={value.yearsOfExperience || ''}
+              onChange={handleYearsChange}
+              disabled={disabled}
+              inputProps={{ min: 0, max: 50 }}
+            />
+          </Grid>
+        )}
 
         {/* Primary Capability Checkbox */}
         {showPrimary && (
@@ -391,11 +395,19 @@ const CapabilityBuilder: React.FC<CapabilityBuilderProps> = ({
 
       {/* Display selected capability summary */}
       {selectedApp && selectedTechnology && selectedRole && (
-        <Box mt={2} p={2} bgcolor="grey.50" borderRadius={1}>
-          <Typography variant="subtitle2" gutterBottom>
+        <Box
+          mt={2}
+          p={2}
+          borderRadius={1}
+          sx={{
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography variant="subtitle2" gutterBottom color="text.primary">
             Selected Capability:
           </Typography>
-          <Typography variant="body2">
+          <Typography variant="body2" color="text.primary">
             <strong>{selectedApp.name}</strong> → <strong>{selectedTechnology.name}</strong> →{' '}
             <strong>{selectedRole.name}</strong> ({value.proficiencyLevel})
             {value.yearsOfExperience && ` • ${value.yearsOfExperience} years`}

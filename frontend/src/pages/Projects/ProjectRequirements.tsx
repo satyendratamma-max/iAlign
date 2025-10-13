@@ -376,6 +376,7 @@ const ProjectRequirements = () => {
                   });
                 }}
                 showPrimary={false}
+                showYearsOfExperience={false}
               />
             </Grid>
 
@@ -499,7 +500,10 @@ const ProjectRequirements = () => {
                 placeholder="Additional details about this requirement..."
                 sx={{
                   '& .MuiInputBase-root': {
-                    bgcolor: 'background.paper',
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
+                  },
+                  '& .MuiInputBase-input': {
+                    color: 'text.primary',
                   },
                 }}
               />
