@@ -9,6 +9,7 @@ import {
   IconButton,
   Alert,
   Snackbar,
+  useTheme,
 } from '@mui/material';
 import {
   DndContext,
@@ -137,6 +138,8 @@ const AllocationBar = ({
   onEdit: (allocation?: Allocation) => void;
   onDelete: (id: number) => void;
 }) => {
+  const theme = useTheme();
+
   if (!allocation.startDate || !allocation.endDate) return null;
 
   const allocationStart = new Date(allocation.startDate);
@@ -151,10 +154,10 @@ const AllocationBar = ({
   const width = (duration / totalDays) * 100;
 
   const getBarColor = () => {
-    if (!allocation.matchScore) return '#9ca3af';
-    if (allocation.matchScore >= 80) return '#22c55e';
-    if (allocation.matchScore >= 60) return '#f59e0b';
-    return '#ef4444';
+    if (!allocation.matchScore) return theme.palette.grey[500];
+    if (allocation.matchScore >= 80) return theme.palette.success.main;
+    if (allocation.matchScore >= 60) return theme.palette.warning.main;
+    return theme.palette.error.main;
   };
 
   return (
@@ -559,7 +562,7 @@ const TimelineView = ({
         </Box>
 
         {/* Unallocated Projects Pool */}
-        <Paper sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
+        <Paper sx={{ p: 2, mt: 2, bgcolor: 'action.hover' }}>
           <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
             Available Projects (Drag to allocate)
           </Typography>
