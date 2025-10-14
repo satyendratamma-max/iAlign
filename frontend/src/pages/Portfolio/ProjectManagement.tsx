@@ -31,6 +31,7 @@ import {
   Tooltip,
   Divider,
   Menu,
+  TableSortLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -70,6 +71,7 @@ import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
 import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
 import EnhancedRequirementsTab from '../../components/Projects/EnhancedRequirementsTab';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import {
   getAllDependencies,
   createDependency,
@@ -804,6 +806,12 @@ const ProjectManagement = () => {
     impactedDomain: [] as string[],
   });
 
+  // Sorting state
+  type OrderDirection = 'asc' | 'desc';
+  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus';
+  const [orderBy, setOrderBy] = useState<SortableColumn>('projectNumber');
+  const [order, setOrder] = useState<OrderDirection>('asc');
+
   // Swimlane Configuration State
   const [swimlaneConfig, setSwimlaneConfig] = useState<{
     enabled: boolean;
@@ -880,7 +888,21 @@ const ProjectManagement = () => {
   } | null>(null);
   const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState<string>('');
-  const [notificationSeverity, setNotificationSeverity] = useState<'success' | 'error'>('success');
+  const [notificationSeverity, setNotificationSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [showNotification, setShowNotification] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Dependencies State
   const [dependencies, setDependencies] = useState<ProjectDependency[]>([]);
@@ -889,6 +911,25 @@ const ProjectManagement = () => {
   const [cpmData, setCpmData] = useState<{ nodes: Map<string, any>; criticalPath: string[] }>({ nodes: new Map(), criticalPath: [] });
   const [timelineWidth, setTimelineWidth] = useState<number>(1000);
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+
+  // Helper functions for notifications and confirmations
+  const showAlert = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotificationMessage(message);
+    setNotificationSeverity(severity);
+    setShowNotification(true);
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      onConfirm: () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        onConfirm();
+      },
+    });
+  };
 
   const fetchData = async () => {
     // Guard: Don't fetch data without an active scenario
@@ -1233,14 +1274,14 @@ const ProjectManagement = () => {
       const domainIds = domainImpacts.map(impact => impact.domainId);
       const uniqueDomainIds = new Set(domainIds);
       if (domainIds.length !== uniqueDomainIds.size) {
-        alert('Error: You have selected the same domain multiple times. Each domain can only be added once.');
+        showAlert('You have selected the same domain multiple times. Each domain can only be added once.', 'error');
         return;
       }
 
       // Validate all domain impacts have a valid domain selected
       const hasInvalidDomain = domainImpacts.some(impact => !impact.domainId || impact.domainId === 0);
       if (hasInvalidDomain) {
-        alert('Error: Please select a domain for all impact entries or remove empty entries.');
+        showAlert('Please select a domain for all impact entries or remove empty entries.', 'error');
         return;
       }
 
@@ -1279,22 +1320,27 @@ const ProjectManagement = () => {
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving project:', error);
-      alert('Error saving project: ' + ((error as any).response?.data?.message || 'An unexpected error occurred'));
+      showAlert('Error saving project: ' + ((error as any).response?.data?.message || 'An unexpected error occurred'), 'error');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this project?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`${API_URL}/projects/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        fetchData();
-      } catch (error) {
-        console.error('Error deleting project:', error);
+    showConfirm(
+      'Delete Project',
+      'Are you sure you want to delete this project? This action cannot be undone.',
+      async () => {
+        try {
+          const token = localStorage.getItem('token');
+          await axios.delete(`${API_URL}/projects/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          fetchData();
+        } catch (error) {
+          console.error('Error deleting project:', error);
+          showAlert('Error deleting project', 'error');
+        }
       }
-    }
+    );
   };
 
   // Dependency Dialog Handlers
@@ -1331,24 +1377,24 @@ const ProjectManagement = () => {
   };
 
   const handleDeleteDependency = async (dependencyId: number) => {
-    if (!window.confirm('Are you sure you want to delete this dependency?')) {
-      return;
-    }
+    showConfirm(
+      'Delete Dependency',
+      'Are you sure you want to delete this dependency?',
+      async () => {
+        try {
+          await deleteDependency(dependencyId);
 
-    try {
-      await deleteDependency(dependencyId);
+          // Refresh dependencies list
+          const updatedDependencies = await getAllDependencies();
+          setDependencies(updatedDependencies);
 
-      // Refresh dependencies list
-      const updatedDependencies = await getAllDependencies();
-      setDependencies(updatedDependencies);
-
-      setNotificationMessage('Dependency deleted successfully!');
-      setNotificationSeverity('success');
-    } catch (error) {
-      console.error('Error deleting dependency:', error);
-      setNotificationMessage('Failed to delete dependency. Please try again.');
-      setNotificationSeverity('error');
-    }
+          showAlert('Dependency deleted successfully!', 'success');
+        } catch (error) {
+          console.error('Error deleting dependency:', error);
+          showAlert('Failed to delete dependency. Please try again.', 'error');
+        }
+      }
+    );
   };
 
   const handleViewResources = async (project: Project) => {
@@ -1440,15 +1486,15 @@ const ProjectManagement = () => {
             await axios.post(`${API_URL}/projects`, project, config);
           }
 
-          alert(`Successfully imported ${data.length} projects`);
+          showAlert(`Successfully imported ${data.length} projects`, 'success');
           fetchData();
         } catch (error) {
           console.error('Error importing projects:', error);
-          alert('Error importing some projects. Check console for details.');
+          showAlert('Error importing some projects. Check console for details.', 'error');
         }
       },
       (error) => {
-        alert(`Import error: ${error}`);
+        showAlert(`Import error: ${error}`, 'error');
       }
     );
 
@@ -1604,7 +1650,7 @@ const ProjectManagement = () => {
       setExportingView(false);
     } catch (error) {
       console.error('Error exporting view:', error);
-      alert('Error exporting view. Please try again.');
+      showAlert('Error exporting view. Please try again.', 'error');
       setExportingView(false);
     }
   };
@@ -1784,6 +1830,13 @@ const ProjectManagement = () => {
   // Get unique fiscal years from projects
   const uniqueFiscalYears = Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
 
+  // Sorting handler
+  const handleRequestSort = (property: SortableColumn) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
   // Filter projects based on current filters
   const filteredProjects = projects.filter((project) => {
     const impactedDomains = getImpactedDomains(project.id);
@@ -1805,16 +1858,96 @@ const ProjectManagement = () => {
       matchesImpactedDomain
     );
   }).sort((a, b) => {
-    // Sort by sortOrder first, then by createdDate DESC (matching backend ordering)
-    const aSortOrder = a.sortOrder ?? 999999;
-    const bSortOrder = b.sortOrder ?? 999999;
-    if (aSortOrder !== bSortOrder) {
-      return aSortOrder - bSortOrder;
+    let aValue: any;
+    let bValue: any;
+
+    switch (orderBy) {
+      case 'projectNumber':
+        aValue = a.projectNumber?.toLowerCase() || '';
+        bValue = b.projectNumber?.toLowerCase() || '';
+        break;
+      case 'name':
+        aValue = a.name?.toLowerCase() || '';
+        bValue = b.name?.toLowerCase() || '';
+        break;
+      case 'domain':
+        aValue = a.domain?.name?.toLowerCase() || '';
+        bValue = b.domain?.name?.toLowerCase() || '';
+        break;
+      case 'segmentFunction':
+        aValue = a.segmentFunctionData?.name?.toLowerCase() || '';
+        bValue = b.segmentFunctionData?.name?.toLowerCase() || '';
+        break;
+      case 'type':
+        aValue = a.type?.toLowerCase() || '';
+        bValue = b.type?.toLowerCase() || '';
+        break;
+      case 'fiscalYear':
+        aValue = a.fiscalYear?.toLowerCase() || '';
+        bValue = b.fiscalYear?.toLowerCase() || '';
+        break;
+      case 'status':
+        aValue = a.status?.toLowerCase() || '';
+        bValue = b.status?.toLowerCase() || '';
+        break;
+      case 'priority':
+        const priorityOrder: Record<string, number> = {
+          'Critical': 4,
+          'High': 3,
+          'Medium': 2,
+          'Low': 1,
+        };
+        aValue = priorityOrder[a.priority] || 0;
+        bValue = priorityOrder[b.priority] || 0;
+        break;
+      case 'currentPhase':
+        aValue = a.currentPhase?.toLowerCase() || '';
+        bValue = b.currentPhase?.toLowerCase() || '';
+        break;
+      case 'progress':
+        aValue = a.progress || 0;
+        bValue = b.progress || 0;
+        break;
+      case 'budget':
+        aValue = a.budget || 0;
+        bValue = b.budget || 0;
+        break;
+      case 'startDate':
+        aValue = a.startDate ? new Date(a.startDate).getTime() : 0;
+        bValue = b.startDate ? new Date(b.startDate).getTime() : 0;
+        break;
+      case 'endDate':
+        aValue = a.endDate ? new Date(a.endDate).getTime() : 0;
+        bValue = b.endDate ? new Date(b.endDate).getTime() : 0;
+        break;
+      case 'healthStatus':
+        const healthOrder: Record<string, number> = {
+          'Red': 3,
+          'Yellow': 2,
+          'Green': 1,
+        };
+        aValue = healthOrder[a.healthStatus || ''] || 0;
+        bValue = healthOrder[b.healthStatus || ''] || 0;
+        break;
+      default:
+        // Fallback to sortOrder then createdDate
+        const aSortOrder = a.sortOrder ?? 999999;
+        const bSortOrder = b.sortOrder ?? 999999;
+        if (aSortOrder !== bSortOrder) {
+          return aSortOrder - bSortOrder;
+        }
+        const aDate = a.createdDate ? new Date(a.createdDate).getTime() : 0;
+        const bDate = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+        return bDate - aDate;
     }
-    // Fallback to createdDate DESC (most recent first)
-    const aDate = a.createdDate ? new Date(a.createdDate).getTime() : 0;
-    const bDate = b.createdDate ? new Date(b.createdDate).getTime() : 0;
-    return bDate - aDate;
+
+    if (aValue < bValue) {
+      return order === 'asc' ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return order === 'asc' ? 1 : -1;
+    }
+    return 0;
   });
 
   // Swimlane grouping helper functions
@@ -2145,7 +2278,7 @@ const ProjectManagement = () => {
       await fetchData();
     } catch (error) {
       console.error('Error undoing action:', error);
-      alert('Failed to undo action. Please try again.');
+      showAlert('Failed to undo action. Please try again.', 'error');
     }
   };
 
@@ -2222,7 +2355,7 @@ const ProjectManagement = () => {
       await fetchData();
     } catch (error) {
       console.error('Error updating project dates:', error);
-      alert('Failed to update project dates. Please try again.');
+      showAlert('Failed to update project dates. Please try again.', 'error');
     }
   };
 
@@ -2263,7 +2396,7 @@ const ProjectManagement = () => {
       await fetchData();
     } catch (error) {
       console.error('Error updating milestone date:', error);
-      alert('Failed to update milestone date. Please try again.');
+      showAlert('Failed to update milestone date. Please try again.', 'error');
     }
   };
 
@@ -2362,7 +2495,7 @@ const ProjectManagement = () => {
       await fetchData();
     } catch (error) {
       console.error('Error resizing project:', error);
-      alert('Failed to resize project. Please try again.');
+      showAlert('Failed to resize project. Please try again.', 'error');
     }
   };
 
@@ -3185,20 +3318,132 @@ const ProjectManagement = () => {
           <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 100 }}>Project #</TableCell>
-              <TableCell sx={{ minWidth: 180 }}>Project Name</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Segment Function</TableCell>
-              <TableCell sx={{ minWidth: 100 }}>Type</TableCell>
-              <TableCell sx={{ minWidth: 100 }}>Fiscal Year</TableCell>
-              <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
-              <TableCell sx={{ minWidth: 100 }}>Priority</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Current Phase</TableCell>
-              <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Budget</TableCell>
-              <TableCell sx={{ minWidth: 110 }}>Start Date</TableCell>
-              <TableCell sx={{ minWidth: 110 }}>End Date</TableCell>
-              <TableCell sx={{ minWidth: 90 }}>Health</TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'projectNumber'}
+                  direction={orderBy === 'projectNumber' ? order : 'asc'}
+                  onClick={() => handleRequestSort('projectNumber')}
+                >
+                  Project #
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 180 }}>
+                <TableSortLabel
+                  active={orderBy === 'name'}
+                  direction={orderBy === 'name' ? order : 'asc'}
+                  onClick={() => handleRequestSort('name')}
+                >
+                  Project Name
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
+                <TableSortLabel
+                  active={orderBy === 'domain'}
+                  direction={orderBy === 'domain' ? order : 'asc'}
+                  onClick={() => handleRequestSort('domain')}
+                >
+                  Domain
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
+                <TableSortLabel
+                  active={orderBy === 'segmentFunction'}
+                  direction={orderBy === 'segmentFunction' ? order : 'asc'}
+                  onClick={() => handleRequestSort('segmentFunction')}
+                >
+                  Segment Function
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'type'}
+                  direction={orderBy === 'type' ? order : 'asc'}
+                  onClick={() => handleRequestSort('type')}
+                >
+                  Type
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'fiscalYear'}
+                  direction={orderBy === 'fiscalYear' ? order : 'asc'}
+                  onClick={() => handleRequestSort('fiscalYear')}
+                >
+                  Fiscal Year
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 110 }}>
+                <TableSortLabel
+                  active={orderBy === 'status'}
+                  direction={orderBy === 'status' ? order : 'asc'}
+                  onClick={() => handleRequestSort('status')}
+                >
+                  Status
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'priority'}
+                  direction={orderBy === 'priority' ? order : 'asc'}
+                  onClick={() => handleRequestSort('priority')}
+                >
+                  Priority
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
+                <TableSortLabel
+                  active={orderBy === 'currentPhase'}
+                  direction={orderBy === 'currentPhase' ? order : 'asc'}
+                  onClick={() => handleRequestSort('currentPhase')}
+                >
+                  Current Phase
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'progress'}
+                  direction={orderBy === 'progress' ? order : 'asc'}
+                  onClick={() => handleRequestSort('progress')}
+                >
+                  Progress
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
+                <TableSortLabel
+                  active={orderBy === 'budget'}
+                  direction={orderBy === 'budget' ? order : 'asc'}
+                  onClick={() => handleRequestSort('budget')}
+                >
+                  Budget
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 110 }}>
+                <TableSortLabel
+                  active={orderBy === 'startDate'}
+                  direction={orderBy === 'startDate' ? order : 'asc'}
+                  onClick={() => handleRequestSort('startDate')}
+                >
+                  Start Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 110 }}>
+                <TableSortLabel
+                  active={orderBy === 'endDate'}
+                  direction={orderBy === 'endDate' ? order : 'asc'}
+                  onClick={() => handleRequestSort('endDate')}
+                >
+                  End Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 90 }}>
+                <TableSortLabel
+                  active={orderBy === 'healthStatus'}
+                  direction={orderBy === 'healthStatus' ? order : 'asc'}
+                  onClick={() => handleRequestSort('healthStatus')}
+                >
+                  Health
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ minWidth: 180 }}>Dependencies & Impact</TableCell>
               <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
@@ -6260,19 +6505,30 @@ const ProjectManagement = () => {
 
       {/* Notification Snackbar */}
       <Snackbar
-        open={!!notificationMessage}
+        open={showNotification}
         autoHideDuration={4000}
-        onClose={() => setNotificationMessage('')}
+        onClose={() => setShowNotification(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={() => setNotificationMessage('')}
+          onClose={() => setShowNotification(false)}
           severity={notificationSeverity}
           sx={{ width: '100%' }}
         >
           {notificationMessage}
         </Alert>
       </Snackbar>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        confirmText="Delete"
+        confirmColor="error"
+      />
 
       {/* Dependency Manager Dialog */}
       <DependencyManagerDialog

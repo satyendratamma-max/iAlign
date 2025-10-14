@@ -28,6 +28,7 @@ import {
   Block,
 } from '@mui/icons-material';
 import axios from 'axios';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -60,6 +61,10 @@ const AccessProvisioning = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    userId: number | null;
+  }>({ open: false, userId: null });
 
   useEffect(() => {
     fetchUsers();
@@ -175,22 +180,25 @@ const AccessProvisioning = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteUser = (userId: number) => {
+    setConfirmDialog({ open: true, userId });
+  };
 
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
+  const confirmDeleteUser = async () => {
+    if (confirmDialog.userId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      await axios.delete(`${API_URL}/users/${userId}`, config);
-      setSuccess('User deleted successfully');
-      fetchUsers();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Error deleting user');
+        await axios.delete(`${API_URL}/users/${confirmDialog.userId}`, config);
+        setSuccess('User deleted successfully');
+        fetchUsers();
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (error: any) {
+        setError(error.response?.data?.message || 'Error deleting user');
+      }
     }
+    setConfirmDialog({ open: false, userId: null });
   };
 
   const getRoleColor = (role: string) => {
@@ -423,6 +431,17 @@ const AccessProvisioning = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete User"
+        message="Are you sure you want to delete this user? This action cannot be undone."
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setConfirmDialog({ open: false, userId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

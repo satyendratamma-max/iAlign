@@ -23,6 +23,8 @@ import {
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector } from '../../hooks/redux';
+import { useScenario } from '../../contexts/ScenarioContext';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -49,27 +51,49 @@ interface Domain {
   name: string;
 }
 
+interface Project {
+  id: number;
+  segmentFunctionId?: number;
+  budget?: number;
+  forecastedCost?: number;
+  actualCost?: number;
+}
+
 const PortfolioOverview = () => {
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { activeScenario } = useScenario();
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentSegmentFunction, setCurrentSegmentFunction] = useState<Partial<SegmentFunction>>({});
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    segmentFunctionId: number | null;
+  }>({ open: false, segmentFunctionId: null });
 
   const fetchData = async () => {
+    if (!activeScenario?.id) {
+      console.warn('No active scenario selected for PortfolioOverview');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [segmentFunctionsRes, domainsRes] = await Promise.all([
+      const [segmentFunctionsRes, domainsRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/domains`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
       ]);
 
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setDomains(domainsRes.data.data);
+      setProjects(projectsRes.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -78,8 +102,10 @@ const PortfolioOverview = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeScenario) {
+      fetchData();
+    }
+  }, [activeScenario]);
 
   const handleOpenDialog = (segmentFunction?: SegmentFunction) => {
     if (segmentFunction) {
@@ -115,11 +141,15 @@ const PortfolioOverview = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this segment function?')) {
+  const handleDelete = (id: number) => {
+    setConfirmDialog({ open: true, segmentFunctionId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (confirmDialog.segmentFunctionId) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_URL}/segment-functions/${id}`, {
+        await axios.delete(`${API_URL}/segment-functions/${confirmDialog.segmentFunctionId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();
@@ -127,6 +157,7 @@ const PortfolioOverview = () => {
         console.error('Error handling segment function:', error);
       }
     }
+    setConfirmDialog({ open: false, segmentFunctionId: null });
   };
 
   const formatCurrency = (value?: number) => {
@@ -136,6 +167,17 @@ const PortfolioOverview = () => {
       currency: 'USD',
       minimumFractionDigits: 0,
     }).format(value);
+  };
+
+  const calculateTotalValue = (segmentFunctionId: number) => {
+    const segmentProjects = projects.filter(
+      (project) => project.segmentFunctionId === segmentFunctionId
+    );
+
+    return segmentProjects.reduce(
+      (sum, project) => sum + (project.budget || project.forecastedCost || project.actualCost || 0),
+      0
+    );
   };
 
   if (loading) {
@@ -206,7 +248,7 @@ const PortfolioOverview = () => {
                 <TableCell>
                   <Chip label={segmentFunction.type || 'N/A'} size="small" />
                 </TableCell>
-                <TableCell>{formatCurrency(segmentFunction.totalValue)}</TableCell>
+                <TableCell>{formatCurrency(calculateTotalValue(segmentFunction.id))}</TableCell>
                 <TableCell>{segmentFunction.roiIndex ? `${segmentFunction.roiIndex}%` : '-'}</TableCell>
                 <TableCell>
                   <Chip
@@ -303,20 +345,6 @@ const PortfolioOverview = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Total Value"
-                type="number"
-                value={currentSegmentFunction.totalValue || ''}
-                onChange={(e) =>
-                  setCurrentSegmentFunction({
-                    ...currentSegmentFunction,
-                    totalValue: parseFloat(e.target.value),
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
                 label="ROI Index (%)"
                 type="number"
                 value={currentSegmentFunction.roiIndex || ''}
@@ -351,6 +379,17 @@ const PortfolioOverview = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Segment Function"
+        message="Are you sure you want to delete this segment function? This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDialog({ open: false, segmentFunctionId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TableSortLabel,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -82,6 +83,9 @@ interface DomainImpact {
   };
 }
 
+type OrderDirection = 'asc' | 'desc';
+type SortableColumn = 'name' | 'status' | 'priority' | 'progress' | 'budget';
+
 const PortfolioProjects = () => {
   const { segmentFunctionId } = useParams<{ segmentFunctionId: string }>();
   const navigate = useNavigate();
@@ -94,6 +98,8 @@ const PortfolioProjects = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
+  const [orderBy, setOrderBy] = useState<SortableColumn>('name');
+  const [order, setOrder] = useState<OrderDirection>('asc');
 
   useEffect(() => {
     if (activeScenario) {
@@ -213,13 +219,70 @@ const PortfolioProjects = () => {
     return domainImpacts.filter(impact => impact.projectId === projectId);
   };
 
-  // Group projects by fiscal year
+  const handleRequestSort = (property: SortableColumn) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortProjects = (projectsToSort: Project[]): Project[] => {
+    return [...projectsToSort].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (orderBy) {
+        case 'name':
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+          break;
+        case 'status':
+          aValue = a.status?.toLowerCase() || '';
+          bValue = b.status?.toLowerCase() || '';
+          break;
+        case 'priority':
+          const priorityOrder: Record<string, number> = {
+            'Critical': 4,
+            'High': 3,
+            'Medium': 2,
+            'Low': 1,
+          };
+          aValue = priorityOrder[a.priority] || 0;
+          bValue = priorityOrder[b.priority] || 0;
+          break;
+        case 'progress':
+          aValue = a.progress || 0;
+          bValue = b.progress || 0;
+          break;
+        case 'budget':
+          aValue = a.budget || 0;
+          bValue = b.budget || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) {
+        return order === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return order === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  // Group projects by fiscal year and apply sorting within each group
   const projectsByFY = projects.reduce((acc: Record<string, Project[]>, project) => {
     const fy = project.fiscalYear || 'Unknown';
     if (!acc[fy]) acc[fy] = [];
     acc[fy].push(project);
     return acc;
   }, {});
+
+  // Sort projects within each fiscal year group
+  Object.keys(projectsByFY).forEach(fy => {
+    projectsByFY[fy] = sortProjects(projectsByFY[fy]);
+  });
 
   const fiscalYears = Object.keys(projectsByFY).sort();
 
@@ -266,11 +329,51 @@ const PortfolioProjects = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Project Name</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Priority</TableCell>
-                      <TableCell>Progress</TableCell>
-                      <TableCell>Budget</TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'name'}
+                          direction={orderBy === 'name' ? order : 'asc'}
+                          onClick={() => handleRequestSort('name')}
+                        >
+                          Project Name
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'status'}
+                          direction={orderBy === 'status' ? order : 'asc'}
+                          onClick={() => handleRequestSort('status')}
+                        >
+                          Status
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'priority'}
+                          direction={orderBy === 'priority' ? order : 'asc'}
+                          onClick={() => handleRequestSort('priority')}
+                        >
+                          Priority
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'progress'}
+                          direction={orderBy === 'progress' ? order : 'asc'}
+                          onClick={() => handleRequestSort('progress')}
+                        >
+                          Progress
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'budget'}
+                          direction={orderBy === 'budget' ? order : 'asc'}
+                          onClick={() => handleRequestSort('budget')}
+                        >
+                          Budget
+                        </TableSortLabel>
+                      </TableCell>
                       <TableCell>Health</TableCell>
                       <TableCell>Cross-Domain</TableCell>
                       <TableCell align="right">Actions</TableCell>

@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -68,6 +69,10 @@ const AppsManagement = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    appId: number | null;
+  }>({ open: false, appId: null });
 
   useEffect(() => {
     fetchApps();
@@ -149,21 +154,24 @@ const AppsManagement = () => {
     }
   };
 
-  const handleDeleteApp = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this app?')) {
-      return;
-    }
+  const handleDeleteApp = (id: number) => {
+    setConfirmDialog({ open: true, appId: id });
+  };
 
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`${API_URL}/apps/${id}`, config);
-      setSuccess('App deleted successfully');
-      fetchApps();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error: any) {
-      setError('Error deleting app: ' + (error.response?.data?.error?.message || error.message));
+  const confirmDeleteApp = async () => {
+    if (confirmDialog.appId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        await axios.delete(`${API_URL}/apps/${confirmDialog.appId}`, config);
+        setSuccess('App deleted successfully');
+        fetchApps();
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (error: any) {
+        setError('Error deleting app: ' + (error.response?.data?.error?.message || error.message));
+      }
     }
+    setConfirmDialog({ open: false, appId: null });
   };
 
   const handleExport = () => {
@@ -466,6 +474,17 @@ const AppsManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Application"
+        message="Are you sure you want to delete this app? This action cannot be undone."
+        onConfirm={confirmDeleteApp}
+        onCancel={() => setConfirmDialog({ open: false, appId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

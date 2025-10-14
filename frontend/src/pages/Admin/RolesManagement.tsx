@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -98,6 +99,10 @@ const RolesManagement = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    roleId: number | null;
+  }>({ open: false, roleId: null });
 
   useEffect(() => {
     fetchApps();
@@ -228,21 +233,24 @@ const RolesManagement = () => {
     }
   };
 
-  const handleDeleteRole = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this role?')) {
-      return;
-    }
+  const handleDeleteRole = (id: number) => {
+    setConfirmDialog({ open: true, roleId: id });
+  };
 
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`${API_URL}/roles/${id}`, config);
-      setSuccess('Role deleted successfully');
-      fetchRoles();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error: any) {
-      setError('Error deleting role: ' + (error.response?.data?.error?.message || error.message));
+  const confirmDeleteRole = async () => {
+    if (confirmDialog.roleId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        await axios.delete(`${API_URL}/roles/${confirmDialog.roleId}`, config);
+        setSuccess('Role deleted successfully');
+        fetchRoles();
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (error: any) {
+        setError('Error deleting role: ' + (error.response?.data?.error?.message || error.message));
+      }
     }
+    setConfirmDialog({ open: false, roleId: null });
   };
 
   const handleExport = () => {
@@ -620,6 +628,17 @@ const RolesManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Role"
+        message="Are you sure you want to delete this role? This action cannot be undone."
+        onConfirm={confirmDeleteRole}
+        onCancel={() => setConfirmDialog({ open: false, roleId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

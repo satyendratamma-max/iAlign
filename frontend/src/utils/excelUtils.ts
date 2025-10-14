@@ -1,9 +1,8 @@
 // Excel Import/Export Utilities using native browser APIs (no external dependencies)
 
-export const exportToExcel = (data: any[], filename: string) => {
+export const exportToExcel = (data: any[], filename: string): boolean => {
   if (!data || data.length === 0) {
-    alert('No data to export');
-    return;
+    return false; // Return false to indicate no data, let caller handle the message
   }
 
   // Get all unique keys from all objects
@@ -44,6 +43,8 @@ export const exportToExcel = (data: any[], filename: string) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  return true; // Return true to indicate success
 };
 
 export const importFromExcel = (

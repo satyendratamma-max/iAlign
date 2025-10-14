@@ -21,6 +21,7 @@ import {
   Add as AddIcon,
   ArrowBack,
   Hub,
+  SortByAlpha,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
@@ -73,6 +74,7 @@ const SegmentFunctionList = () => {
   const [domain, setDomain] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [newSegmentFunction, setNewSegmentFunction] = useState({
     name: '',
     description: '',
@@ -83,7 +85,7 @@ const SegmentFunctionList = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [domainId, activeScenario]);
+  }, [domainId, activeScenario, sortOrder]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -106,10 +108,20 @@ const SegmentFunctionList = () => {
       setDomain(domainRes.data.data);
       setProjects(projectsRes.data.data);
       setDomainImpacts(impactsRes.data.data || []);
-      // Filter segment functions by domainId
-      const domainSegmentFunctions = segmentFunctionsRes.data.data.filter(
-        (p: SegmentFunction) => p.domainId === parseInt(domainId!)
-      );
+
+      // Filter segment functions by domainId and sort
+      const domainSegmentFunctions = segmentFunctionsRes.data.data
+        .filter((p: SegmentFunction) => p.domainId === parseInt(domainId!))
+        .sort((a: SegmentFunction, b: SegmentFunction) => {
+          const aName = a.name?.toLowerCase() || '';
+          const bName = b.name?.toLowerCase() || '';
+          if (sortOrder === 'asc') {
+            return aName.localeCompare(bName);
+          } else {
+            return bName.localeCompare(aName);
+          }
+        });
+
       setSegmentFunctions(domainSegmentFunctions);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -210,9 +222,31 @@ const SegmentFunctionList = () => {
           >
             Back to Domains
           </Button>
-          <Typography variant="h4" gutterBottom>
-            {domain?.name} Segment Functions
-          </Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+              {domain?.name} Segment Functions
+            </Typography>
+            <Box display="flex" gap={1}>
+              <Button
+                variant={sortOrder === 'asc' ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<SortByAlpha />}
+                onClick={() => setSortOrder('asc')}
+                sx={{ minWidth: 'auto' }}
+              >
+                A-Z
+              </Button>
+              <Button
+                variant={sortOrder === 'desc' ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<SortByAlpha sx={{ transform: 'scaleY(-1)' }} />}
+                onClick={() => setSortOrder('desc')}
+                sx={{ minWidth: 'auto' }}
+              >
+                Z-A
+              </Button>
+            </Box>
+          </Box>
           <Typography color="text.secondary">
             {domain?.description || 'View and manage segment functions for this domain'}
           </Typography>

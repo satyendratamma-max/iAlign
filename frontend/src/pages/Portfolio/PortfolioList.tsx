@@ -21,6 +21,7 @@ import {
   Add as AddIcon,
   ArrowBack,
   Hub,
+  SortByAlpha,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
@@ -42,6 +43,9 @@ interface Project {
   id: number;
   name: string;
   segmentFunctionId?: number;
+  budget?: number;
+  forecastedCost?: number;
+  actualCost?: number;
 }
 
 interface DomainImpact {
@@ -67,6 +71,7 @@ const PortfolioList = () => {
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [newSegmentFunction, setNewSegmentFunction] = useState({
     name: '',
     description: '',
@@ -77,7 +82,7 @@ const PortfolioList = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [domainId, activeScenario]);
+  }, [domainId, activeScenario, sortOrder]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -98,10 +103,18 @@ const PortfolioList = () => {
       ]);
 
       setDomain(domainRes.data.data);
-      // Filter segmentFunctions by domainId
-      const domainPortfolios = segmentFunctionsRes.data.data.filter(
-        (p: SegmentFunction) => p.domainId === parseInt(domainId!)
-      );
+      // Filter segmentFunctions by domainId and sort
+      const domainPortfolios = segmentFunctionsRes.data.data
+        .filter((p: SegmentFunction) => p.domainId === parseInt(domainId!))
+        .sort((a: SegmentFunction, b: SegmentFunction) => {
+          const aName = a.name?.toLowerCase() || '';
+          const bName = b.name?.toLowerCase() || '';
+          if (sortOrder === 'asc') {
+            return aName.localeCompare(bName);
+          } else {
+            return bName.localeCompare(aName);
+          }
+        });
       setSegmentFunctions(domainPortfolios);
       setProjects(projectsRes.data.data);
       setDomainImpacts(impactsRes.data.data || []);
@@ -147,6 +160,17 @@ const PortfolioList = () => {
     }).format(value);
   };
 
+  const calculateTotalValue = (segmentFunctionId: number) => {
+    const segmentProjects = projects.filter(
+      (project) => project.segmentFunctionId === segmentFunctionId
+    );
+
+    return segmentProjects.reduce(
+      (sum, project) => sum + (project.budget || project.forecastedCost || project.actualCost || 0),
+      0
+    );
+  };
+
   const getCrossDomainStats = (segmentFunctionId: number) => {
     // Get projects in this segment function
     const sfProjects = projects.filter(p => p.segmentFunctionId === segmentFunctionId);
@@ -187,11 +211,33 @@ const PortfolioList = () => {
           >
             Back to Domains
           </Button>
-          <Typography variant="h4" gutterBottom>
-            {domain?.name} Segment Functions
-          </Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+              {domain?.name} Segment Functions
+            </Typography>
+            <Box display="flex" gap={1}>
+              <Button
+                variant={sortOrder === 'asc' ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<SortByAlpha />}
+                onClick={() => setSortOrder('asc')}
+                sx={{ minWidth: 'auto' }}
+              >
+                A-Z
+              </Button>
+              <Button
+                variant={sortOrder === 'desc' ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<SortByAlpha sx={{ transform: 'scaleY(-1)' }} />}
+                onClick={() => setSortOrder('desc')}
+                sx={{ minWidth: 'auto' }}
+              >
+                Z-A
+              </Button>
+            </Box>
+          </Box>
           <Typography color="text.secondary">
-            {domain?.description || 'View and manage segmentFunctions for this domain'}
+            {domain?.description || 'View and manage segment functions for this domain'}
           </Typography>
         </Box>
         <Button
@@ -258,7 +304,7 @@ const PortfolioList = () => {
                       Total Value
                     </Typography>
                     <Typography variant="h6">
-                      {formatCurrency(segmentFunction.totalValue)}
+                      {formatCurrency(calculateTotalValue(segmentFunction.id))}
                     </Typography>
                   </Box>
 

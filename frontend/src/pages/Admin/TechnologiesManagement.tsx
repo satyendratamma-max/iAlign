@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -83,6 +84,10 @@ const TechnologiesManagement = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    technologyId: number | null;
+  }>({ open: false, technologyId: null });
 
   useEffect(() => {
     fetchApps();
@@ -186,21 +191,24 @@ const TechnologiesManagement = () => {
     }
   };
 
-  const handleDeleteTechnology = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this technology?')) {
-      return;
-    }
+  const handleDeleteTechnology = (id: number) => {
+    setConfirmDialog({ open: true, technologyId: id });
+  };
 
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`${API_URL}/technologies/${id}`, config);
-      setSuccess('Technology deleted successfully');
-      fetchTechnologies();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error: any) {
-      setError('Error deleting technology: ' + (error.response?.data?.error?.message || error.message));
+  const confirmDeleteTechnology = async () => {
+    if (confirmDialog.technologyId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        await axios.delete(`${API_URL}/technologies/${confirmDialog.technologyId}`, config);
+        setSuccess('Technology deleted successfully');
+        fetchTechnologies();
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (error: any) {
+        setError('Error deleting technology: ' + (error.response?.data?.error?.message || error.message));
+      }
     }
+    setConfirmDialog({ open: false, technologyId: null });
   };
 
   const handleExport = () => {
@@ -518,6 +526,17 @@ const TechnologiesManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Technology"
+        message="Are you sure you want to delete this technology? This action cannot be undone."
+        onConfirm={confirmDeleteTechnology}
+        onCancel={() => setConfirmDialog({ open: false, technologyId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

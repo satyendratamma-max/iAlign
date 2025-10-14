@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import CapabilityBuilder from '../CapabilityBuilder';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -117,6 +118,10 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
   });
   const [templateMenuAnchor, setTemplateMenuAnchor] = useState<null | HTMLElement>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    requirementId: number | null;
+  }>({ open: false, requirementId: null });
 
   useEffect(() => {
     fetchRequirements();
@@ -188,11 +193,15 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this requirement?')) {
+  const handleDelete = (id: number) => {
+    setConfirmDialog({ open: true, requirementId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (confirmDialog.requirementId) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_URL}/project-requirements/${id}`, {
+        await axios.delete(`${API_URL}/project-requirements/${confirmDialog.requirementId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setSuccessMessage('Requirement deleted successfully');
@@ -201,6 +210,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         setError(err.response?.data?.message || 'Failed to delete requirement');
       }
     }
+    setConfirmDialog({ open: false, requirementId: null });
   };
 
   const handleApplyTemplate = async (templateName: string) => {
@@ -714,6 +724,17 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Requirement"
+        message="Are you sure you want to delete this requirement? This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDialog({ open: false, requirementId: null })}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };
