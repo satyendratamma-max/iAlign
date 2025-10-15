@@ -5,8 +5,8 @@ import Domain from './Domain';
 import Resource from './Resource';
 import Milestone from './Milestone';
 import ResourceAllocation from './ResourceAllocation';
-import Pipeline from './Pipeline';
-import ProjectPipeline from './ProjectPipeline';
+// import Pipeline from './Pipeline'; // Temporarily disabled
+// import ProjectPipeline from './ProjectPipeline'; // Temporarily disabled
 import CapacityModel from './CapacityModel';
 import CapacityScenario from './CapacityScenario';
 import Notification from './notification.model';
@@ -28,8 +28,10 @@ Scenario.hasMany(Scenario, { foreignKey: 'parentScenarioId', as: 'childScenarios
 Scenario.hasMany(Project, { foreignKey: 'scenarioId', as: 'projects' });
 Project.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
 
-Scenario.hasMany(Resource, { foreignKey: 'scenarioId', as: 'resources' });
-Resource.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
+// Note: Resources are SHARED across all scenarios (not scenario-specific)
+// Resources are linked to scenarios through ResourceAllocations, which are scenario-specific
+Scenario.hasMany(ResourceAllocation, { foreignKey: 'scenarioId', as: 'allocations' });
+ResourceAllocation.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
 
 Scenario.hasMany(Milestone, { foreignKey: 'scenarioId', as: 'milestones' });
 Milestone.belongsTo(Scenario, { foreignKey: 'scenarioId', as: 'scenario' });
@@ -86,27 +88,27 @@ ResourceAllocation.belongsTo(ResourceCapability, { foreignKey: 'resourceCapabili
 ProjectRequirement.hasMany(ResourceAllocation, { foreignKey: 'projectRequirementId', as: 'allocations' });
 ResourceAllocation.belongsTo(ProjectRequirement, { foreignKey: 'projectRequirementId', as: 'projectRequirement' });
 
-// Pipeline Associations (Many-to-Many)
-Project.belongsToMany(Pipeline, {
-  through: ProjectPipeline,
-  foreignKey: 'projectId',
-  otherKey: 'pipelineId',
-  as: 'pipelines',
-});
+// Pipeline Associations (Many-to-Many) - Temporarily disabled
+// Project.belongsToMany(Pipeline, {
+//   through: ProjectPipeline,
+//   foreignKey: 'projectId',
+//   otherKey: 'pipelineId',
+//   as: 'pipelines',
+// });
 
-Pipeline.belongsToMany(Project, {
-  through: ProjectPipeline,
-  foreignKey: 'pipelineId',
-  otherKey: 'projectId',
-  as: 'projects',
-});
+// Pipeline.belongsToMany(Project, {
+//   through: ProjectPipeline,
+//   foreignKey: 'pipelineId',
+//   otherKey: 'projectId',
+//   as: 'projects',
+// });
 
 // Direct access to junction table
-Project.hasMany(ProjectPipeline, { foreignKey: 'projectId', as: 'projectPipelines' });
-ProjectPipeline.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+// Project.hasMany(ProjectPipeline, { foreignKey: 'projectId', as: 'projectPipelines' });
+// ProjectPipeline.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 
-Pipeline.hasMany(ProjectPipeline, { foreignKey: 'pipelineId', as: 'projectPipelines' });
-ProjectPipeline.belongsTo(Pipeline, { foreignKey: 'pipelineId', as: 'pipeline' });
+// Pipeline.hasMany(ProjectPipeline, { foreignKey: 'pipelineId', as: 'projectPipelines' });
+// ProjectPipeline.belongsTo(Pipeline, { foreignKey: 'pipelineId', as: 'pipeline' });
 
 // Capacity Model Associations
 CapacityModel.hasMany(CapacityScenario, { foreignKey: 'capacityModelId', as: 'scenarios' });
@@ -237,8 +239,8 @@ export {
   Resource,
   Milestone,
   ResourceAllocation,
-  Pipeline,
-  ProjectPipeline,
+  // Pipeline, // Temporarily disabled
+  // ProjectPipeline, // Temporarily disabled
   CapacityModel,
   CapacityScenario,
   Notification,
@@ -260,8 +262,8 @@ export default {
   Resource,
   Milestone,
   ResourceAllocation,
-  Pipeline,
-  ProjectPipeline,
+  // Pipeline, // Temporarily disabled
+  // ProjectPipeline, // Temporarily disabled
   CapacityModel,
   CapacityScenario,
   Notification,

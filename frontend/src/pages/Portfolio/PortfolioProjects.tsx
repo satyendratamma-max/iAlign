@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogActions,
   TableSortLabel,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -83,8 +84,15 @@ interface DomainImpact {
   };
 }
 
+interface ProjectRiskScore {
+  projectId: number;
+  projectName: string;
+  riskScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+}
+
 type OrderDirection = 'asc' | 'desc';
-type SortableColumn = 'name' | 'status' | 'priority' | 'progress' | 'budget';
+type SortableColumn = 'name' | 'status' | 'priority' | 'progress' | 'budget' | 'risk';
 
 const PortfolioProjects = () => {
   const { segmentFunctionId } = useParams<{ segmentFunctionId: string }>();
@@ -100,6 +108,7 @@ const PortfolioProjects = () => {
   const [loadingResources, setLoadingResources] = useState(false);
   const [orderBy, setOrderBy] = useState<SortableColumn>('name');
   const [order, setOrder] = useState<OrderDirection>('asc');
+  const [projectRisks, setProjectRisks] = useState<Record<number, ProjectRiskScore>>({});
 
   useEffect(() => {
     if (activeScenario) {
@@ -131,10 +140,37 @@ const PortfolioProjects = () => {
       );
       setProjects(segmentFunctionProjects);
       setDomainImpacts(impactsRes.data.data || []);
+
+      // Fetch risk data for the segment function
+      fetchRiskData(activeScenario.id, token, config);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRiskData = async (
+    scenarioId: number,
+    token: string | null,
+    config: { headers: { Authorization: string } }
+  ) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/segment-functions/${segmentFunctionId}/risk?scenarioId=${scenarioId}`,
+        config
+      );
+
+      const riskData = response.data.data;
+      if (riskData.projectRisks && Array.isArray(riskData.projectRisks)) {
+        const risksMap: Record<number, ProjectRiskScore> = {};
+        riskData.projectRisks.forEach((risk: ProjectRiskScore) => {
+          risksMap[risk.projectId] = risk;
+        });
+        setProjectRisks(risksMap);
+      }
+    } catch (error) {
+      console.error('Error fetching risk data:', error);
     }
   };
 
@@ -257,6 +293,10 @@ const PortfolioProjects = () => {
           aValue = a.budget || 0;
           bValue = b.budget || 0;
           break;
+        case 'risk':
+          aValue = projectRisks[a.id]?.riskScore || 0;
+          bValue = projectRisks[b.id]?.riskScore || 0;
+          break;
         default:
           return 0;
       }
@@ -375,6 +415,15 @@ const PortfolioProjects = () => {
                         </TableSortLabel>
                       </TableCell>
                       <TableCell>Health</TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'risk'}
+                          direction={orderBy === 'risk' ? order : 'asc'}
+                          onClick={() => handleRequestSort('risk')}
+                        >
+                          Risk Score
+                        </TableSortLabel>
+                      </TableCell>
                       <TableCell>Cross-Domain</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
@@ -422,6 +471,39 @@ const PortfolioProjects = () => {
                             size="small"
                             color={getHealthColor(project.healthStatus)}
                           />
+                        </TableCell>
+                        <TableCell>
+                          {projectRisks[project.id] ? (
+                            <Tooltip
+                              title={
+                                <Box sx={{ p: 0.5 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                                    Risk Level: {projectRisks[project.id].riskLevel}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Score: {projectRisks[project.id].riskScore}/100
+                                  </Typography>
+                                </Box>
+                              }
+                              placement="left"
+                              arrow
+                            >
+                              <Chip
+                                label={projectRisks[project.id].riskScore}
+                                size="small"
+                                color={
+                                  projectRisks[project.id].riskLevel === 'Low'
+                                    ? 'success'
+                                    : projectRisks[project.id].riskLevel === 'Medium'
+                                    ? 'warning'
+                                    : 'error'
+                                }
+                                sx={{ cursor: 'help' }}
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Chip label="N/A" size="small" color="default" />
+                          )}
                         </TableCell>
                         <TableCell>
                           {(() => {

@@ -55,7 +55,7 @@ const menuSections = [
     title: 'Projects',
     items: [
       { text: 'Domains', icon: <BusinessCenter />, path: '/domains' },
-      { text: 'Segment Function Overview', icon: <Folder />, path: '/portfolio-overview' },
+      { text: 'Segment Functions', icon: <Folder />, path: '/portfolio-overview' },
       { text: 'Projects', icon: <Assignment />, path: '/projects' },
       { text: 'Milestones', icon: <Timeline />, path: '/milestones' },
     ],
@@ -63,16 +63,16 @@ const menuSections = [
   {
     title: 'Resources',
     items: [
-      { text: 'Resource Overview', icon: <People />, path: '/resource-overview' },
-      { text: 'Allocation Matrix', icon: <Assignment />, path: '/resources/allocation' },
+      { text: 'Resources', icon: <People />, path: '/resource-overview' },
+      { text: 'Allocations', icon: <Assignment />, path: '/resources/allocation' },
     ],
   },
-  {
-    title: 'Pipeline',
-    items: [
-      { text: 'Pipeline Overview', icon: <Storage />, path: '/pipeline-overview' },
-    ],
-  },
+  // {
+  //   title: 'Pipeline',
+  //   items: [
+  //     { text: 'Pipeline Overview', icon: <Storage />, path: '/pipeline-overview' },
+  //   ],
+  // },
   {
     title: 'Capacity',
     items: [

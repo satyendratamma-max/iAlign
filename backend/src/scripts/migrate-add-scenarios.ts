@@ -32,19 +32,8 @@ const migrateAddScenarios = async () => {
       }
     }
 
-    // Add scenarioId to Resources table
-    try {
-      await sequelize.query(`
-        ALTER TABLE Resources ADD COLUMN scenarioId INTEGER;
-      `);
-      console.log('   ✅ Added scenarioId to Resources table');
-    } catch (error: any) {
-      if (error.message.includes('duplicate column name')) {
-        console.log('   ⏭️  scenarioId column already exists in Resources table');
-      } else {
-        throw error;
-      }
-    }
+    // Note: Resources are shared across scenarios, no scenarioId column needed
+    console.log('   ⏭️  Skipping Resources table (resources are shared across scenarios)');
 
     // Add scenarioId to Milestones table
     try {
@@ -115,16 +104,8 @@ const migrateAddScenarios = async () => {
     }
     console.log(`   ✅ Updated ${projectsCount} projects`);
 
-    // Update Resources with scenarioId = NULL
-    const resources = await Resource.findAll();
-    let resourcesCount = 0;
-    for (const resource of resources) {
-      if (!resource.scenarioId) {
-        await resource.update({ scenarioId: baselineScenario.id });
-        resourcesCount++;
-      }
-    }
-    console.log(`   ✅ Updated ${resourcesCount} resources`);
+    // Note: Resources are shared across scenarios, not assigned to specific scenarios
+    console.log(`   ⏭️  Skipping resources (shared across all scenarios)`);
 
     // Update Milestones with scenarioId = NULL
     const milestonesList = await Milestone.findAll();
@@ -152,13 +133,13 @@ const migrateAddScenarios = async () => {
     console.log('5️⃣  Verifying migration...');
     const scenarios = await Scenario.findAll();
     const projectCount = await Project.count({ where: { scenarioId: baselineScenario.id } });
-    const resourceCount = await Resource.count({ where: { scenarioId: baselineScenario.id } });
+    const resourceCount = await Resource.count({ where: { isActive: true } });
     const milestoneCount = await Milestone.count({ where: { scenarioId: baselineScenario.id } });
     const dependencyCount = await ProjectDependency.count({ where: { scenarioId: baselineScenario.id } });
 
     console.log(`   📊 Total scenarios: ${scenarios.length}`);
     console.log(`   📊 Projects in baseline: ${projectCount}`);
-    console.log(`   📊 Resources in baseline: ${resourceCount}`);
+    console.log(`   📊 Total resources (shared): ${resourceCount}`);
     console.log(`   📊 Milestones in baseline: ${milestoneCount}`);
     console.log(`   📊 Dependencies in baseline: ${dependencyCount}\n`);
 

@@ -274,6 +274,39 @@ export const createAllocation = async (req: Request, res: Response) => {
   try {
     const allocationData = req.body;
 
+    // Validate resource employment dates
+    if (allocationData.resourceId) {
+      const resource = await Resource.findByPk(allocationData.resourceId);
+      if (resource) {
+        const allocationStart = allocationData.startDate ? new Date(allocationData.startDate) : null;
+        const allocationEnd = allocationData.endDate ? new Date(allocationData.endDate) : null;
+
+        // Check if allocation starts before joining date
+        if (resource.joiningDate && allocationStart && allocationStart < new Date(resource.joiningDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource before their joining date (${new Date(resource.joiningDate).toLocaleDateString()})`,
+          });
+        }
+
+        // Check if allocation extends beyond end of service date
+        if (resource.endOfServiceDate && allocationEnd && allocationEnd > new Date(resource.endOfServiceDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource beyond their end of service date (${new Date(resource.endOfServiceDate).toLocaleDateString()})`,
+          });
+        }
+
+        // Check if allocation starts after end of service date
+        if (resource.endOfServiceDate && allocationStart && allocationStart > new Date(resource.endOfServiceDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource after their end of service date (${new Date(resource.endOfServiceDate).toLocaleDateString()})`,
+          });
+        }
+      }
+    }
+
     // If resourceCapabilityId and projectRequirementId are provided, calculate match score
     if (allocationData.resourceCapabilityId && allocationData.projectRequirementId) {
       const capability = await ResourceCapability.findByPk(allocationData.resourceCapabilityId);
@@ -357,13 +390,13 @@ export const createAllocation = async (req: Request, res: Response) => {
       ],
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: fullAllocation,
       message: 'Allocation created successfully',
     });
   } catch (error: any) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
       message: 'Error creating allocation',
       error: error.message,
@@ -386,7 +419,46 @@ export const updateAllocation = async (req: Request, res: Response) => {
       });
     }
 
-    await allocation.update(req.body);
+    const updateData = req.body;
+
+    // Validate resource employment dates if dates are being updated
+    if (updateData.startDate || updateData.endDate || updateData.resourceId) {
+      const resourceId = updateData.resourceId || allocation.resourceId;
+      const resource = await Resource.findByPk(resourceId);
+
+      if (resource) {
+        const allocationStart = updateData.startDate ? new Date(updateData.startDate) :
+                               (allocation.startDate ? new Date(allocation.startDate) : null);
+        const allocationEnd = updateData.endDate ? new Date(updateData.endDate) :
+                             (allocation.endDate ? new Date(allocation.endDate) : null);
+
+        // Check if allocation starts before joining date
+        if (resource.joiningDate && allocationStart && allocationStart < new Date(resource.joiningDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource before their joining date (${new Date(resource.joiningDate).toLocaleDateString()})`,
+          });
+        }
+
+        // Check if allocation extends beyond end of service date
+        if (resource.endOfServiceDate && allocationEnd && allocationEnd > new Date(resource.endOfServiceDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource beyond their end of service date (${new Date(resource.endOfServiceDate).toLocaleDateString()})`,
+          });
+        }
+
+        // Check if allocation starts after end of service date
+        if (resource.endOfServiceDate && allocationStart && allocationStart > new Date(resource.endOfServiceDate)) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot allocate resource after their end of service date (${new Date(resource.endOfServiceDate).toLocaleDateString()})`,
+          });
+        }
+      }
+    }
+
+    await allocation.update(updateData);
 
     const updatedAllocation = await ResourceAllocation.findOne({
       where: { id },

@@ -3,6 +3,7 @@ import { literal } from 'sequelize';
 import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
+import Milestone from '../models/Milestone';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
@@ -111,6 +112,41 @@ export const updateProject = async (req: Request, res: Response, next: NextFunct
 
     if (!project) {
       throw new ValidationError('Project not found');
+    }
+
+    // Validation 1: If marking project as "Completed", check if all milestones are completed
+    if (updateData.status === 'Completed' && project.status !== 'Completed') {
+      const incompleteMilestones = await Milestone.findAll({
+        where: {
+          projectId: id,
+          isActive: true,
+        },
+      });
+
+      const hasIncompleteMilestones = incompleteMilestones.some(
+        milestone => milestone.status !== 'Completed'
+      );
+
+      if (hasIncompleteMilestones) {
+        throw new ValidationError(
+          'Cannot mark project as Completed. All milestones must be completed first.'
+        );
+      }
+    }
+
+    // Validation 2: Prevent schedule changes for completed projects unless reopening
+    const isCompletedProject = project.status === 'Completed';
+    const isReopeningProject = updateData.status && updateData.status !== 'Completed';
+    const scheduleFields = ['startDate', 'endDate', 'actualStartDate', 'actualEndDate'];
+    const hasScheduleChanges = scheduleFields.some(field =>
+      updateData[field] !== undefined &&
+      updateData[field] !== project[field as keyof typeof project]
+    );
+
+    if (isCompletedProject && hasScheduleChanges && !isReopeningProject) {
+      throw new ValidationError(
+        'Cannot modify schedule dates for a completed project. Please reopen the project first by changing its status.'
+      );
     }
 
     await project.update(updateData);

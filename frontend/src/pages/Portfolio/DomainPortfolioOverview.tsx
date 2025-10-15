@@ -27,6 +27,7 @@ import {
   AccordionDetails,
   Tabs,
   Tab,
+  Tooltip,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -69,6 +70,7 @@ interface Project {
   type?: string;
   startDate?: Date;
   endDate?: Date;
+  segmentFunctionId?: number;
 }
 
 interface Team {
@@ -79,6 +81,13 @@ interface Team {
   utilizationRate?: number;
   monthlyCost?: number;
   totalCapacityHours?: number;
+}
+
+interface ProjectRiskScore {
+  projectId: number;
+  projectName: string;
+  riskScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
 }
 
 const DomainPortfolioOverview = () => {
@@ -92,6 +101,7 @@ const DomainPortfolioOverview = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
+  const [projectRisks, setProjectRisks] = useState<Record<number, ProjectRiskScore>>({});
 
   useEffect(() => {
     if (activeScenario) {
@@ -116,13 +126,61 @@ const DomainPortfolioOverview = () => {
         axios.get(`${API_URL}/teams?domainId=${domainId}`, config),
       ]);
 
+      const fetchedProjects = projectsRes.data.data;
       setDomain(domainRes.data.data);
-      setProjects(projectsRes.data.data);
+      setProjects(fetchedProjects);
       setTeams(teamsRes.data.data);
+
+      // Fetch risk data for all segment functions in this domain
+      const uniqueSegmentFunctionIds = [...new Set(
+        fetchedProjects
+          .filter((p: Project) => p.segmentFunctionId)
+          .map((p: Project) => p.segmentFunctionId)
+      )];
+
+      if (uniqueSegmentFunctionIds.length > 0) {
+        fetchRiskData(uniqueSegmentFunctionIds, activeScenario.id, token, config);
+      }
     } catch (error) {
       console.error('Error fetching domain data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRiskData = async (
+    segmentFunctionIds: (number | undefined)[],
+    scenarioId: number,
+    token: string | null,
+    config: { headers: { Authorization: string } }
+  ) => {
+    try {
+      const riskPromises = segmentFunctionIds
+        .filter((id): id is number => id !== undefined)
+        .map(segmentFunctionId =>
+          axios.get(
+            `${API_URL}/segment-functions/${segmentFunctionId}/risk?scenarioId=${scenarioId}`,
+            config
+          ).catch(error => {
+            console.error(`Error fetching risk for segment function ${segmentFunctionId}:`, error);
+            return null;
+          })
+        );
+
+      const riskResponses = await Promise.all(riskPromises);
+      const risksMap: Record<number, ProjectRiskScore> = {};
+
+      riskResponses.forEach(response => {
+        if (response?.data?.data?.projectRisks) {
+          response.data.data.projectRisks.forEach((risk: ProjectRiskScore) => {
+            risksMap[risk.projectId] = risk;
+          });
+        }
+      });
+
+      setProjectRisks(risksMap);
+    } catch (error) {
+      console.error('Error fetching risk data:', error);
     }
   };
 
@@ -370,6 +428,7 @@ const DomainPortfolioOverview = () => {
                           <TableCell>Progress</TableCell>
                           <TableCell>Budget</TableCell>
                           <TableCell>Health</TableCell>
+                          <TableCell>Risk Score</TableCell>
                           <TableCell align="right">Actions</TableCell>
                         </TableRow>
                       </TableHead>
@@ -419,6 +478,39 @@ const DomainPortfolioOverview = () => {
                                 size="small"
                                 color={getHealthColor(project.healthStatus) as any}
                               />
+                            </TableCell>
+                            <TableCell>
+                              {projectRisks[project.id] ? (
+                                <Tooltip
+                                  title={
+                                    <Box sx={{ p: 0.5 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                                        Risk Level: {projectRisks[project.id].riskLevel}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Score: {projectRisks[project.id].riskScore}/100
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  placement="left"
+                                  arrow
+                                >
+                                  <Chip
+                                    label={projectRisks[project.id].riskScore}
+                                    size="small"
+                                    color={
+                                      projectRisks[project.id].riskLevel === 'Low'
+                                        ? 'success'
+                                        : projectRisks[project.id].riskLevel === 'Medium'
+                                        ? 'warning'
+                                        : 'error'
+                                    }
+                                    sx={{ cursor: 'help' }}
+                                  />
+                                </Tooltip>
+                              ) : (
+                                <Chip label="N/A" size="small" color="default" />
+                              )}
                             </TableCell>
                             <TableCell align="right">
                               <Button

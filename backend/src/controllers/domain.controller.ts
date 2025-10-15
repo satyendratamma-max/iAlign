@@ -7,7 +7,7 @@ export const getAllDomains = async (_req: Request, res: Response, next: NextFunc
   try {
     const domains = await Domain.findAll({
       where: { isActive: true },
-      order: [['createdDate', 'DESC']],
+      order: [['name', 'ASC']], // Sort alphabetically by name
     });
 
     res.json({

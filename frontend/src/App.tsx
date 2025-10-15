@@ -12,7 +12,7 @@ import MilestonesOverview from './pages/Portfolio/MilestonesOverview';
 import ProjectRequirements from './pages/Projects/ProjectRequirements';
 import ResourceOverview from './pages/Resources/ResourceOverview';
 import ResourceAllocation from './pages/Resources/ResourceAllocation';
-import PipelineOverview from './pages/Pipeline/PipelineOverview';
+// import PipelineOverview from './pages/Pipeline/PipelineOverview'; // Temporarily disabled
 import CapacityDashboard from './pages/Capacity/CapacityDashboard';
 import HelpPage from './pages/Help';
 import About from './pages/About';
@@ -74,8 +74,8 @@ function App() {
         <Route path="/resource-overview" element={<ResourceOverview />} />
         <Route path="/resources/allocation" element={<ResourceAllocation />} />
 
-        {/* Pipeline Routes */}
-        <Route path="/pipeline-overview" element={<PipelineOverview />} />
+        {/* Pipeline Routes - Temporarily disabled */}
+        {/* <Route path="/pipeline-overview" element={<PipelineOverview />} /> */}
 
         {/* Capacity Routes */}
         <Route path="/capacity-overview" element={<CapacityDashboard />} />

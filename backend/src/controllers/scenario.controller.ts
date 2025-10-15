@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { Op } from 'sequelize';
 import Scenario from '../models/Scenario';
 import Project from '../models/Project';
-import Resource from '../models/Resource';
 import Milestone from '../models/Milestone';
 import ProjectDependency from '../models/ProjectDependency';
 import ResourceAllocation from '../models/ResourceAllocation';
@@ -266,24 +265,8 @@ export const cloneScenario = async (req: Request, res: Response, next: NextFunct
       projectIdMap.set(sourceProject.id, newProject.id);
     }
 
-    // Clone all resources from source scenario
-    const sourceResources = await Resource.findAll({
-      where: { scenarioId: sourceScenario.id, isActive: true },
-    });
-
-    for (const sourceResource of sourceResources) {
-      const resourceData = sourceResource.toJSON() as any;
-      delete resourceData.id;
-      delete resourceData.createdDate;
-
-      await Resource.create(
-        {
-          ...resourceData,
-          scenarioId: newScenario.id,
-        },
-        { transaction }
-      );
-    }
+    // Note: Resources are shared across all scenarios, so we don't clone them.
+    // Only allocations (which reference resources) are scenario-specific and will be cloned below.
 
     // Clone all milestones from source scenario
     const sourceMilestones = await Milestone.findAll({
@@ -565,8 +548,11 @@ export const getScenarioStats = async (req: Request, res: Response, next: NextFu
       where: { scenarioId: scenario.id, isActive: true },
     });
 
-    const resourceCount = await Resource.count({
+    // Count resources allocated to this scenario (resources are shared, not scenario-specific)
+    const resourceCount = await ResourceAllocation.count({
       where: { scenarioId: scenario.id, isActive: true },
+      distinct: true,
+      col: 'resourceId',
     });
 
     const milestoneCount = await Milestone.count({

@@ -80,6 +80,8 @@ interface Resource {
   utilizationRate?: number;
   homeLocation?: string;
   isRemote?: boolean;
+  joiningDate?: string;
+  endOfServiceDate?: string;
   isActive: boolean;
   domain?: {
     id: number;
@@ -127,11 +129,9 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Build query parameters with scenarioId
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
-
+      // Resources are shared across scenarios, no scenarioId filtering needed
       const [resourcesRes, domainsRes, segmentFunctionsRes] = await Promise.all([
-        axios.get(`${API_URL}/resources${scenarioParam}`, config),
+        axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
       ]);
@@ -173,6 +173,7 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Resources are shared across scenarios, no scenarioId needed
       if (editMode && currentResource.id) {
         await axios.put(`${API_URL}/resources/${currentResource.id}`, currentResource, config);
       } else {
@@ -202,7 +203,7 @@ const ResourceOverview = () => {
           const token = localStorage.getItem('token');
           const config = { headers: { Authorization: `Bearer ${token}` } };
 
-          // Bulk create resources
+          // Bulk create resources (shared across scenarios, no scenarioId)
           for (const resource of data) {
             await axios.post(`${API_URL}/resources`, resource, config);
           }
@@ -637,6 +638,32 @@ const ResourceOverview = () => {
                   setCurrentResource({ ...currentResource, timezone: e.target.value })
                 }
                 placeholder="e.g., EST, PST, UTC"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Joining Date"
+                type="date"
+                value={currentResource.joiningDate?.split('T')[0] || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, joiningDate: e.target.value })
+                }
+                InputLabelProps={{ shrink: true }}
+                helperText="Date when employee joined the organization"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="End of Service Date"
+                type="date"
+                value={currentResource.endOfServiceDate?.split('T')[0] || ''}
+                onChange={(e) =>
+                  setCurrentResource({ ...currentResource, endOfServiceDate: e.target.value })
+                }
+                InputLabelProps={{ shrink: true }}
+                helperText="Date when employee leaves the organization (optional)"
               />
             </Grid>
             <Grid item xs={12} sm={6}>

@@ -8,8 +8,8 @@ import Domain from '../models/Domain';
 import Resource from '../models/Resource';
 import Milestone from '../models/Milestone';
 import ResourceAllocation from '../models/ResourceAllocation';
-import Pipeline from '../models/Pipeline';
-import ProjectPipeline from '../models/ProjectPipeline';
+// import Pipeline from '../models/Pipeline'; // Temporarily disabled
+// import ProjectPipeline from '../models/ProjectPipeline'; // Temporarily disabled
 import CapacityModel from '../models/CapacityModel';
 import CapacityScenario from '../models/CapacityScenario';
 import App from '../models/App';
@@ -44,11 +44,60 @@ const seedDatabase = async (dropTables: boolean = true) => {
 
     // Sync database
     if (dropTables) {
+      // For SQL Server, we need to drop all foreign key constraints first
+      try {
+        await sequelize.query(`
+          DECLARE @sql NVARCHAR(MAX) = N'';
+          SELECT @sql += 'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + '.'
+                      + QUOTENAME(OBJECT_NAME(parent_object_id)) + ' DROP CONSTRAINT '
+                      + QUOTENAME(name) + ';'
+          FROM sys.foreign_keys;
+          EXEC sp_executesql @sql;
+        `);
+        console.log('✅ Dropped all foreign key constraints\n');
+      } catch (err) {
+        console.log('Note: Could not drop foreign key constraints (may not exist yet)\n');
+      }
+
       await sequelize.sync({ force: true });
       console.log('✅ Database synced (tables dropped and recreated)\n');
+
+      // Explicitly drop scenarioId column from Resources table if it exists (migration cleanup)
+      try {
+        await sequelize.query(`
+          IF EXISTS (
+            SELECT * FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'[dbo].[Resources]')
+            AND name = 'scenarioId'
+          )
+          BEGIN
+            ALTER TABLE [Resources] DROP COLUMN [scenarioId];
+          END
+        `);
+        console.log('✅ Removed scenarioId column from Resources table (if it existed)\n');
+      } catch (err) {
+        console.log('Note: Could not check/remove scenarioId column from Resources\n');
+      }
     } else {
       await sequelize.sync();
       console.log('✅ Tables synced (non-destructive - missing tables created)\n');
+
+      // Explicitly drop scenarioId column from Resources table if it exists (migration cleanup)
+      try {
+        await sequelize.query(`
+          IF EXISTS (
+            SELECT * FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'[dbo].[Resources]')
+            AND name = 'scenarioId'
+          )
+          BEGIN
+            ALTER TABLE [Resources] DROP COLUMN [scenarioId];
+          END
+        `);
+        console.log('✅ Removed scenarioId column from Resources table (if it existed)\n');
+      } catch (err) {
+        console.log('Note: Could not check/remove scenarioId column from Resources\n');
+      }
     }
 
     // 1. Create Users
@@ -284,7 +333,6 @@ const seedDatabase = async (dropTables: boolean = true) => {
         const segmentFunction = domainSegmentFunctions[Math.floor(Math.random() * domainSegmentFunctions.length)];
 
         const resource = await Resource.create({
-          scenarioId: baselineScenario.id,
           domainId: domain.id,
           segmentFunctionId: segmentFunction.id,
           employeeId: `EMP${String(empId).padStart(4, '0')}`,
@@ -295,6 +343,7 @@ const seedDatabase = async (dropTables: boolean = true) => {
           location: domain.location,
           hourlyRate,
           utilizationRate: Math.floor(Math.random() * 30) + 70,
+          joiningDate: new Date(2020, Math.floor(Math.random() * 5), 1), // Random date between 2020-2024
           isActive: true,
         });
         resources.push(resource);
@@ -526,14 +575,28 @@ const seedDatabase = async (dropTables: boolean = true) => {
       const totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
       const daysPerPhase = totalDays / 7;
 
+      // If project is completed, all milestones should be completed
+      const projectIsCompleted = project.status === 'Completed';
+
       for (let i = 0; i < PHASES.length; i++) {
         const phaseStart = new Date(startDate.getTime() + (i * daysPerPhase * 24 * 60 * 60 * 1000));
         const phaseEnd = new Date(startDate.getTime() + ((i + 1) * daysPerPhase * 24 * 60 * 60 * 1000));
 
-        const phaseProgress = Math.max(0, Math.min(100, (project.progress - (i * 15))));
-        let status = 'Not Started';
-        if (phaseProgress === 100) status = 'Completed';
-        else if (phaseProgress > 0) status = 'In Progress';
+        // Determine milestone status based on project status
+        let status: string;
+        let phaseProgress: number;
+
+        if (projectIsCompleted) {
+          // If project is completed, all milestones must be completed
+          status = 'Completed';
+          phaseProgress = 100;
+        } else {
+          // Otherwise, calculate based on project progress
+          phaseProgress = Math.max(0, Math.min(100, (project.progress - (i * 15))));
+          status = 'Not Started';
+          if (phaseProgress === 100) status = 'Completed';
+          else if (phaseProgress > 0) status = 'In Progress';
+        }
 
         // Assign random owner from project managers or team leads
         const owner = users[13 + Math.floor(Math.random() * 35)]; // PM or Team Lead
@@ -562,62 +625,62 @@ const seedDatabase = async (dropTables: boolean = true) => {
 
     console.log(`   ✅ Created ${milestoneCount} milestones\n`);
 
-    // 11. Create Pipelines
-    console.log('1️⃣1️⃣ Creating pipelines...');
-    const pipelineTypes = ['Application', 'Infrastructure', 'Integration'];
-    const vendors = ['SAP', 'Oracle', 'Salesforce', 'Microsoft', 'AWS', 'Custom'];
-    const pipelines: any[] = [];
+    // 11. Create Pipelines - Temporarily disabled
+    // console.log('1️⃣1️⃣ Creating pipelines...');
+    // const pipelineTypes = ['Application', 'Infrastructure', 'Integration'];
+    // const vendors = ['SAP', 'Oracle', 'Salesforce', 'Microsoft', 'AWS', 'Custom'];
+    // const pipelines: any[] = [];
 
-    const pipelineNames = [
-      'ERP System', 'CRM Platform', 'Data Warehouse', 'API Gateway',
-      'Cloud Infrastructure', 'Authentication Service', 'Payment Gateway',
-      'Analytics Engine', 'Email Service', 'File Storage', 'CDN',
-      'Load Balancer', 'Database Cluster', 'Message Queue', 'Cache Layer',
-      'Monitoring System', 'Logging Platform', 'CI/CD Pipeline', 'Container Registry',
-      'Service Mesh'
-    ];
+    // const pipelineNames = [
+    //   'ERP System', 'CRM Platform', 'Data Warehouse', 'API Gateway',
+    //   'Cloud Infrastructure', 'Authentication Service', 'Payment Gateway',
+    //   'Analytics Engine', 'Email Service', 'File Storage', 'CDN',
+    //   'Load Balancer', 'Database Cluster', 'Message Queue', 'Cache Layer',
+    //   'Monitoring System', 'Logging Platform', 'CI/CD Pipeline', 'Container Registry',
+    //   'Service Mesh'
+    // ];
 
-    for (const name of pipelineNames) {
-      const pipeline = await Pipeline.create({
-        name,
-        type: pipelineTypes[Math.floor(Math.random() * 3)],
-        vendor: vendors[Math.floor(Math.random() * 6)],
-        platform: Math.random() > 0.5 ? 'Cloud' : 'On-Premise',
-        environment: 'Production',
-        description: `${name} for enterprise operations`,
-        isActive: true,
-      });
-      pipelines.push(pipeline);
-    }
+    // for (const name of pipelineNames) {
+    //   const pipeline = await Pipeline.create({
+    //     name,
+    //     type: pipelineTypes[Math.floor(Math.random() * 3)],
+    //     vendor: vendors[Math.floor(Math.random() * 6)],
+    //     platform: Math.random() > 0.5 ? 'Cloud' : 'On-Premise',
+    //     environment: 'Production',
+    //     description: `${name} for enterprise operations`,
+    //     isActive: true,
+    //   });
+    //   pipelines.push(pipeline);
+    // }
 
-    console.log(`   ✅ Created ${pipelines.length} pipelines\n`);
+    // console.log(`   ✅ Created ${pipelines.length} pipelines\n`);
 
-    // 12. Create Project-Pipeline relationships
-    console.log('1️⃣2️⃣ Creating project-pipeline relationships...');
-    let ppCount = 0;
+    // 12. Create Project-Pipeline relationships - Temporarily disabled
+    // console.log('1️⃣2️⃣ Creating project-pipeline relationships...');
+    // let ppCount = 0;
 
-    for (const project of projects) {
-      const pipelineCount = Math.floor(Math.random() * 4) + 1;
-      const selectedPipelines = pipelines
-        .sort(() => 0.5 - Math.random())
-        .slice(0, pipelineCount);
+    // for (const project of projects) {
+    //   const pipelineCount = Math.floor(Math.random() * 4) + 1;
+    //   const selectedPipelines = pipelines
+    //     .sort(() => 0.5 - Math.random())
+    //     .slice(0, pipelineCount);
 
-      for (const pipeline of selectedPipelines) {
-        await ProjectPipeline.create({
-          projectId: project.id,
-          pipelineId: pipeline.id,
-          integrationType: ['Source', 'Target', 'Middleware'][Math.floor(Math.random() * 3)],
-          setupRequired: Math.random() > 0.3,
-          status: project.status === 'Completed' ? 'Completed' :
-                  project.status === 'Planning' ? 'Planned' : 'In Progress',
-          notes: `Integration requirement for ${project.name}`,
-          isActive: true,
-        });
-        ppCount++;
-      }
-    }
+    //   for (const pipeline of selectedPipelines) {
+    //     await ProjectPipeline.create({
+    //       projectId: project.id,
+    //       pipelineId: pipeline.id,
+    //       integrationType: ['Source', 'Target', 'Middleware'][Math.floor(Math.random() * 3)],
+    //       setupRequired: Math.random() > 0.3,
+    //       status: project.status === 'Completed' ? 'Completed' :
+    //               project.status === 'Planning' ? 'Planned' : 'In Progress',
+    //       notes: `Integration requirement for ${project.name}`,
+    //       isActive: true,
+    //     });
+    //     ppCount++;
+    //   }
+    // }
 
-    console.log(`   ✅ Created ${ppCount} project-pipeline relationships\n`);
+    // console.log(`   ✅ Created ${ppCount} project-pipeline relationships\n`);
 
     // 13. Create Resource Allocations with match scores
     console.log('1️⃣3️⃣ Creating resource allocations...');
@@ -912,8 +975,8 @@ const seedDatabase = async (dropTables: boolean = true) => {
     console.log(`   - Project Requirements: ${requirementCount}`);
     console.log(`   - Project Domain Impacts: ${domainImpactCount}`);
     console.log(`   - Milestones: ${milestoneCount}`);
-    console.log(`   - Pipelines: ${pipelines.length}`);
-    console.log(`   - Project-Pipeline Links: ${ppCount}`);
+    // console.log(`   - Pipelines: ${pipelines.length}`); // Temporarily disabled
+    // console.log(`   - Project-Pipeline Links: ${ppCount}`); // Temporarily disabled
     console.log(`   - Resource Allocations: ${allocationCount}`);
     console.log(`   - Capacity Models: ${models.length}`);
     console.log(`   - Capacity Scenarios: ${scenarioCount}`);

@@ -32,7 +32,7 @@ import recommendationRoutes from './routes/recommendation.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import milestoneRoutes from './routes/milestone.routes';
 import allocationRoutes from './routes/allocation.routes';
-import pipelineRoutes from './routes/pipeline.routes';
+// import pipelineRoutes from './routes/pipeline.routes'; // Temporarily disabled
 import capacityRoutes from './routes/capacity.routes';
 import appRoutes from './routes/app.routes';
 import technologyRoutes from './routes/technology.routes';
@@ -48,8 +48,26 @@ const app: Application = express();
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://surfacepro:3000',
+  'http://SurfacePro:3000',
+  'http://surfacepro:5173',
+  'http://SurfacePro:5173',
+];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:3001'],
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -114,7 +132,7 @@ app.use(`/api/${API_VERSION}/analytics`, analyticsRoutes);
 app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/milestones`, milestoneRoutes);
 app.use(`/api/${API_VERSION}/allocations`, allocationRoutes);
-app.use(`/api/${API_VERSION}/pipelines`, pipelineRoutes);
+// app.use(`/api/${API_VERSION}/pipelines`, pipelineRoutes); // Temporarily disabled
 app.use(`/api/${API_VERSION}/capacity`, capacityRoutes);
 app.use(`/api/${API_VERSION}/apps`, appRoutes);
 app.use(`/api/${API_VERSION}/technologies`, technologyRoutes);

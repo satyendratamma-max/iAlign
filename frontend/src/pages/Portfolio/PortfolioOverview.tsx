@@ -19,6 +19,8 @@ import {
   TextField,
   Grid,
   MenuItem,
+  Tooltip,
+  Divider,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import SharedFilters from '../../components/common/SharedFilters';
@@ -59,6 +61,40 @@ interface Project {
   actualCost?: number;
 }
 
+interface ProjectRiskScore {
+  projectId: number;
+  projectName: string;
+  riskScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+}
+
+interface RiskDistribution {
+  lowRisk: number;
+  mediumRisk: number;
+  highRisk: number;
+  totalProjects: number;
+}
+
+interface RiskBreakdown {
+  budgetRisk: number;
+  scheduleRisk: number;
+  resourceRisk: number;
+  dependencyRisk: number;
+  complexityRisk: number;
+  totalScore: number;
+  maxRisk: number;
+  distribution: RiskDistribution;
+  projectRisks: ProjectRiskScore[];
+  projectsNeedingAttention: number;
+  details: {
+    budgetRisk: string;
+    scheduleRisk: string;
+    resourceRisk: string;
+    dependencyRisk: string;
+    complexityRisk: string;
+  };
+}
+
 const PortfolioOverview = () => {
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
@@ -73,6 +109,7 @@ const PortfolioOverview = () => {
     open: boolean;
     segmentFunctionId: number | null;
   }>({ open: false, segmentFunctionId: null });
+  const [riskBreakdowns, setRiskBreakdowns] = useState<Record<number, RiskBreakdown>>({});
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -91,13 +128,52 @@ const PortfolioOverview = () => {
         axios.get(`${API_URL}/projects${scenarioParam}`, config),
       ]);
 
-      setSegmentFunctions(segmentFunctionsRes.data.data);
+      const segmentFunctionsData = segmentFunctionsRes.data.data;
+      setSegmentFunctions(segmentFunctionsData);
       setDomains(domainsRes.data.data);
       setProjects(projectsRes.data.data);
+
+      // Fetch risk breakdowns for all segment functions
+      fetchRiskBreakdowns(segmentFunctionsData, activeScenario.id, token, config);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRiskBreakdowns = async (
+    segmentFunctions: SegmentFunction[],
+    scenarioId: number,
+    token: string | null,
+    config: { headers: { Authorization: string } }
+  ) => {
+    try {
+      const riskPromises = segmentFunctions.map(async (sf) => {
+        try {
+          const response = await axios.get(
+            `${API_URL}/segment-functions/${sf.id}/risk?scenarioId=${scenarioId}`,
+            config
+          );
+          return { id: sf.id, breakdown: response.data.data };
+        } catch (error) {
+          console.error(`Error fetching risk for segment function ${sf.id}:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(riskPromises);
+      const breakdownsMap: Record<number, RiskBreakdown> = {};
+
+      results.forEach((result) => {
+        if (result) {
+          breakdownsMap[result.id] = result.breakdown;
+        }
+      });
+
+      setRiskBreakdowns(breakdownsMap);
+    } catch (error) {
+      console.error('Error fetching risk breakdowns:', error);
     }
   };
 
@@ -180,6 +256,160 @@ const PortfolioOverview = () => {
     );
   };
 
+  const renderRiskTooltip = (breakdown: RiskBreakdown) => {
+    return (
+      <Box sx={{ p: 1, maxWidth: 400 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+          Risk Score Analysis
+        </Typography>
+        <Divider sx={{ mb: 1.5 }} />
+
+        {/* Maximum Risk Score - Headline */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Maximum Risk:
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color:
+            breakdown.maxRisk < 30 ? 'success.main' :
+            breakdown.maxRisk < 60 ? 'warning.main' : 'error.main'
+          }}>
+            {breakdown.maxRisk}/100
+          </Typography>
+        </Box>
+
+        {/* Risk Distribution */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+            Project Distribution:
+          </Typography>
+          <Box sx={{ pl: 1 }}>
+            <Box display="flex" justifyContent="space-between" mb={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Low Risk (0-30):
+              </Typography>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main' }}>
+                {breakdown.distribution.lowRisk} projects
+              </Typography>
+            </Box>
+            <Box display="flex" justifyContent="space-between" mb={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Medium Risk (31-60):
+              </Typography>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                {breakdown.distribution.mediumRisk} projects
+              </Typography>
+            </Box>
+            <Box display="flex" justifyContent="space-between" mb={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                High Risk (61-100):
+              </Typography>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'error.main' }}>
+                {breakdown.distribution.highRisk} projects
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Projects Needing Attention */}
+        {breakdown.projectsNeedingAttention > 0 && (
+          <Box sx={{ mb: 2, p: 1, bgcolor: 'warning.lighter', borderRadius: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'warning.dark' }}>
+              ⚠️ {breakdown.projectsNeedingAttention} {breakdown.projectsNeedingAttention === 1 ? 'project needs' : 'projects need'} attention
+            </Typography>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 1.5 }} />
+
+        {/* Aggregate Breakdown for Context */}
+        <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+          Aggregate Risk Factors:
+        </Typography>
+
+        <Box sx={{ mb: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Budget Risk:
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              {breakdown.budgetRisk}/25
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+            {breakdown.details.budgetRisk}
+          </Typography>
+        </Box>
+
+        <Box sx={{ mb: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Schedule Risk:
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              {breakdown.scheduleRisk}/25
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+            {breakdown.details.scheduleRisk}
+          </Typography>
+        </Box>
+
+        <Box sx={{ mb: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Resource Risk:
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              {breakdown.resourceRisk}/20
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+            {breakdown.details.resourceRisk}
+          </Typography>
+        </Box>
+
+        <Box sx={{ mb: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Dependency Risk:
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              {breakdown.dependencyRisk}/15
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+            {breakdown.details.dependencyRisk}
+          </Typography>
+        </Box>
+
+        <Box sx={{ mb: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Complexity Risk:
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              {breakdown.complexityRisk}/15
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+            {breakdown.details.complexityRisk}
+          </Typography>
+        </Box>
+
+        <Divider sx={{ my: 1 }} />
+
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" color="text.secondary">
+            Aggregate Score:
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            {breakdown.totalScore}/100
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -251,19 +481,57 @@ const PortfolioOverview = () => {
                 <TableCell>{formatCurrency(calculateTotalValue(segmentFunction.id))}</TableCell>
                 <TableCell>{segmentFunction.roiIndex ? `${segmentFunction.roiIndex}%` : '-'}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={segmentFunction.riskScore || 'N/A'}
-                    size="small"
-                    color={
-                      !segmentFunction.riskScore
-                        ? 'default'
-                        : segmentFunction.riskScore < 30
-                        ? 'success'
-                        : segmentFunction.riskScore < 60
-                        ? 'warning'
-                        : 'error'
-                    }
-                  />
+                  {riskBreakdowns[segmentFunction.id] ? (
+                    <Tooltip
+                      title={renderRiskTooltip(riskBreakdowns[segmentFunction.id])}
+                      placement="left"
+                      arrow
+                      componentsProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: 'background.paper',
+                            border: 1,
+                            borderColor: 'divider',
+                            boxShadow: 3,
+                            '& .MuiTooltip-arrow': {
+                              color: 'background.paper',
+                              '&::before': {
+                                border: 1,
+                                borderColor: 'divider',
+                              },
+                            },
+                          },
+                        },
+                      }}
+                    >
+                      <Chip
+                        label={riskBreakdowns[segmentFunction.id].maxRisk}
+                        size="small"
+                        color={
+                          riskBreakdowns[segmentFunction.id].maxRisk < 30
+                            ? 'success'
+                            : riskBreakdowns[segmentFunction.id].maxRisk < 60
+                            ? 'warning'
+                            : 'error'
+                        }
+                        sx={{ cursor: 'help' }}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Chip
+                      label={segmentFunction.riskScore || 'N/A'}
+                      size="small"
+                      color={
+                        !segmentFunction.riskScore
+                          ? 'default'
+                          : segmentFunction.riskScore < 30
+                          ? 'success'
+                          : segmentFunction.riskScore < 60
+                          ? 'warning'
+                          : 'error'
+                      }
+                    />
+                  )}
                 </TableCell>
                 <TableCell align="right">
                   <Button
