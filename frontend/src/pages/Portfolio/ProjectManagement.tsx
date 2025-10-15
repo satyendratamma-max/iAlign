@@ -5418,12 +5418,12 @@ const ProjectManagement = () => {
                           key={id}
                           id={id}
                           viewBox="0 0 10 10"
-                          refX="9"
+                          refX="10"
                           refY="5"
-                          markerWidth="6"
-                          markerHeight="10"
+                          markerWidth="5.6"
+                          markerHeight="5.6"
                           orient="auto"
-                          markerUnits="userSpaceOnUse"
+                          markerUnits="strokeWidth"
                         >
                           <path
                             d="M 0 0 L 10 5 L 0 10 z"
@@ -5466,78 +5466,67 @@ const ProjectManagement = () => {
                         const x2 = (succPos.x / 100) * timelineWidth;
                         const y2 = succPos.rowIndex * rowHeight + succPos.y;
 
-                        // MS Project style routing: edge-to-edge with clean step patterns
-                        // Exit horizontally from predecessor end, enter horizontally to successor start
+                        // MS Project style routing: All paths terminate horizontally towards the target
+                        // Exit horizontally from predecessor, always enter target horizontally
                         const horizontalExit = timelineWidth * 0.02; // 2% of timeline width in pixels
-                        const horizontalEnter = timelineWidth * 0.01; // 1% of timeline width in pixels
+                        const horizontalEnter = timelineWidth * 0.02; // 2% of timeline width - horizontal approach distance
                         const verticalClearance = 14; // Vertical clearance between rows (pixels)
-                        const arrowClearance = timelineWidth * 0.008; // 0.8% of timeline width in pixels
                         const minHorizontalSpace = timelineWidth * 0.03; // 3% of timeline width in pixels
 
                         let pathD: string;
                         const horizontalGap = x2 - x1;
 
                         if (x2 > x1) {
-                          // Forward dependency (left to right)
-                          const startX = x1 + horizontalExit;
-                          const endX = x2 - arrowClearance; // Leave space for arrow
+                          // Forward dependency (left to right) - ALWAYS terminate horizontally pointing RIGHT (→)
+                          const startX = x1 + horizontalExit; // Exit point from predecessor
+                          const enterX = x2 - horizontalEnter; // Entry point before target (approaches from left)
 
                           if (Math.abs(y2 - y1) < 5) {
-                            // Same row - check if enough space for direct line
-                            if (horizontalGap > minHorizontalSpace) {
-                              // Enough space - direct horizontal line
-                              pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
-                            } else {
-                              // Not enough space - use U-shaped routing above
-                              const clearanceY = y1 - verticalClearance;
-                              // End with horizontal segment for proper arrow direction
-                              pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
-                            }
+                            // Same row - ensure horizontal termination by using entry point
+                            pathD = `M ${x1} ${y1} L ${enterX} ${y2} L ${x2} ${y2}`;
                           } else {
                             // Different rows - check if enough space for L-shaped routing
                             if (horizontalGap > minHorizontalSpace) {
-                              // Enough space - simple L-shaped routing
-                              pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${y2} L ${x2} ${y2}`;
+                              // Enough space - L-shaped with horizontal termination pointing RIGHT
+                              pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${y2} L ${enterX} ${y2} L ${x2} ${y2}`;
                             } else {
-                              // Not enough space - use U-shaped routing
-                              // End with horizontal segment for proper arrow direction
+                              // Not enough space - U-shaped with horizontal termination pointing RIGHT
                               if (y1 < y2) {
                                 // Going down - route above
                                 const clearanceY = y1 - verticalClearance;
-                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                               } else {
                                 // Going up - route below
                                 const clearanceY = y1 + verticalClearance;
-                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                                pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                               }
                             }
                           }
                         } else if (x2 === x1) {
-                          // Same position - use U-shaped routing
+                          // Same position - U-shaped routing with horizontal termination pointing LEFT
                           const offsetX = x1 + horizontalExit;
-                          const endX = x2 - arrowClearance;
+                          const enterX = x2 - horizontalEnter;
                           const clearanceY = y1 < y2 ? y1 - verticalClearance : y1 + verticalClearance;
-                          // End with horizontal segment for proper arrow direction
-                          pathD = `M ${x1} ${y1} L ${offsetX} ${y1} L ${offsetX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                          pathD = `M ${x1} ${y1} L ${offsetX} ${y1} L ${offsetX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                         } else {
-                          // Backward dependency (right to left) - always route around with vertical offset
-                          const startX = x1 + horizontalExit;
-                          const endX = x2 - arrowClearance;
+                          // Backward dependency (right to left) - ALWAYS terminate horizontally pointing LEFT (←)
+                          const startX = x1 + horizontalExit; // Exit point from predecessor
+                          const enterX = x2 + horizontalEnter; // Entry point before target (approaches from right)
 
                           // Route with proper clearance to avoid overlapping bars
-                          // Always end with horizontal segment pointing toward successor for correct arrow direction
+                          // ALWAYS end with horizontal segment pointing LEFT towards target
                           if (y1 < y2) {
-                            // Going down and back - route above predecessor, then down to successor
+                            // Going down and back - route above predecessor, horizontal termination pointing LEFT
                             const clearanceY = y1 - verticalClearance;
-                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           } else if (y1 > y2) {
-                            // Going up and back - route below predecessor, then up to successor
+                            // Going up and back - route below predecessor, horizontal termination pointing LEFT
                             const clearanceY = y1 + verticalClearance;
-                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           } else {
-                            // Same row going backward - route above
+                            // Same row going backward - route above, horizontal termination pointing LEFT
                             const clearanceY = y1 - verticalClearance;
-                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${endX} ${clearanceY} L ${endX} ${y2} L ${x2} ${y2}`;
+                            pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           }
                         }
 
