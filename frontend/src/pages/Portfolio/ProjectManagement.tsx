@@ -5468,8 +5468,8 @@ const ProjectManagement = () => {
 
                         // MS Project style routing: All paths terminate horizontally towards the target
                         // Exit horizontally from predecessor, always enter target horizontally
-                        const horizontalExit = timelineWidth * 0.02; // 2% of timeline width in pixels
-                        const horizontalEnter = timelineWidth * 0.02; // 2% of timeline width - horizontal approach distance
+                        const horizontalExit = Math.max(20, timelineWidth * 0.02); // 2% of timeline width, min 20px
+                        const horizontalEnter = Math.max(20, timelineWidth * 0.02); // Min 20px horizontal line before arrow for visual clarity
                         const verticalClearance = 14; // Vertical clearance between rows (pixels)
                         const minHorizontalSpace = timelineWidth * 0.03; // 3% of timeline width in pixels
 
