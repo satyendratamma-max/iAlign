@@ -52,6 +52,60 @@ const getRiskLevel = (score: number): 'Low' | 'Medium' | 'High' => {
 };
 
 /**
+ * Calculate automatic health status based on actual project metrics
+ * This overrides manual health status when metrics indicate problems
+ */
+const calculateAutoHealthStatus = (project: Project): 'Green' | 'Yellow' | 'Red' => {
+  const criticalIssues: string[] = [];
+  const warningIssues: string[] = [];
+
+  // 1. Budget health check
+  const budget = Number(project.budget) || 0;
+  const actualCost = Number(project.actualCost) || 0;
+  const forecast = Number(project.forecastedCost) || budget;
+  const costToCompare = Math.max(actualCost, forecast);
+
+  if (budget > 0) {
+    const budgetVariance = ((costToCompare - budget) / budget) * 100;
+    if (budgetVariance > 50) {
+      criticalIssues.push(`${budgetVariance.toFixed(0)}% over budget`);
+    } else if (budgetVariance > 20) {
+      warningIssues.push(`${budgetVariance.toFixed(0)}% over budget`);
+    }
+  }
+
+  // 2. Schedule health check
+  const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
+  const actualEnd = project.endDate ? new Date(project.endDate) : new Date();
+  if (plannedEnd && actualEnd > plannedEnd) {
+    const delayDays = Math.floor((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
+    if (delayDays > 90) {
+      criticalIssues.push(`${delayDays} days delayed`);
+    } else if (delayDays > 30) {
+      warningIssues.push(`${delayDays} days delayed`);
+    }
+  }
+
+  // 3. Progress health check (if status is not Planning)
+  if (project.status !== 'Planning' && project.status !== 'Not Started') {
+    const progress = Number(project.progress) || 0;
+    if (progress < 10 && project.status === 'In Progress') {
+      warningIssues.push('Low progress');
+    }
+  }
+
+  // Return health status based on issues found
+  if (criticalIssues.length > 0) {
+    return 'Red';
+  } else if (warningIssues.length > 0) {
+    return 'Yellow';
+  } else {
+    // If no issues detected, use manual health status
+    return (project.healthStatus as 'Green' | 'Yellow' | 'Red') || 'Green';
+  }
+};
+
+/**
  * Calculate risk score for a single project
  * New scoring system (total 100 points):
  * - Budget: 0-20 points
@@ -65,19 +119,23 @@ export const calculateProjectRisk = async (project: Project): Promise<number> =>
   let riskScore = 0;
 
   // 1. Health Status Risk (0-15 points) - PRIMARY INDICATOR
-  // This is a qualitative assessment from project managers
-  if (project.healthStatus === 'Red') {
+  // Use automatic health status calculation based on actual metrics
+  const actualHealthStatus = calculateAutoHealthStatus(project);
+  if (actualHealthStatus === 'Red') {
     riskScore += 15; // Critical issues
-  } else if (project.healthStatus === 'Yellow') {
+  } else if (actualHealthStatus === 'Yellow') {
     riskScore += 8; // Warning signs
   }
   // Green = 0 points (healthy)
 
   // 2. Budget risk (0-20 points)
   const budget = Number(project.budget) || 0;
+  const actualCost = Number(project.actualCost) || 0;
   const forecast = Number(project.forecastedCost) || budget;
+  // Use the higher of actualCost or forecastedCost to represent true financial risk
+  const costToCompare = Math.max(actualCost, forecast);
   if (budget > 0) {
-    const budgetVariance = ((forecast - budget) / budget) * 100;
+    const budgetVariance = ((costToCompare - budget) / budget) * 100;
     if (budgetVariance > 30) riskScore += 15;
     else if (budgetVariance > 15) riskScore += 10;
     else if (budgetVariance > 5) riskScore += 5;
@@ -260,20 +318,23 @@ export const calculateSegmentFunctionRisk = async (
  */
 async function calculateBudgetRisk(projects: Project[]): Promise<{ score: number; detail: string }> {
   let totalBudget = 0;
-  let totalForecast = 0;
+  let totalCost = 0;
   let overBudgetCount = 0;
   let severeOverBudget = 0;
 
   for (const project of projects) {
     const budget = Number(project.budget) || 0;
+    const actualCost = Number(project.actualCost) || 0;
     const forecast = Number(project.forecastedCost) || budget;
+    // Use the higher of actualCost or forecastedCost to represent true financial risk
+    const costToCompare = Math.max(actualCost, forecast);
 
     totalBudget += budget;
-    totalForecast += forecast;
+    totalCost += costToCompare;
 
-    if (forecast > budget) {
+    if (costToCompare > budget && budget > 0) {
       overBudgetCount++;
-      const variance = ((forecast - budget) / budget) * 100;
+      const variance = ((costToCompare - budget) / budget) * 100;
       if (variance > 20) severeOverBudget++;
     }
   }
@@ -282,7 +343,7 @@ async function calculateBudgetRisk(projects: Project[]): Promise<{ score: number
     return { score: 5, detail: 'No budget data available (+5 base risk)' };
   }
 
-  const overallVariance = ((totalForecast - totalBudget) / totalBudget) * 100;
+  const overallVariance = ((totalCost - totalBudget) / totalBudget) * 100;
   const overBudgetPercentage = (overBudgetCount / projects.length) * 100;
 
   let score = 0;
@@ -551,9 +612,11 @@ async function calculateHealthRisk(projects: Project[]): Promise<{ score: number
   let greenCount = 0;
 
   for (const project of projects) {
-    if (project.healthStatus === 'Red') redCount++;
-    else if (project.healthStatus === 'Yellow') yellowCount++;
-    else if (project.healthStatus === 'Green') greenCount++;
+    // Use automatic health status calculation based on metrics
+    const actualHealthStatus = calculateAutoHealthStatus(project);
+    if (actualHealthStatus === 'Red') redCount++;
+    else if (actualHealthStatus === 'Yellow') yellowCount++;
+    else if (actualHealthStatus === 'Green') greenCount++;
   }
 
   const redPercentage = (redCount / projects.length) * 100;

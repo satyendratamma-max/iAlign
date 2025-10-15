@@ -138,10 +138,20 @@ export const updateProject = async (req: Request, res: Response, next: NextFunct
     const isCompletedProject = project.status === 'Completed';
     const isReopeningProject = updateData.status && updateData.status !== 'Completed';
     const scheduleFields = ['startDate', 'endDate', 'actualStartDate', 'actualEndDate'];
-    const hasScheduleChanges = scheduleFields.some(field =>
-      updateData[field] !== undefined &&
-      updateData[field] !== project[field as keyof typeof project]
-    );
+
+    // Helper to normalize dates for comparison (convert to ISO string without time)
+    const normalizeDate = (date: any) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+    };
+
+    const hasScheduleChanges = scheduleFields.some(field => {
+      if (updateData[field] === undefined) return false;
+      const oldDate = normalizeDate(project[field as keyof typeof project]);
+      const newDate = normalizeDate(updateData[field]);
+      return oldDate !== newDate;
+    });
 
     if (isCompletedProject && hasScheduleChanges && !isReopeningProject) {
       throw new ValidationError(
