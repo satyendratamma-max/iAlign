@@ -19,6 +19,7 @@ import {
   TextField,
   Grid,
   MenuItem,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -26,6 +27,9 @@ import {
   Upload as UploadIcon,
   Download as DownloadIcon,
   Description as TemplateIcon,
+  Delete as DeleteIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
@@ -104,16 +108,51 @@ interface SegmentFunction {
   name: string;
 }
 
+interface App {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface Technology {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface RoleItem {
+  id: number;
+  name: string;
+  code: string;
+  level: string;
+}
+
+interface NewCapability {
+  tempId: string;
+  appId: number;
+  technologyId: number;
+  roleId: number;
+  proficiencyLevel: string;
+  yearsOfExperience: number;
+  isPrimary: boolean;
+}
+
 const ResourceOverview = () => {
   const { selectedDomainIds } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
   const [resources, setResources] = useState<Resource[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
+  const [apps, setApps] = useState<App[]>([]);
+  const [technologies, setTechnologies] = useState<Technology[]>([]);
+  const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentResource, setCurrentResource] = useState<Partial<Resource>>({});
+  const [currentCapabilities, setCurrentCapabilities] = useState<Capability[]>([]);
+  const [newCapabilities, setNewCapabilities] = useState<NewCapability[]>([]);
+  const [capabilitiesToDelete, setCapabilitiesToDelete] = useState<number[]>([]);
   const [filters, setFilters] = useState({
     employeeId: '',
     name: '',
@@ -130,15 +169,21 @@ const ResourceOverview = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       // Resources are shared across scenarios, no scenarioId filtering needed
-      const [resourcesRes, domainsRes, segmentFunctionsRes] = await Promise.all([
+      const [resourcesRes, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes] = await Promise.all([
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
+        axios.get(`${API_URL}/apps`, config),
+        axios.get(`${API_URL}/technologies`, config),
+        axios.get(`${API_URL}/roles`, config),
       ]);
 
       setResources(resourcesRes.data.data);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
+      setApps(appsRes.data.data);
+      setTechnologies(techsRes.data.data);
+      setRoles(rolesRes.data.data);
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
@@ -156,16 +201,71 @@ const ResourceOverview = () => {
     if (resource) {
       setEditMode(true);
       setCurrentResource(resource);
+      setCurrentCapabilities(resource.capabilities || []);
     } else {
       setEditMode(false);
       setCurrentResource({});
+      setCurrentCapabilities([]);
     }
+    setNewCapabilities([]);
+    setCapabilitiesToDelete([]);
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setCurrentResource({});
+    setCurrentCapabilities([]);
+    setNewCapabilities([]);
+    setCapabilitiesToDelete([]);
+  };
+
+  const handleAddCapability = () => {
+    const newCap: NewCapability = {
+      tempId: `temp_${Date.now()}`,
+      appId: apps[0]?.id || 0,
+      technologyId: technologies[0]?.id || 0,
+      roleId: roles[0]?.id || 0,
+      proficiencyLevel: 'Beginner',
+      yearsOfExperience: 0,
+      isPrimary: false,
+    };
+    setNewCapabilities([...newCapabilities, newCap]);
+  };
+
+  const handleUpdateNewCapability = (tempId: string, field: string, value: any) => {
+    setNewCapabilities(newCapabilities.map(cap =>
+      cap.tempId === tempId ? { ...cap, [field]: value } : cap
+    ));
+  };
+
+  const handleDeleteNewCapability = (tempId: string) => {
+    setNewCapabilities(newCapabilities.filter(cap => cap.tempId !== tempId));
+  };
+
+  const handleDeleteExistingCapability = (capabilityId: number) => {
+    setCapabilitiesToDelete([...capabilitiesToDelete, capabilityId]);
+    setCurrentCapabilities(currentCapabilities.filter(cap => cap.id !== capabilityId));
+  };
+
+  const handleTogglePrimaryCapability = (capabilityId: number) => {
+    setCurrentCapabilities(currentCapabilities.map(cap => ({
+      ...cap,
+      isPrimary: cap.id === capabilityId ? !cap.isPrimary : false,
+    })));
+  };
+
+  const handleToggleNewPrimaryCapability = (tempId: string) => {
+    setNewCapabilities(newCapabilities.map(cap => ({
+      ...cap,
+      isPrimary: cap.tempId === tempId ? !cap.isPrimary : false,
+    })));
+  };
+
+  const handleUpdateExistingCapability = (capabilityId: number, field: string, value: any) => {
+    setCurrentCapabilities(currentCapabilities.map(cap =>
+      cap.id === capabilityId ? { ...cap, [field]: value } : cap
+    ));
   };
 
   const handleSave = async () => {
@@ -173,17 +273,47 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Resources are shared across scenarios, no scenarioId needed
+      // Save resource basic info
+      let resourceId = currentResource.id;
       if (editMode && currentResource.id) {
         await axios.put(`${API_URL}/resources/${currentResource.id}`, currentResource, config);
       } else {
-        await axios.post(`${API_URL}/resources`, currentResource, config);
+        const response = await axios.post(`${API_URL}/resources`, currentResource, config);
+        resourceId = response.data.data.id;
+      }
+
+      // Delete capabilities marked for deletion
+      for (const capId of capabilitiesToDelete) {
+        await axios.delete(`${API_URL}/resource-capabilities/${capId}`, config);
+      }
+
+      // Update existing capabilities
+      for (const cap of currentCapabilities) {
+        await axios.put(`${API_URL}/resource-capabilities/${cap.id}`, {
+          proficiencyLevel: cap.proficiencyLevel,
+          yearsOfExperience: cap.yearsOfExperience,
+          isPrimary: cap.isPrimary,
+        }, config);
+      }
+
+      // Create new capabilities
+      for (const newCap of newCapabilities) {
+        await axios.post(`${API_URL}/resource-capabilities`, {
+          resourceId,
+          appId: newCap.appId,
+          technologyId: newCap.technologyId,
+          roleId: newCap.roleId,
+          proficiencyLevel: newCap.proficiencyLevel,
+          yearsOfExperience: newCap.yearsOfExperience,
+          isPrimary: newCap.isPrimary,
+        }, config);
       }
 
       fetchResources();
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving resource:', error);
+      alert('Error saving resource. Please check the console for details.');
     }
   };
 
@@ -477,7 +607,7 @@ const ResourceOverview = () => {
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Resource' : 'Add Resource'}</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -717,6 +847,240 @@ const ResourceOverview = () => {
                 <MenuItem value="false">No</MenuItem>
                 <MenuItem value="true">Yes</MenuItem>
               </TextField>
+            </Grid>
+
+            {/* Capabilities Management Section */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 3 }} />
+            </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ mb: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6" fontWeight="bold">
+                    Capabilities (App/Technology/Role)
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={handleAddCapability}
+                    size="small"
+                  >
+                    Add Capability
+                  </Button>
+                </Box>
+
+                {/* Existing Capabilities */}
+                {currentCapabilities.map((cap) => (
+                  <Paper key={cap.id} sx={{ p: 2, mb: 2, backgroundColor: '#f5f5f5' }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="App"
+                          size="small"
+                          value={cap.appId}
+                          onChange={(e) => handleUpdateExistingCapability(cap.id, 'appId', Number(e.target.value))}
+                        >
+                          {apps.map((app) => (
+                            <MenuItem key={app.id} value={app.id}>
+                              {app.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Technology"
+                          size="small"
+                          value={cap.technologyId}
+                          onChange={(e) => handleUpdateExistingCapability(cap.id, 'technologyId', Number(e.target.value))}
+                        >
+                          {technologies.map((tech) => (
+                            <MenuItem key={tech.id} value={tech.id}>
+                              {tech.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Role"
+                          size="small"
+                          value={cap.roleId}
+                          onChange={(e) => handleUpdateExistingCapability(cap.id, 'roleId', Number(e.target.value))}
+                        >
+                          {roles.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                              {role.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Proficiency"
+                          size="small"
+                          value={cap.proficiencyLevel}
+                          onChange={(e) => handleUpdateExistingCapability(cap.id, 'proficiencyLevel', e.target.value)}
+                        >
+                          <MenuItem value="Beginner">Beginner</MenuItem>
+                          <MenuItem value="Intermediate">Intermediate</MenuItem>
+                          <MenuItem value="Advanced">Advanced</MenuItem>
+                          <MenuItem value="Expert">Expert</MenuItem>
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={1.5}>
+                        <TextField
+                          fullWidth
+                          label="Years"
+                          type="number"
+                          size="small"
+                          value={cap.yearsOfExperience || 0}
+                          onChange={(e) => handleUpdateExistingCapability(cap.id, 'yearsOfExperience', Number(e.target.value))}
+                          inputProps={{ min: 0 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={1} display="flex" justifyContent="center">
+                        <Button
+                          size="small"
+                          onClick={() => handleTogglePrimaryCapability(cap.id)}
+                          startIcon={cap.isPrimary ? <StarIcon /> : <StarBorderIcon />}
+                          color={cap.isPrimary ? 'primary' : 'inherit'}
+                          title={cap.isPrimary ? 'Primary capability' : 'Set as primary'}
+                        >
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12} sm={1.5} display="flex" justifyContent="center">
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => handleDeleteExistingCapability(cap.id)}
+                        >
+                          Delete
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ))}
+
+                {/* New Capabilities */}
+                {newCapabilities.map((newCap) => (
+                  <Paper key={newCap.tempId} sx={{ p: 2, mb: 2, backgroundColor: '#e3f2fd' }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="App"
+                          size="small"
+                          value={newCap.appId}
+                          onChange={(e) => handleUpdateNewCapability(newCap.tempId, 'appId', Number(e.target.value))}
+                        >
+                          {apps.map((app) => (
+                            <MenuItem key={app.id} value={app.id}>
+                              {app.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Technology"
+                          size="small"
+                          value={newCap.technologyId}
+                          onChange={(e) => handleUpdateNewCapability(newCap.tempId, 'technologyId', Number(e.target.value))}
+                        >
+                          {technologies.map((tech) => (
+                            <MenuItem key={tech.id} value={tech.id}>
+                              {tech.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Role"
+                          size="small"
+                          value={newCap.roleId}
+                          onChange={(e) => handleUpdateNewCapability(newCap.tempId, 'roleId', Number(e.target.value))}
+                        >
+                          {roles.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                              {role.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Proficiency"
+                          size="small"
+                          value={newCap.proficiencyLevel}
+                          onChange={(e) => handleUpdateNewCapability(newCap.tempId, 'proficiencyLevel', e.target.value)}
+                        >
+                          <MenuItem value="Beginner">Beginner</MenuItem>
+                          <MenuItem value="Intermediate">Intermediate</MenuItem>
+                          <MenuItem value="Advanced">Advanced</MenuItem>
+                          <MenuItem value="Expert">Expert</MenuItem>
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={1.5}>
+                        <TextField
+                          fullWidth
+                          label="Years"
+                          type="number"
+                          size="small"
+                          value={newCap.yearsOfExperience}
+                          onChange={(e) => handleUpdateNewCapability(newCap.tempId, 'yearsOfExperience', Number(e.target.value))}
+                          inputProps={{ min: 0 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={1} display="flex" justifyContent="center">
+                        <Button
+                          size="small"
+                          onClick={() => handleToggleNewPrimaryCapability(newCap.tempId)}
+                          startIcon={newCap.isPrimary ? <StarIcon /> : <StarBorderIcon />}
+                          color={newCap.isPrimary ? 'primary' : 'inherit'}
+                          title={newCap.isPrimary ? 'Primary capability' : 'Set as primary'}
+                        >
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12} sm={1.5} display="flex" justifyContent="center">
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => handleDeleteNewCapability(newCap.tempId)}
+                        >
+                          Delete
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ))}
+
+                {currentCapabilities.length === 0 && newCapabilities.length === 0 && (
+                  <Paper sx={{ p: 3, textAlign: 'center', backgroundColor: '#f9f9f9' }}>
+                    <Typography color="text.secondary">
+                      No capabilities added yet. Click "Add Capability" to assign App/Technology/Role combinations.
+                    </Typography>
+                  </Paper>
+                )}
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>

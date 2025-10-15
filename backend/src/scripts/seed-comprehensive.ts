@@ -321,6 +321,26 @@ const seedDatabase = async (dropTables: boolean = true) => {
     const firstNames = ['Alex', 'Blake', 'Casey', 'Dana', 'Ellis', 'Finley', 'Grey', 'Harper', 'Indigo', 'Jordan'];
     const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
 
+    // Skill sets for random assignment
+    const primarySkills = [
+      'JavaScript', 'Python', 'Java', 'C#', 'TypeScript', 'React', 'Angular', 'Vue.js',
+      'Node.js', '.NET', 'Spring Boot', 'Django', 'SQL', 'MongoDB', 'AWS', 'Azure',
+      'SAP ABAP', 'SAP Fiori', 'Salesforce', 'Oracle DB', 'DevOps', 'Kubernetes'
+    ];
+
+    const secondarySkillSets = [
+      'Git, Docker, CI/CD',
+      'REST APIs, GraphQL, Microservices',
+      'Agile, Scrum, JIRA',
+      'HTML, CSS, Bootstrap',
+      'PostgreSQL, MySQL, Redis',
+      'Jenkins, TeamCity, GitHub Actions',
+      'Linux, Shell Scripting, Bash',
+      'Unit Testing, Integration Testing, Selenium',
+      'Cloud Architecture, Serverless, Lambda',
+      'Security, OAuth, JWT',
+    ];
+
     // Create 15-20 resources per domain
     for (const domain of domains) {
       const domainSegmentFunctions = segmentFunctions.filter(sf => sf.domainId === domain.id);
@@ -331,6 +351,10 @@ const seedDatabase = async (dropTables: boolean = true) => {
         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
         const hourlyRate = Math.floor(Math.random() * 100) + 80; // $80-180/hr
         const segmentFunction = domainSegmentFunctions[Math.floor(Math.random() * domainSegmentFunctions.length)];
+
+        // Randomly assign skills
+        const primarySkill = primarySkills[Math.floor(Math.random() * primarySkills.length)];
+        const secondarySkills = secondarySkillSets[Math.floor(Math.random() * secondarySkillSets.length)];
 
         const resource = await Resource.create({
           domainId: domain.id,
@@ -344,6 +368,8 @@ const seedDatabase = async (dropTables: boolean = true) => {
           hourlyRate,
           utilizationRate: Math.floor(Math.random() * 30) + 70,
           joiningDate: new Date(2020, Math.floor(Math.random() * 5), 1), // Random date between 2020-2024
+          primarySkill,
+          secondarySkills,
           isActive: true,
         });
         resources.push(resource);
