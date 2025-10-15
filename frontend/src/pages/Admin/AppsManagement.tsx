@@ -74,6 +74,11 @@ const AppsManagement = () => {
     appId: number | null;
   }>({ open: false, appId: null });
 
+  // Loading states for async operations
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   useEffect(() => {
     fetchApps();
   }, []);
@@ -129,12 +134,15 @@ const AppsManagement = () => {
   };
 
   const handleSaveApp = async () => {
+    if (submitting) return; // Prevent multiple submissions
+
     try {
       if (!formData.name || !formData.code || !formData.category) {
         setError('Name, Code, and Category are required');
         return;
       }
 
+      setSubmitting(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -151,6 +159,8 @@ const AppsManagement = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError('Error saving app: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -159,19 +169,22 @@ const AppsManagement = () => {
   };
 
   const confirmDeleteApp = async () => {
-    if (confirmDialog.appId) {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_URL}/apps/${confirmDialog.appId}`, config);
-        setSuccess('App deleted successfully');
-        fetchApps();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (error: any) {
-        setError('Error deleting app: ' + (error.response?.data?.error?.message || error.message));
-      }
+    if (!confirmDialog.appId || deleting) return; // Prevent multiple submissions
+
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_URL}/apps/${confirmDialog.appId}`, config);
+      setSuccess('App deleted successfully');
+      fetchApps();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error: any) {
+      setError('Error deleting app: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setDeleting(false);
+      setConfirmDialog({ open: false, appId: null });
     }
-    setConfirmDialog({ open: false, appId: null });
   };
 
   const handleExport = () => {
@@ -192,8 +205,9 @@ const AppsManagement = () => {
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || importing) return; // Prevent multiple imports
 
+    setImporting(true);
     importFromExcel(
       file,
       async (data) => {
@@ -234,10 +248,13 @@ const AppsManagement = () => {
           setTimeout(() => setSuccess(null), 5000);
         } catch (error: any) {
           setError('Error importing data: ' + error.message);
+        } finally {
+          setImporting(false);
         }
       },
       (error) => {
         setError('Error reading file: ' + error);
+        setImporting(false);
       }
     );
 
@@ -265,8 +282,13 @@ const AppsManagement = () => {
             onChange={handleImport}
           />
           <label htmlFor="import-apps-file">
-            <Button variant="outlined" component="span" startIcon={<UploadIcon />}>
-              Import
+            <Button
+              variant="outlined"
+              component="span"
+              startIcon={importing ? <CircularProgress size={20} /> : <UploadIcon />}
+              disabled={importing}
+            >
+              {importing ? 'Importing...' : 'Import'}
             </Button>
           </label>
           <Button
@@ -468,9 +490,16 @@ const AppsManagement = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSaveApp} variant="contained">
-            {selectedApp ? 'Update' : 'Create'}
+          <Button onClick={handleCloseDialog} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveApp}
+            variant="contained"
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
+          >
+            {submitting ? (selectedApp ? 'Updating...' : 'Creating...') : (selectedApp ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -484,6 +513,8 @@ const AppsManagement = () => {
         onCancel={() => setConfirmDialog({ open: false, appId: null })}
         confirmText="Delete"
         confirmColor="error"
+        loading={deleting}
+        loadingText="Deleting..."
       />
     </Box>
   );

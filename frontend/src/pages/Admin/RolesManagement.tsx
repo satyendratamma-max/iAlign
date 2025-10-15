@@ -104,6 +104,11 @@ const RolesManagement = () => {
     roleId: number | null;
   }>({ open: false, roleId: null });
 
+  // Loading states for async operations
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   useEffect(() => {
     fetchApps();
     fetchRoles();
@@ -203,12 +208,15 @@ const RolesManagement = () => {
   };
 
   const handleSaveRole = async () => {
+    if (submitting) return; // Prevent multiple submissions
+
     try {
       if (!formData.name || !formData.code || !formData.category) {
         setError('Name, Code, and Category are required');
         return;
       }
 
+      setSubmitting(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -230,6 +238,8 @@ const RolesManagement = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError('Error saving role: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -238,19 +248,22 @@ const RolesManagement = () => {
   };
 
   const confirmDeleteRole = async () => {
-    if (confirmDialog.roleId) {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_URL}/roles/${confirmDialog.roleId}`, config);
-        setSuccess('Role deleted successfully');
-        fetchRoles();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (error: any) {
-        setError('Error deleting role: ' + (error.response?.data?.error?.message || error.message));
-      }
+    if (!confirmDialog.roleId || deleting) return; // Prevent multiple submissions
+
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_URL}/roles/${confirmDialog.roleId}`, config);
+      setSuccess('Role deleted successfully');
+      fetchRoles();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error: any) {
+      setError('Error deleting role: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setDeleting(false);
+      setConfirmDialog({ open: false, roleId: null });
     }
-    setConfirmDialog({ open: false, roleId: null });
   };
 
   const handleExport = () => {
@@ -274,8 +287,9 @@ const RolesManagement = () => {
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || importing) return; // Prevent multiple imports
 
+    setImporting(true);
     importFromExcel(
       file,
       async (data) => {
@@ -317,10 +331,13 @@ const RolesManagement = () => {
           setTimeout(() => setSuccess(null), 5000);
         } catch (error: any) {
           setError('Error importing data: ' + error.message);
+        } finally {
+          setImporting(false);
         }
       },
       (error) => {
         setError('Error reading file: ' + error);
+        setImporting(false);
       }
     );
 
@@ -374,8 +391,13 @@ const RolesManagement = () => {
             onChange={handleImport}
           />
           <label htmlFor="import-roles-file">
-            <Button variant="outlined" component="span" startIcon={<UploadIcon />}>
-              Import
+            <Button
+              variant="outlined"
+              component="span"
+              startIcon={importing ? <CircularProgress size={20} /> : <UploadIcon />}
+              disabled={importing}
+            >
+              {importing ? 'Importing...' : 'Import'}
             </Button>
           </label>
           <Button
@@ -622,9 +644,16 @@ const RolesManagement = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSaveRole} variant="contained">
-            {selectedRole ? 'Update' : 'Create'}
+          <Button onClick={handleCloseDialog} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveRole}
+            variant="contained"
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
+          >
+            {submitting ? (selectedRole ? 'Updating...' : 'Creating...') : (selectedRole ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -638,6 +667,8 @@ const RolesManagement = () => {
         onCancel={() => setConfirmDialog({ open: false, roleId: null })}
         confirmText="Delete"
         confirmColor="error"
+        loading={deleting}
+        loadingText="Deleting..."
       />
     </Box>
   );

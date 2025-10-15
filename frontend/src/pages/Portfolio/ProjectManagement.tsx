@@ -485,6 +485,9 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (project.status === 'Completed') {
+                      return;
+                    }
                     const container = document.getElementById(`timeline-container-${project.id}`);
                     if (!container) return;
                     const rect = container.getBoundingClientRect();
@@ -541,6 +544,9 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      if (project.status === 'Completed') {
+                        return;
+                      }
                       const container = document.getElementById(`timeline-container-${project.id}`);
                       if (!container) return;
                       const rect = container.getBoundingClientRect();
@@ -581,6 +587,9 @@ const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      if (project.status === 'Completed') {
+                        return;
+                      }
                       const container = document.getElementById(`timeline-container-${project.id}`);
                       if (!container) return;
                       const rect = container.getBoundingClientRect();
@@ -2289,6 +2298,13 @@ const ProjectManagement = () => {
 
       // Get old dates before update
       const project = projects.find(p => p.id === projectId);
+
+      // Check if project is completed
+      if (project && project.status === 'Completed') {
+        showAlert('Cannot modify dates for completed projects. Please change the project status first.', 'warning');
+        return;
+      }
+
       const oldStartDate = project ? new Date(project.startDate || project.desiredStartDate || new Date()) : new Date();
       const oldEndDate = project ? new Date(project.endDate || project.desiredCompletionDate || new Date()) : new Date();
 
@@ -2366,6 +2382,16 @@ const ProjectManagement = () => {
 
       // Get old date before update
       const milestone = milestones.find(m => m.id === milestoneId);
+
+      // Check if parent project is completed
+      if (milestone) {
+        const project = projects.find(p => p.id === milestone.projectId);
+        if (project && project.status === 'Completed') {
+          showAlert('Cannot modify milestone dates for completed projects. Please change the project status first.', 'warning');
+          return;
+        }
+      }
+
       const oldDate = milestone ? new Date(milestone.plannedEndDate || milestone.actualEndDate || new Date()) : new Date();
 
       await axios.put(`${API_URL}/milestones/${milestoneId}`, {
@@ -2410,6 +2436,13 @@ const ProjectManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Check if project is completed
+      const project = projects.find(p => p.id === projectId);
+      if (project && project.status === 'Completed') {
+        showAlert('Cannot modify dates for completed projects. Please change the project status first.', 'warning');
+        return;
+      }
 
       // Update project dates
       await axios.put(`${API_URL}/projects/${projectId}`, {
@@ -4397,6 +4430,10 @@ const ProjectManagement = () => {
                               handleMilestoneMouseDown={(e, milestone, projectId) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                const parentProject = projects.find(p => p.id === projectId);
+                                if (parentProject && parentProject.status === 'Completed') {
+                                  return;
+                                }
                                 const container = document.getElementById(`timeline-container-${projectId}`);
                                 if (!container) return;
                                 const rect = container.getBoundingClientRect();
@@ -4621,6 +4658,9 @@ const ProjectManagement = () => {
                                               title={tooltipContent}
                                               onMouseDown={(e) => {
                                                   e.preventDefault();
+                                                  if (project.status === 'Completed') {
+                                                    return;
+                                                  }
                                                   const container = document.getElementById(`timeline-container-${project.id}`);
                                                   if (!container) return;
                                                   const rect = container.getBoundingClientRect();
@@ -4680,6 +4720,9 @@ const ProjectManagement = () => {
                                                   onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    if (project.status === 'Completed') {
+                                                      return;
+                                                    }
                                                     const container = document.getElementById(`timeline-container-${project.id}`);
                                                     if (!container) return;
                                                     const rect = container.getBoundingClientRect();
@@ -4720,6 +4763,9 @@ const ProjectManagement = () => {
                                                   onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    if (project.status === 'Completed') {
+                                                      return;
+                                                    }
                                                     const container = document.getElementById(`timeline-container-${project.id}`);
                                                     if (!container) return;
                                                     const rect = container.getBoundingClientRect();
@@ -4773,6 +4819,9 @@ const ProjectManagement = () => {
                                   onMouseDown={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation(); // Prevent project bar drag
+                                    if (project.status === 'Completed') {
+                                      return;
+                                    }
                                     // Get the timeline container (go up two levels: milestone -> wrapper -> timeline container)
                                     const wrapper = e.currentTarget.parentElement;
                                     if (!wrapper) return;
@@ -5079,6 +5128,9 @@ const ProjectManagement = () => {
                                               title={tooltipContent}
                                               onMouseDown={(e) => {
                                                   e.preventDefault();
+                                                  if (project.status === 'Completed') {
+                                                    return;
+                                                  }
                                                   const timelineContainer = e.currentTarget.parentElement;
                                                   if (!timelineContainer) return;
                                                   const rect = timelineContainer.getBoundingClientRect();
@@ -5136,6 +5188,9 @@ const ProjectManagement = () => {
                                                   onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    if (project.status === 'Completed') {
+                                                      return;
+                                                    }
                                                     const timelineContainer = e.currentTarget.parentElement?.parentElement;
                                                     if (!timelineContainer) return;
                                                     const rect = timelineContainer.getBoundingClientRect();
@@ -5176,6 +5231,9 @@ const ProjectManagement = () => {
                                                   onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    if (project.status === 'Completed') {
+                                                      return;
+                                                    }
                                                     const timelineContainer = e.currentTarget.parentElement?.parentElement;
                                                     if (!timelineContainer) return;
                                                     const rect = timelineContainer.getBoundingClientRect();
@@ -5229,6 +5287,9 @@ const ProjectManagement = () => {
                                               onMouseDown={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation(); // Prevent project bar drag
+                                                if (project.status === 'Completed') {
+                                                  return;
+                                                }
                                                 // Get the timeline container (go up two levels: milestone -> wrapper -> timeline container)
                                                 const wrapper = e.currentTarget.parentElement;
                                                 if (!wrapper) return;
@@ -5327,7 +5388,7 @@ const ProjectManagement = () => {
 
                   {/* Dependency Arrows Overlay */}
                   <svg
-                    viewBox={`0 0 100 ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37}`}
+                    viewBox={`0 0 ${timelineWidth} ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37}`}
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
@@ -5357,12 +5418,12 @@ const ProjectManagement = () => {
                           key={id}
                           id={id}
                           viewBox="0 0 10 10"
-                          refX="10"
+                          refX="9"
                           refY="5"
-                          markerWidth="4"
-                          markerHeight="4"
+                          markerWidth="6"
+                          markerHeight="10"
                           orient="auto"
-                          markerUnits="strokeWidth"
+                          markerUnits="userSpaceOnUse"
                         >
                           <path
                             d="M 0 0 L 10 5 L 0 10 z"
@@ -5396,22 +5457,22 @@ const ProjectManagement = () => {
                         const markerColor = color.replace('#', '');
                         const markerId = `arrow-${markerColor}`;
 
-                        // Use percentage coordinates directly (viewBox is 0-100 for x)
+                        // Convert percentage coordinates to pixels (viewBox now uses timelineWidth in pixels)
                         // In flat view: 28px + 4px marginBottom + 4px paddingBottom + 1px border = 37px per row
                         // In swimlane: 32px per row + 1px border (but swimlane borders overlap, no extra accumulation)
                         const rowHeight = swimlaneConfig.enabled ? 32 : 37;
-                        const x1 = predPos.x;
+                        const x1 = (predPos.x / 100) * timelineWidth;
                         const y1 = predPos.rowIndex * rowHeight + predPos.y;
-                        const x2 = succPos.x;
+                        const x2 = (succPos.x / 100) * timelineWidth;
                         const y2 = succPos.rowIndex * rowHeight + succPos.y;
 
                         // MS Project style routing: edge-to-edge with clean step patterns
                         // Exit horizontally from predecessor end, enter horizontally to successor start
-                        const horizontalExit = 2; // Horizontal distance to exit from predecessor (percentage units)
-                        const horizontalEnter = 1; // Horizontal distance before entering successor (percentage units)
+                        const horizontalExit = timelineWidth * 0.02; // 2% of timeline width in pixels
+                        const horizontalEnter = timelineWidth * 0.01; // 1% of timeline width in pixels
                         const verticalClearance = 14; // Vertical clearance between rows (pixels)
-                        const arrowClearance = 0.8; // Space reserved for the arrow (percentage units)
-                        const minHorizontalSpace = 3; // Minimum space needed for simple L-shaped routing (percentage units)
+                        const arrowClearance = timelineWidth * 0.008; // 0.8% of timeline width in pixels
+                        const minHorizontalSpace = timelineWidth * 0.03; // 3% of timeline width in pixels
 
                         let pathD: string;
                         const horizontalGap = x2 - x1;

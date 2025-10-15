@@ -228,6 +228,8 @@ const DataManagement = () => {
   ]);
 
   const handleResetDatabase = async () => {
+    if (resetting) return; // Prevent multiple submissions
+
     setResetting(true);
     setError(null);
 
@@ -258,6 +260,8 @@ const DataManagement = () => {
   };
 
   const handleResetAndReseed = async () => {
+    if (reseeding) return; // Prevent multiple submissions
+
     setReseeding(true);
     setError(null);
 
@@ -300,6 +304,8 @@ const DataManagement = () => {
 
   const handleImport = async (stepIndex: number, file: File) => {
     const step = steps[stepIndex];
+    if (step.importing) return; // Prevent multiple imports
+
     setError(null);
 
     // Update importing state
@@ -631,11 +637,11 @@ const DataManagement = () => {
                 <Button
                   variant="contained"
                   component="label"
-                  startIcon={<UploadIcon />}
+                  startIcon={step.importing ? <CircularProgress size={20} /> : <UploadIcon />}
                   disabled={step.importing}
                   size="small"
                 >
-                  Upload & Import
+                  {step.importing ? 'Importing...' : 'Upload & Import'}
                   <input
                     type="file"
                     hidden
@@ -769,12 +775,15 @@ const DataManagement = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setResetDialogOpen(false)} disabled={resetting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleResetDatabase}
             variant="contained"
             color="error"
             disabled={resetting}
+            startIcon={resetting ? <CircularProgress size={20} /> : undefined}
           >
             {resetting ? 'Resetting...' : 'Yes, Reset All Data'}
           </Button>
@@ -832,12 +841,15 @@ const DataManagement = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setReseedDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setReseedDialogOpen(false)} disabled={reseeding}>
+            Cancel
+          </Button>
           <Button
             onClick={handleResetAndReseed}
             variant="contained"
             color="warning"
             disabled={reseeding}
+            startIcon={reseeding ? <CircularProgress size={20} /> : undefined}
           >
             {reseeding ? 'Resetting & Reseeding...' : 'Yes, Reset & Reseed'}
           </Button>

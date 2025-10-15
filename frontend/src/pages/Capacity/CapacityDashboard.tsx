@@ -13,6 +13,7 @@ import {
   TableRow,
   CircularProgress,
   LinearProgress,
+  Tooltip,
 } from '@mui/material';
 import SharedFilters from '../../components/common/SharedFilters';
 import { useAppSelector } from '../../hooks/redux';
@@ -21,6 +22,11 @@ import {
   TrendingUp,
   AttachMoney,
   Speed,
+  InfoOutlined,
+  CheckCircle,
+  HourglassEmpty,
+  Warning,
+  ErrorOutline,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -122,11 +128,45 @@ const CapacityDashboard = () => {
 
   const avgHourlyRate = resources.reduce((sum, r) => sum + (r.hourlyRate || 0), 0) / totalResources || 0;
 
-  const utilizationBreakdown = {
-    high: resources.filter(r => (r.utilizationRate || 0) >= 85).length,
-    medium: resources.filter(r => (r.utilizationRate || 0) >= 70 && (r.utilizationRate || 0) < 85).length,
-    low: resources.filter(r => (r.utilizationRate || 0) < 70).length,
-  };
+  // Calculate capacity status metrics based on actual allocations
+  const resourceActualUtilization = new Map<number, number>();
+  allocations.forEach(allocation => {
+    const current = resourceActualUtilization.get(allocation.resourceId) || 0;
+    resourceActualUtilization.set(allocation.resourceId, current + allocation.allocationPercentage);
+  });
+
+  // Get all resource IDs
+  const allResourceIds = resources.map(r => r.id);
+
+  // Available Capacity: resources with actual allocation <= 100%
+  const availableCapacityCount = allResourceIds.filter(id => {
+    const utilization = resourceActualUtilization.get(id) || 0;
+    return utilization <= 100;
+  }).length;
+
+  // Bench Resources: resources with 0% allocation
+  const benchResourcesCount = allResourceIds.filter(id => {
+    const utilization = resourceActualUtilization.get(id) || 0;
+    return utilization === 0;
+  }).length;
+
+  // Fully Allocated: resources with exactly 100% allocation
+  const fullyAllocatedCount = allResourceIds.filter(id => {
+    const utilization = resourceActualUtilization.get(id) || 0;
+    return utilization === 100;
+  }).length;
+
+  // Over-Allocated: resources with >100% allocation
+  const overAllocatedCount = allResourceIds.filter(id => {
+    const utilization = resourceActualUtilization.get(id) || 0;
+    return utilization > 100;
+  }).length;
+
+  // Critical Resources: resources with >=95% and <100% allocation
+  const criticalResourcesCount = allResourceIds.filter(id => {
+    const utilization = resourceActualUtilization.get(id) || 0;
+    return utilization >= 95 && utilization < 100;
+  }).length;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -156,10 +196,18 @@ const CapacityDashboard = () => {
           <Card>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    Total Resources
-                  </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      Total Resources
+                    </Typography>
+                    <Tooltip
+                      title="Total number of active resources in the system. The 'actively allocated' count shows unique resources that have at least one allocation (a resource working on multiple projects is counted once)."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4">{totalResources}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {allocatedResources} actively allocated
@@ -177,10 +225,18 @@ const CapacityDashboard = () => {
           <Card>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    Avg Utilization
-                  </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      Avg Utilization
+                    </Typography>
+                    <Tooltip
+                      title="Average utilization rate across all resources. Calculated as the mean of each resource's utilization rate. Optimal range is typically 70-85%."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4">{Math.round(avgUtilization)}%</Typography>
                   <Typography variant="caption" color="success.main">
                     ↑ Optimal range
@@ -198,10 +254,18 @@ const CapacityDashboard = () => {
           <Card>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    Monthly Cost
-                  </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      Monthly Cost
+                    </Typography>
+                    <Tooltip
+                      title="Total monthly resource cost calculated as: Sum of (hourly rate × 160 standard work hours) for all resources. Based on current resource pool regardless of allocation status."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4">{formatCurrency(totalMonthlyCost)}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {totalResources} resources
@@ -219,10 +283,18 @@ const CapacityDashboard = () => {
           <Card>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    Avg Hourly Rate
-                  </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      Avg Hourly Rate
+                    </Typography>
+                    <Tooltip
+                      title="Average hourly rate across all resources. Calculated as the sum of all hourly rates divided by the total number of resources."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4">{formatCurrency(avgHourlyRate)}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Per resource
@@ -304,67 +376,101 @@ const CapacityDashboard = () => {
           </Card>
         </Grid>
 
-        {/* Capacity Breakdown */}
+        {/* Capacity Status */}
         <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Capacity Breakdown
+                Capacity Status
               </Typography>
               <Box sx={{ mt: 2 }}>
-                <Box sx={{ mb: 2 }}>
-                  <Box display="flex" justifyContent="space-between" mb={0.5}>
-                    <Typography variant="body2">High Utilization (≥85%)</Typography>
+                {/* Available Capacity */}
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'success.50', borderRadius: 1, border: '1px solid', borderColor: 'success.200' }}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <CheckCircle sx={{ fontSize: 20, color: 'success.main' }} />
                     <Typography variant="body2" fontWeight="medium">
-                      {utilizationBreakdown.high}
+                      Available Capacity
                     </Typography>
+                    <Tooltip
+                      title="Resources with actual allocation at or below 100%. This includes fully allocated resources (at 100%) and those with available capacity (below 100%)."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 14, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={(utilizationBreakdown.high / totalResources) * 100}
-                    sx={{ height: 8, borderRadius: 4 }}
-                    color="success"
-                  />
+                  <Typography variant="h4" color="success.main">
+                    {availableCapacityCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    at or below capacity ({fullyAllocatedCount} at 100%)
+                  </Typography>
                 </Box>
 
-                <Box sx={{ mb: 2 }}>
-                  <Box display="flex" justifyContent="space-between" mb={0.5}>
-                    <Typography variant="body2">Medium (70-84%)</Typography>
+                {/* Bench Resources */}
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'info.50', borderRadius: 1, border: '1px solid', borderColor: 'info.200' }}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <HourglassEmpty sx={{ fontSize: 20, color: 'info.main' }} />
                     <Typography variant="body2" fontWeight="medium">
-                      {utilizationBreakdown.medium}
+                      Bench Resources
                     </Typography>
+                    <Tooltip
+                      title="Resources with 0% allocation. These resources are immediately available for new projects."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 14, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={(utilizationBreakdown.medium / totalResources) * 100}
-                    sx={{ height: 8, borderRadius: 4 }}
-                    color="primary"
-                  />
+                  <Typography variant="h4" color="info.main">
+                    {benchResourcesCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ready for assignment
+                  </Typography>
                 </Box>
 
-                <Box sx={{ mb: 2 }}>
-                  <Box display="flex" justifyContent="space-between" mb={0.5}>
-                    <Typography variant="body2">Low (&lt;70%)</Typography>
+                {/* Critical Resources */}
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.50', borderRadius: 1, border: '1px solid', borderColor: 'warning.200' }}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <Warning sx={{ fontSize: 20, color: 'warning.main' }} />
                     <Typography variant="body2" fontWeight="medium">
-                      {utilizationBreakdown.low}
+                      Critical Resources
                     </Typography>
+                    <Tooltip
+                      title="Resources with 95-100% allocation. These resources are near capacity and may need attention."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 14, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={(utilizationBreakdown.low / totalResources) * 100}
-                    sx={{ height: 8, borderRadius: 4 }}
-                    color="warning"
-                  />
+                  <Typography variant="h4" color="warning.main">
+                    {criticalResourcesCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    near capacity
+                  </Typography>
                 </Box>
-              </Box>
 
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                <Typography variant="body2" fontWeight="medium" gutterBottom>
-                  Allocation Overview
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {totalAllocations} active allocations across {allocatedResources} resources
-                </Typography>
+                {/* Over-Allocated */}
+                <Box sx={{ p: 2, bgcolor: 'error.50', borderRadius: 1, border: '1px solid', borderColor: 'error.200' }}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <ErrorOutline sx={{ fontSize: 20, color: 'error.main' }} />
+                    <Typography variant="body2" fontWeight="medium">
+                      Over-Allocated
+                    </Typography>
+                    <Tooltip
+                      title="Resources with allocation exceeding 100%. These resources need immediate rebalancing."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 14, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
+                  <Typography variant="h4" color="error.main">
+                    {overAllocatedCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    require attention
+                  </Typography>
+                </Box>
               </Box>
             </CardContent>
           </Card>

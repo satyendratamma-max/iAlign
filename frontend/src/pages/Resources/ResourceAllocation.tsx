@@ -38,6 +38,7 @@ import {
   TableChart as TableChartIcon,
   Timeline as TimelineIcon,
   ViewKanban as ViewKanbanIcon,
+  InfoOutlined,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
@@ -167,7 +168,7 @@ const ResourceAllocation = () => {
 
       const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/allocations${scenarioParam}`, config),
-        axios.get(`${API_URL}/resources${scenarioParam}`, config),
+        axios.get(`${API_URL}/resources`, config), // Resources are shared, no scenarioId filter
         axios.get(`${API_URL}/projects${scenarioParam}`, config),
         axios.get(`${API_URL}/domains`, config),
       ]);
@@ -289,10 +290,16 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Ensure scenarioId is included in the allocation data
+      const allocationData = {
+        ...currentAllocation,
+        scenarioId: activeScenario?.id,
+      };
+
       if (editMode && currentAllocation.id) {
-        await axios.put(`${API_URL}/allocations/${currentAllocation.id}`, currentAllocation, config);
+        await axios.put(`${API_URL}/allocations/${currentAllocation.id}`, allocationData, config);
       } else {
-        await axios.post(`${API_URL}/allocations`, currentAllocation, config);
+        await axios.post(`${API_URL}/allocations`, allocationData, config);
       }
 
       fetchData();
@@ -839,9 +846,17 @@ const ResourceAllocation = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2">
-                Total Allocations
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <Typography color="text.secondary" variant="body2">
+                  Total Allocations
+                </Typography>
+                <Tooltip
+                  title="Total number of allocation records in the current scenario. This counts each resource-project assignment separately. A single resource can have multiple allocations if assigned to multiple projects."
+                  arrow
+                >
+                  <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                </Tooltip>
+              </Box>
               <Typography variant="h4">{filteredAllocations.length}</Typography>
             </CardContent>
           </Card>
@@ -849,9 +864,17 @@ const ResourceAllocation = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2">
-                Over-Allocated Resources
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <Typography color="text.secondary" variant="body2">
+                  Over-Allocated Resources
+                </Typography>
+                <Tooltip
+                  title="Number of resources with total allocation percentage exceeding 100%. Calculated by summing all allocation percentages for each resource across all their projects."
+                  arrow
+                >
+                  <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                </Tooltip>
+              </Box>
               <Typography variant="h4" color="error">
                 {overAllocatedResources.length}
               </Typography>
@@ -861,9 +884,17 @@ const ResourceAllocation = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2">
-                Poor Match Allocations
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <Typography color="text.secondary" variant="body2">
+                  Poor Match Allocations
+                </Typography>
+                <Tooltip
+                  title="Allocations with match score below 60. Match score compares resource capabilities (app/tech/role/proficiency) against project requirements. Lower scores indicate skill mismatches."
+                  arrow
+                >
+                  <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                </Tooltip>
+              </Box>
               <Typography variant="h4" color="warning.main">
                 {poorMatchAllocations.length}
               </Typography>
@@ -876,9 +907,17 @@ const ResourceAllocation = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2">
-                Avg Match Score
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <Typography color="text.secondary" variant="body2">
+                  Avg Match Score
+                </Typography>
+                <Tooltip
+                  title="Average match score across all allocations that have scores. Calculated as the mean of all match scores. 80+ = Excellent, 60-79 = Good, 40-59 = Fair, <40 = Poor."
+                  arrow
+                >
+                  <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                </Tooltip>
+              </Box>
               <Typography variant="h4" color="success.main">
                 {filteredAllocations.filter((a) => a.matchScore).length > 0
                   ? Math.round(
@@ -899,9 +938,17 @@ const ResourceAllocation = () => {
             <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ bgcolor: 'info.lighter' }}>
                 <CardContent>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    Resources Working Cross-Domain
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      Resources Working Cross-Domain
+                    </Typography>
+                    <Tooltip
+                      title="Unique resources from the filtered domain/decision who are working on projects in OTHER domains/decisions. This shows resource sharing going outbound from your selection."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4" color="info.main">
                     {outboundCrossDomain}
                   </Typography>
@@ -914,9 +961,17 @@ const ResourceAllocation = () => {
             <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ bgcolor: 'secondary.lighter' }}>
                 <CardContent>
-                  <Typography color="text.secondary" gutterBottom variant="body2">
-                    External Resources Contributing
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                    <Typography color="text.secondary" variant="body2">
+                      External Resources Contributing
+                    </Typography>
+                    <Tooltip
+                      title="Unique resources from OTHER domains/decisions who are working on projects in your filtered selection. This shows resource sharing coming inbound to your selection."
+                      arrow
+                    >
+                      <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography variant="h4" color="secondary.main">
                     {inboundCrossDomain}
                   </Typography>

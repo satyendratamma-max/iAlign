@@ -89,6 +89,11 @@ const TechnologiesManagement = () => {
     technologyId: number | null;
   }>({ open: false, technologyId: null });
 
+  // Loading states for async operations
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   useEffect(() => {
     fetchApps();
     fetchTechnologies();
@@ -166,12 +171,15 @@ const TechnologiesManagement = () => {
   };
 
   const handleSaveTechnology = async () => {
+    if (submitting) return; // Prevent multiple submissions
+
     try {
       if (!formData.name || !formData.code || !formData.category || !formData.stackType) {
         setError('Name, Code, Category, and Stack Type are required');
         return;
       }
 
+      setSubmitting(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -188,6 +196,8 @@ const TechnologiesManagement = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError('Error saving technology: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -196,19 +206,22 @@ const TechnologiesManagement = () => {
   };
 
   const confirmDeleteTechnology = async () => {
-    if (confirmDialog.technologyId) {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_URL}/technologies/${confirmDialog.technologyId}`, config);
-        setSuccess('Technology deleted successfully');
-        fetchTechnologies();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (error: any) {
-        setError('Error deleting technology: ' + (error.response?.data?.error?.message || error.message));
-      }
+    if (!confirmDialog.technologyId || deleting) return; // Prevent multiple submissions
+
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_URL}/technologies/${confirmDialog.technologyId}`, config);
+      setSuccess('Technology deleted successfully');
+      fetchTechnologies();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error: any) {
+      setError('Error deleting technology: ' + (error.response?.data?.error?.message || error.message));
+    } finally {
+      setDeleting(false);
+      setConfirmDialog({ open: false, technologyId: null });
     }
-    setConfirmDialog({ open: false, technologyId: null });
   };
 
   const handleExport = () => {
@@ -230,8 +243,9 @@ const TechnologiesManagement = () => {
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || importing) return; // Prevent multiple imports
 
+    setImporting(true);
     importFromExcel(
       file,
       async (data) => {
@@ -272,10 +286,13 @@ const TechnologiesManagement = () => {
           setTimeout(() => setSuccess(null), 5000);
         } catch (error: any) {
           setError('Error importing data: ' + error.message);
+        } finally {
+          setImporting(false);
         }
       },
       (error) => {
         setError('Error reading file: ' + error);
+        setImporting(false);
       }
     );
 
@@ -319,8 +336,13 @@ const TechnologiesManagement = () => {
             onChange={handleImport}
           />
           <label htmlFor="import-technologies-file">
-            <Button variant="outlined" component="span" startIcon={<UploadIcon />}>
-              Import
+            <Button
+              variant="outlined"
+              component="span"
+              startIcon={importing ? <CircularProgress size={20} /> : <UploadIcon />}
+              disabled={importing}
+            >
+              {importing ? 'Importing...' : 'Import'}
             </Button>
           </label>
           <Button
@@ -520,9 +542,16 @@ const TechnologiesManagement = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSaveTechnology} variant="contained">
-            {selectedTechnology ? 'Update' : 'Create'}
+          <Button onClick={handleCloseDialog} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveTechnology}
+            variant="contained"
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
+          >
+            {submitting ? (selectedTechnology ? 'Updating...' : 'Creating...') : (selectedTechnology ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -536,6 +565,8 @@ const TechnologiesManagement = () => {
         onCancel={() => setConfirmDialog({ open: false, technologyId: null })}
         confirmText="Delete"
         confirmColor="error"
+        loading={deleting}
+        loadingText="Deleting..."
       />
     </Box>
   );

@@ -7,6 +7,7 @@ import {
   Typography,
   Box,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import { useAppDispatch } from '../../hooks/redux';
 import { loginSuccess } from '../../store/slices/authSlice';
@@ -21,6 +22,8 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Prevent multiple submissions
+
     setError('');
     setLoading(true);
 
@@ -84,6 +87,7 @@ const Login = () => {
               size="large"
               sx={{ mt: 3 }}
               disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} /> : undefined}
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>

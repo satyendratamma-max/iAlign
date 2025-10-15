@@ -66,6 +66,11 @@ const AccessProvisioning = () => {
     userId: number | null;
   }>({ open: false, userId: null });
 
+  // Loading states for async operations
+  const [submitting, setSubmitting] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -125,7 +130,10 @@ const AccessProvisioning = () => {
   };
 
   const handleSaveUser = async () => {
+    if (submitting) return; // Prevent multiple submissions
+
     try {
+      setSubmitting(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -147,6 +155,7 @@ const AccessProvisioning = () => {
         // Create new user
         if (!formData.password) {
           setError('Password is required for new users');
+          setSubmitting(false);
           return;
         }
         await axios.post(`${API_URL}/users`, formData, config);
@@ -158,11 +167,16 @@ const AccessProvisioning = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error saving user');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleToggleStatus = async (user: User) => {
+    if (togglingUserId !== null) return; // Prevent multiple operations
+
     try {
+      setTogglingUserId(user.id);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -177,6 +191,8 @@ const AccessProvisioning = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error updating user status');
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -185,20 +201,23 @@ const AccessProvisioning = () => {
   };
 
   const confirmDeleteUser = async () => {
-    if (confirmDialog.userId) {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
+    if (!confirmDialog.userId || deleting) return; // Prevent multiple submissions
 
-        await axios.delete(`${API_URL}/users/${confirmDialog.userId}`, config);
-        setSuccess('User deleted successfully');
-        fetchUsers();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (error: any) {
-        setError(error.response?.data?.message || 'Error deleting user');
-      }
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      await axios.delete(`${API_URL}/users/${confirmDialog.userId}`, config);
+      setSuccess('User deleted successfully');
+      fetchUsers();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Error deleting user');
+    } finally {
+      setDeleting(false);
+      setConfirmDialog({ open: false, userId: null });
     }
-    setConfirmDialog({ open: false, userId: null });
   };
 
   const getRoleColor = (role: string) => {
@@ -330,8 +349,13 @@ const AccessProvisioning = () => {
                     size="small"
                     onClick={() => handleToggleStatus(user)}
                     color={user.isActive ? 'warning' : 'success'}
+                    disabled={togglingUserId !== null}
                   >
-                    <Block fontSize="small" />
+                    {togglingUserId === user.id ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <Block fontSize="small" />
+                    )}
                   </IconButton>
                   <IconButton
                     size="small"
@@ -421,13 +445,16 @@ const AccessProvisioning = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleCloseDialog} disabled={submitting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleSaveUser}
             variant="contained"
-            disabled={!formData.username || !formData.email || (!selectedUser && !formData.password)}
+            disabled={!formData.username || !formData.email || (!selectedUser && !formData.password) || submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
           >
-            {selectedUser ? 'Update' : 'Create'}
+            {submitting ? (selectedUser ? 'Updating...' : 'Creating...') : (selectedUser ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -441,6 +468,8 @@ const AccessProvisioning = () => {
         onCancel={() => setConfirmDialog({ open: false, userId: null })}
         confirmText="Delete"
         confirmColor="error"
+        loading={deleting}
+        loadingText="Deleting..."
       />
     </Box>
   );

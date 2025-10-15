@@ -51,6 +51,10 @@ const ScenarioManagement = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
 
+  // Loading states for async operations
+  const [submitting, setSubmitting] = useState(false);
+  const [publishingScenarioId, setPublishingScenarioId] = useState<number | null>(null);
+
   // Form states
   const [createForm, setCreateForm] = useState<CreateScenarioRequest>({
     name: '',
@@ -81,7 +85,10 @@ const ScenarioManagement = () => {
   };
 
   const handleCreateScenario = async () => {
+    if (submitting) return; // Prevent multiple submissions
+
     try {
+      setSubmitting(true);
       await scenarioApi.create(createForm);
       setSuccess('Scenario created successfully');
       setOpenCreateDialog(false);
@@ -90,13 +97,16 @@ const ScenarioManagement = () => {
       await refreshScenarios();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create scenario');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCloneScenario = async () => {
-    if (!selectedScenario) return;
+    if (!selectedScenario || submitting) return; // Prevent multiple submissions
 
     try {
+      setSubmitting(true);
       await scenarioApi.clone(selectedScenario.id, cloneForm);
       setSuccess('Scenario cloned successfully');
       setOpenCloneDialog(false);
@@ -106,24 +116,32 @@ const ScenarioManagement = () => {
       await refreshScenarios();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to clone scenario');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handlePublishScenario = async (scenario: Scenario) => {
+    if (publishingScenarioId !== null) return; // Prevent multiple submissions
+
     try {
+      setPublishingScenarioId(scenario.id);
       await scenarioApi.publish(scenario.id);
       setSuccess('Scenario published successfully');
       await fetchScenarios();
       await refreshScenarios();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to publish scenario');
+    } finally {
+      setPublishingScenarioId(null);
     }
   };
 
   const handleDeleteScenario = async () => {
-    if (!selectedScenario) return;
+    if (!selectedScenario || submitting) return; // Prevent multiple submissions
 
     try {
+      setSubmitting(true);
       await scenarioApi.delete(selectedScenario.id);
       setSuccess('Scenario deleted successfully');
       setOpenDeleteDialog(false);
@@ -132,6 +150,8 @@ const ScenarioManagement = () => {
       await refreshScenarios();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete scenario');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -311,8 +331,13 @@ const ScenarioManagement = () => {
                             size="small"
                             color="success"
                             onClick={() => handlePublishScenario(scenario)}
+                            disabled={publishingScenarioId !== null}
                           >
-                            <PublishIcon fontSize="small" />
+                            {publishingScenarioId === scenario.id ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <PublishIcon fontSize="small" />
+                            )}
                           </IconButton>
                         </Tooltip>
                       )}
@@ -367,13 +392,16 @@ const ScenarioManagement = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
+          <Button onClick={() => setOpenCreateDialog(false)} disabled={submitting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleCreateScenario}
             variant="contained"
-            disabled={!createForm.name.trim()}
+            disabled={!createForm.name.trim() || submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
           >
-            Create
+            {submitting ? 'Creating...' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -407,13 +435,16 @@ const ScenarioManagement = () => {
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCloneDialog(false)}>Cancel</Button>
+          <Button onClick={() => setOpenCloneDialog(false)} disabled={submitting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleCloneScenario}
             variant="contained"
-            disabled={!cloneForm.name?.trim()}
+            disabled={!cloneForm.name?.trim() || submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
           >
-            Clone
+            {submitting ? 'Cloning...' : 'Clone'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -427,9 +458,17 @@ const ScenarioManagement = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={handleDeleteScenario} variant="contained" color="error">
-            Delete
+          <Button onClick={() => setOpenDeleteDialog(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteScenario}
+            variant="contained"
+            color="error"
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={20} /> : undefined}
+          >
+            {submitting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>
