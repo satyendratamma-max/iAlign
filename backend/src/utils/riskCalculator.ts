@@ -75,8 +75,18 @@ const calculateAutoHealthStatus = (project: Project): 'Green' | 'Yellow' | 'Red'
   }
 
   // 2. Schedule health check
-  const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
-  const actualEnd = project.endDate ? new Date(project.endDate) : new Date();
+  // Use desiredCompletionDate if available, otherwise fallback to endDate as planned
+  const plannedEnd = project.desiredCompletionDate
+    ? new Date(project.desiredCompletionDate)
+    : (project.endDate ? new Date(project.endDate) : null);
+
+  // Use the later of actualEndDate or endDate, or today if project is ongoing
+  const actualEndDate = project.actualEndDate ? new Date(project.actualEndDate) : null;
+  const endDate = project.endDate ? new Date(project.endDate) : null;
+  const actualEnd = actualEndDate && endDate
+    ? (actualEndDate > endDate ? actualEndDate : endDate)
+    : (actualEndDate || endDate || new Date());
+
   if (plannedEnd && actualEnd > plannedEnd) {
     const delayDays = Math.floor((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
     if (delayDays > 90) {
@@ -142,8 +152,18 @@ export const calculateProjectRisk = async (project: Project): Promise<number> =>
   }
 
   // 3. Schedule risk (0-20 points)
-  const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
-  const actualEnd = project.endDate ? new Date(project.endDate) : new Date();
+  // Use desiredCompletionDate if available, otherwise fallback to endDate as planned
+  const plannedEnd = project.desiredCompletionDate
+    ? new Date(project.desiredCompletionDate)
+    : (project.endDate ? new Date(project.endDate) : null);
+
+  // Use the later of actualEndDate or endDate, or today if project is ongoing
+  const actualEndDate = project.actualEndDate ? new Date(project.actualEndDate) : null;
+  const endDate = project.endDate ? new Date(project.endDate) : null;
+  const actualEnd = actualEndDate && endDate
+    ? (actualEndDate > endDate ? actualEndDate : endDate)
+    : (actualEndDate || endDate || new Date());
+
   if (plannedEnd && actualEnd > plannedEnd) {
     const delayDays = Math.floor((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
     if (delayDays > 90) riskScore += 15;
@@ -388,8 +408,17 @@ async function calculateScheduleRisk(projects: Project[]): Promise<{ score: numb
   let totalDelayDays = 0;
 
   for (const project of projects) {
-    const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
-    const actualEnd = project.endDate ? new Date(project.endDate) : now;
+    // Use desiredCompletionDate if available, otherwise fallback to endDate as planned
+    const plannedEnd = project.desiredCompletionDate
+      ? new Date(project.desiredCompletionDate)
+      : (project.endDate ? new Date(project.endDate) : null);
+
+    // Use the later of actualEndDate or endDate, or today if project is ongoing
+    const actualEndDate = project.actualEndDate ? new Date(project.actualEndDate) : null;
+    const endDate = project.endDate ? new Date(project.endDate) : null;
+    const actualEnd = actualEndDate && endDate
+      ? (actualEndDate > endDate ? actualEndDate : endDate)
+      : (actualEndDate || endDate || now);
 
     if (plannedEnd && actualEnd > plannedEnd) {
       delayedCount++;

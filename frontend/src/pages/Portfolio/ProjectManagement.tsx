@@ -1108,17 +1108,30 @@ const ProjectManagement = () => {
 
           // 2. Budget risk (0-20 points)
           const budget = Number(project.budget) || 0;
+          const actualCost = Number(project.actualCost) || 0;
           const forecast = Number(project.forecastedCost) || budget;
+          // Use the higher of actualCost or forecastedCost to represent true financial risk
+          const costToCompare = Math.max(actualCost, forecast);
           if (budget > 0) {
-            const budgetVariance = ((forecast - budget) / budget) * 100;
+            const budgetVariance = ((costToCompare - budget) / budget) * 100;
             if (budgetVariance > 30) riskScore += 15;
             else if (budgetVariance > 15) riskScore += 10;
             else if (budgetVariance > 5) riskScore += 5;
           }
 
           // 3. Schedule risk (0-20 points)
-          const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
-          const actualEnd = project.endDate ? new Date(project.endDate) : new Date();
+          // Use desiredCompletionDate if available, otherwise fallback to endDate as planned
+          const plannedEnd = project.desiredCompletionDate
+            ? new Date(project.desiredCompletionDate)
+            : (project.endDate ? new Date(project.endDate) : null);
+
+          // Use the later of actualEndDate or endDate, or today if project is ongoing
+          const actualEndDate = project.actualEndDate ? new Date(project.actualEndDate) : null;
+          const endDate = project.endDate ? new Date(project.endDate) : null;
+          const actualEnd = actualEndDate && endDate
+            ? (actualEndDate > endDate ? actualEndDate : endDate)
+            : (actualEndDate || endDate || new Date());
+
           if (plannedEnd && actualEnd > plannedEnd) {
             const delayDays = Math.floor((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
             if (delayDays > 90) riskScore += 15;
