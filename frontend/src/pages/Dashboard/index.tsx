@@ -22,6 +22,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Tooltip,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -96,6 +97,7 @@ interface Project {
   priority: string;
   fiscalYear?: string;
   businessDecision?: string;
+  segmentFunctionId?: number;
 }
 
 interface Allocation {
@@ -108,6 +110,13 @@ interface Allocation {
 interface Domain {
   id: number;
   name: string;
+}
+
+interface ProjectRiskScore {
+  projectId: number;
+  projectName: string;
+  riskScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
 }
 
 const Dashboard = () => {
@@ -127,6 +136,7 @@ const Dashboard = () => {
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const [projectRisks, setProjectRisks] = useState<Record<number, ProjectRiskScore>>({});
 
   // Fetch data when active scenario changes
   useEffect(() => {
@@ -168,6 +178,17 @@ const Dashboard = () => {
           averageRisk: 3.2,
         });
 
+        // Fetch risk data for all segment functions
+        const uniqueSegmentFunctionIds = [...new Set(
+          fetchedProjects
+            .filter((p: Project) => p.segmentFunctionId)
+            .map((p: Project) => p.segmentFunctionId)
+        )].filter((id): id is number => id !== undefined);
+
+        if (uniqueSegmentFunctionIds.length > 0) {
+          fetchRiskData(uniqueSegmentFunctionIds, activeScenario.id, token, config);
+        }
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -177,6 +198,40 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [activeScenario]);
+
+  const fetchRiskData = async (
+    segmentFunctionIds: number[],
+    scenarioId: number,
+    token: string | null,
+    config: { headers: { Authorization: string } }
+  ) => {
+    try {
+      const riskPromises = segmentFunctionIds.map(segmentFunctionId =>
+        axios.get(
+          `${API_URL}/segment-functions/${segmentFunctionId}/risk?scenarioId=${scenarioId}`,
+          config
+        ).catch(error => {
+          console.error(`Error fetching risk for segment function ${segmentFunctionId}:`, error);
+          return null;
+        })
+      );
+
+      const riskResponses = await Promise.all(riskPromises);
+      const risksMap: Record<number, ProjectRiskScore> = {};
+
+      riskResponses.forEach(response => {
+        if (response?.data?.data?.projectRisks) {
+          response.data.data.projectRisks.forEach((risk: ProjectRiskScore) => {
+            risksMap[risk.projectId] = risk;
+          });
+        }
+      });
+
+      setProjectRisks(risksMap);
+    } catch (error) {
+      console.error('Error fetching risk data:', error);
+    }
+  };
 
   // Calculate filtered metrics when domain filter changes
   useEffect(() => {
@@ -273,11 +328,18 @@ const Dashboard = () => {
       .slice(0, 8);
     setTopProjects(sortedByBudget);
 
-    // At-risk projects (filtered)
-    const atRisk = projects.filter(p =>
-      p.healthStatus === 'Red' ||
-      p.healthStatus === 'Yellow' && p.progress < 50
-    ).slice(0, 8);
+    // At-risk projects (filtered and sorted by risk score descending)
+    const atRisk = projects
+      .filter(p =>
+        p.healthStatus === 'Red' ||
+        p.healthStatus === 'Yellow' && p.progress < 50
+      )
+      .sort((a, b) => {
+        const riskA = projectRisks[a.id]?.riskScore || 0;
+        const riskB = projectRisks[b.id]?.riskScore || 0;
+        return riskB - riskA; // Descending order (highest risk first)
+      })
+      .slice(0, 8);
     setAtRiskProjects(atRisk);
 
     // Calculate domain performance (filtered by domain selection)
@@ -308,7 +370,7 @@ const Dashboard = () => {
     }).filter((d: DomainPerformance) => d.projectCount > 0);
 
     setDomainPerformance(domainPerf);
-  }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, domains]);
+  }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, domains, projectRisks]);
 
   const handleExport = async (format: 'png' | 'pdf') => {
     if (!dashboardRef.current) return;
@@ -782,6 +844,7 @@ const Dashboard = () => {
                         <TableRow>
                           <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Project</TableCell>
                           <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Health</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Risk</TableCell>
                           <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Progress</TableCell>
                         </TableRow>
                       </TableHead>
@@ -803,6 +866,39 @@ const Dashboard = () => {
                                 color={healthColors[project.healthStatus || '']}
                                 sx={{ height: 20, fontSize: '0.75rem', minWidth: 50 }}
                               />
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1.5 }}>
+                              {projectRisks[project.id] ? (
+                                <Tooltip
+                                  title={
+                                    <Box sx={{ p: 0.5 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                                        Risk Level: {projectRisks[project.id].riskLevel}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Score: {projectRisks[project.id].riskScore}/100
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  placement="left"
+                                  arrow
+                                >
+                                  <Chip
+                                    label={projectRisks[project.id].riskScore}
+                                    size="small"
+                                    color={
+                                      projectRisks[project.id].riskLevel === 'Low'
+                                        ? 'success'
+                                        : projectRisks[project.id].riskLevel === 'Medium'
+                                        ? 'warning'
+                                        : 'error'
+                                    }
+                                    sx={{ height: 20, fontSize: '0.75rem', minWidth: 35, cursor: 'help' }}
+                                  />
+                                </Tooltip>
+                              ) : (
+                                <Chip label="N/A" size="small" color="default" sx={{ height: 20, fontSize: '0.75rem', minWidth: 35 }} />
+                              )}
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1.5 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
@@ -843,6 +939,7 @@ const Dashboard = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Project</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Budget</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Risk</TableCell>
                         <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1 }}>Progress</TableCell>
                       </TableRow>
                     </TableHead>
@@ -861,6 +958,39 @@ const Dashboard = () => {
                             <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
                               {formatCompact(project.budget || 0)}
                             </Typography>
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 1.5 }}>
+                            {projectRisks[project.id] ? (
+                              <Tooltip
+                                title={
+                                  <Box sx={{ p: 0.5 }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                                      Risk Level: {projectRisks[project.id].riskLevel}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Score: {projectRisks[project.id].riskScore}/100
+                                    </Typography>
+                                  </Box>
+                                }
+                                placement="left"
+                                arrow
+                              >
+                                <Chip
+                                  label={projectRisks[project.id].riskScore}
+                                  size="small"
+                                  color={
+                                    projectRisks[project.id].riskLevel === 'Low'
+                                      ? 'success'
+                                      : projectRisks[project.id].riskLevel === 'Medium'
+                                      ? 'warning'
+                                      : 'error'
+                                  }
+                                  sx={{ height: 20, fontSize: '0.75rem', minWidth: 35, cursor: 'help' }}
+                                />
+                              </Tooltip>
+                            ) : (
+                              <Chip label="N/A" size="small" color="default" sx={{ height: 20, fontSize: '0.75rem', minWidth: 35 }} />
+                            )}
                           </TableCell>
                           <TableCell align="center" sx={{ py: 1.5 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>

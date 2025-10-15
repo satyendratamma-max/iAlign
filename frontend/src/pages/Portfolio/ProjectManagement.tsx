@@ -216,9 +216,10 @@ interface DomainImpact {
 interface KanbanCardProps {
   project: Project;
   onEdit: (project: Project) => void;
+  projectRisks: Record<number, number>;
 }
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
+const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit, projectRisks }) => {
   const {
     attributes,
     listeners,
@@ -263,6 +264,20 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
     };
     return colors[health || 'Green'] || '#757575';
   };
+
+  const getRiskColor = (score: number): string => {
+    if (score >= 61) return '#f44336'; // High risk - Red
+    if (score >= 31) return '#ff9800'; // Medium risk - Orange
+    return '#4caf50'; // Low risk - Green
+  };
+
+  const getRiskLevel = (score: number): string => {
+    if (score >= 61) return 'High';
+    if (score >= 31) return 'Medium';
+    return 'Low';
+  };
+
+  const projectRisk = projectRisks[project.id];
 
   return (
     <Card
@@ -320,6 +335,18 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit }) => {
               size="small"
               sx={{
                 bgcolor: getHealthColor(project.healthStatus),
+                color: 'white',
+                fontSize: '0.7rem',
+                height: 20,
+              }}
+            />
+          )}
+          {projectRisk !== undefined && (
+            <Chip
+              label={`Risk: ${projectRisk}`}
+              size="small"
+              sx={{
+                bgcolor: getRiskColor(projectRisk),
                 color: 'white',
                 fontSize: '0.7rem',
                 height: 20,
@@ -817,9 +844,10 @@ const ProjectManagement = () => {
 
   // Sorting state
   type OrderDirection = 'asc' | 'desc';
-  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus';
+  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus' | 'risk';
   const [orderBy, setOrderBy] = useState<SortableColumn>('projectNumber');
   const [order, setOrder] = useState<OrderDirection>('asc');
+  const [projectRisks, setProjectRisks] = useState<Record<number, number>>({});
 
   // Swimlane Configuration State
   const [swimlaneConfig, setSwimlaneConfig] = useState<{
@@ -1059,6 +1087,58 @@ const ProjectManagement = () => {
   useEffect(() => {
     localStorage.setItem('ganttSwimlaneConfig', JSON.stringify(swimlaneConfig));
   }, [swimlaneConfig]);
+
+  // Calculate risk scores for all projects
+  useEffect(() => {
+    const calculateRisks = async () => {
+      const risks: Record<number, number> = {};
+
+      // Use the calculateProjectRisk function from the API
+      for (const project of projects) {
+        try {
+          // Calculate individual project risk
+          let riskScore = 0;
+
+          // 1. Health Status Risk (0-15 points) - PRIMARY INDICATOR
+          if (project.healthStatus === 'Red') {
+            riskScore += 15;
+          } else if (project.healthStatus === 'Yellow') {
+            riskScore += 8;
+          }
+
+          // 2. Budget risk (0-20 points)
+          const budget = Number(project.budget) || 0;
+          const forecast = Number(project.forecastedCost) || budget;
+          if (budget > 0) {
+            const budgetVariance = ((forecast - budget) / budget) * 100;
+            if (budgetVariance > 30) riskScore += 15;
+            else if (budgetVariance > 15) riskScore += 10;
+            else if (budgetVariance > 5) riskScore += 5;
+          }
+
+          // 3. Schedule risk (0-20 points)
+          const plannedEnd = project.desiredCompletionDate ? new Date(project.desiredCompletionDate) : null;
+          const actualEnd = project.endDate ? new Date(project.endDate) : new Date();
+          if (plannedEnd && actualEnd > plannedEnd) {
+            const delayDays = Math.floor((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
+            if (delayDays > 90) riskScore += 15;
+            else if (delayDays > 30) riskScore += 10;
+            else if (delayDays > 7) riskScore += 5;
+          }
+
+          risks[project.id] = Math.min(100, riskScore);
+        } catch (error) {
+          console.error(`Error calculating risk for project ${project.id}:`, error);
+        }
+      }
+
+      setProjectRisks(risks);
+    };
+
+    if (projects.length > 0) {
+      calculateRisks();
+    }
+  }, [projects]);
 
   // Drag Event Handlers useEffect
   useEffect(() => {
@@ -1804,6 +1884,18 @@ const ProjectManagement = () => {
     return colors[health || ''] || 'default';
   };
 
+  const getRiskColor = (score: number): string => {
+    if (score >= 61) return '#f44336'; // High risk - Red
+    if (score >= 31) return '#ff9800'; // Medium risk - Orange
+    return '#4caf50'; // Low risk - Green
+  };
+
+  const getRiskLevel = (score: number): string => {
+    if (score >= 61) return 'High';
+    if (score >= 31) return 'Medium';
+    return 'Low';
+  };
+
   const getCrossDomainCount = (projectId: number) => {
     return allDomainImpacts.filter(impact => impact.projectId === projectId).length;
   };
@@ -1937,6 +2029,10 @@ const ProjectManagement = () => {
         };
         aValue = healthOrder[a.healthStatus || ''] || 0;
         bValue = healthOrder[b.healthStatus || ''] || 0;
+        break;
+      case 'risk':
+        aValue = projectRisks[a.id] || 0;
+        bValue = projectRisks[b.id] || 0;
         break;
       default:
         // Fallback to sortOrder then createdDate
@@ -3477,6 +3573,15 @@ const ProjectManagement = () => {
                   Health
                 </TableSortLabel>
               </TableCell>
+              <TableCell sx={{ minWidth: 80 }}>
+                <TableSortLabel
+                  active={orderBy === 'risk'}
+                  direction={orderBy === 'risk' ? order : 'asc'}
+                  onClick={() => handleRequestSort('risk')}
+                >
+                  Risk
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ minWidth: 180 }}>Dependencies & Impact</TableCell>
               <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
@@ -3646,6 +3751,7 @@ const ProjectManagement = () => {
                   </MenuItem>
                 </TextField>
               </TableCell>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -3752,6 +3858,26 @@ const ProjectManagement = () => {
                     size="small"
                     color={getHealthColor(project.healthStatus) as any}
                   />
+                </TableCell>
+                <TableCell>
+                  {projectRisks[project.id] !== undefined ? (
+                    <Tooltip
+                      title={`Risk Score: ${projectRisks[project.id]} (${getRiskLevel(projectRisks[project.id])})`}
+                      arrow
+                    >
+                      <Chip
+                        label={projectRisks[project.id]}
+                        size="small"
+                        sx={{
+                          bgcolor: getRiskColor(projectRisks[project.id]),
+                          color: 'white',
+                          fontWeight: 'bold',
+                        }}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Chip label="..." size="small" />
+                  )}
                 </TableCell>
                 <TableCell>
                   {(() => {
@@ -3878,7 +4004,7 @@ const ProjectManagement = () => {
                   <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                       {groupProjects.map((project) => (
-                        <KanbanCard key={project.id} project={project} onEdit={handleOpenDialog} />
+                        <KanbanCard key={project.id} project={project} onEdit={handleOpenDialog} projectRisks={projectRisks} />
                       ))}
                     </Box>
                   </SortableContext>
@@ -3890,7 +4016,7 @@ const ProjectManagement = () => {
           <DragOverlay>
             {activeId ? (
               <Box sx={{ opacity: 0.8 }}>
-                <KanbanCard project={projects.find(p => p.id === activeId)!} onEdit={handleOpenDialog} />
+                <KanbanCard project={projects.find(p => p.id === activeId)!} onEdit={handleOpenDialog} projectRisks={projectRisks} />
               </Box>
             ) : null}
           </DragOverlay>

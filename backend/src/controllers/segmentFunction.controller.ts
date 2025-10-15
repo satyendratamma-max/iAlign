@@ -3,12 +3,18 @@ import SegmentFunction from '../models/SegmentFunction';
 import Domain from '../models/Domain';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
+import { calculateSegmentFunctionRisk, SegmentFunctionRisk } from '../utils/riskCalculator';
 
-export const getAllSegmentFunctions = async (_req: Request, res: Response, next: NextFunction) => {
+export const getAllSegmentFunctions = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { sortOrder } = req.query;
+
+    // Default to ascending (A-Z), support 'asc' or 'desc'
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
+
     const segmentFunctions = await SegmentFunction.findAll({
       where: { isActive: true },
-      order: [['createdDate', 'DESC']],
+      order: [['name', order]], // Sort alphabetically by name
       include: [
         {
           model: Domain,
@@ -133,6 +139,43 @@ export const getSegmentFunctionStats = async (_req: Request, res: Response, next
         totalValue,
         averageROI: avgROI,
         averageRisk: avgRisk,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Calculate and return risk score with detailed breakdown for a segment function
+ */
+export const getSegmentFunctionRisk = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { scenarioId } = req.query;
+
+    // Validate segment function exists
+    const segmentFunction = await SegmentFunction.findByPk(id);
+    if (!segmentFunction) {
+      throw new ValidationError('Segment Function not found');
+    }
+
+    // Default to scenario ID 1 (baseline) if not provided
+    const activeScenarioId = scenarioId ? parseInt(scenarioId as string) : 1;
+
+    // Calculate risk score with breakdown
+    const riskData: SegmentFunctionRisk = await calculateSegmentFunctionRisk(
+      parseInt(id),
+      activeScenarioId
+    );
+
+    res.json({
+      success: true,
+      data: {
+        segmentFunctionId: parseInt(id),
+        segmentFunctionName: segmentFunction.name,
+        scenarioId: activeScenarioId,
+        ...riskData,
       },
     });
   } catch (error) {
