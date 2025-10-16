@@ -48,7 +48,11 @@
       "Bash(npm run seed:notifications:*)",
       "Bash(npm run:*)",
       "Bash(grep:*)",
-      "Read(///**)"
+      "Read(///**)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(findstr:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

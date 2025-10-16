@@ -1,0 +1,513 @@
+/**
+ * Comprehensive Enterprise Seed Data
+ * Includes Apps, Technologies, and Roles for:
+ * - Engineering (PLM, CAD, Simulation)
+ * - SAP (PP, MM, MDG, CRM, VC)
+ * - Custom Development (.NET, Node.js, React)
+ * - Low-Code (Mendix)
+ * - Infrastructure (VDI, DBA, Basis)
+ */
+
+import App from '../models/App';
+import Technology from '../models/Technology';
+import Role from '../models/Role';
+
+/**
+ * APPS DATA - 50+ Enterprise Applications
+ */
+export const enterpriseApps = [
+  // PLM & Engineering (10 apps)
+  { name: 'Teamcenter', code: 'TC', category: 'PLM', description: 'Siemens PLM Software', isGlobal: true, status: 'Active' as const },
+  { name: 'NX', code: 'NX', category: 'CAD', description: 'Siemens CAD/CAM/CAE', isGlobal: true, status: 'Active' as const },
+  { name: 'SolidWorks', code: 'SW', category: 'CAD', description: 'Dassault 3D CAD', isGlobal: true, status: 'Active' as const },
+  { name: 'Creo', code: 'CREO', category: 'CAD', description: 'PTC Parametric Design', isGlobal: true, status: 'Active' as const },
+  { name: 'Inventor', code: 'INV', category: 'CAD', description: 'Autodesk Mechanical Design', isGlobal: true, status: 'Active' as const },
+  { name: 'AutoCAD', code: 'ACAD', category: 'CAD', description: 'Autodesk Drafting', isGlobal: true, status: 'Active' as const },
+  { name: 'E3.series', code: 'E3S', category: 'eCAD', description: 'Zuken Electrical Design', isGlobal: true, status: 'Active' as const },
+  { name: 'ANSYS', code: 'ANSYS', category: 'CAE', description: 'FEA/CFD Simulation', isGlobal: true, status: 'Active' as const },
+  { name: 'Simcenter', code: 'SIMC', category: 'CAE', description: 'Siemens Simulation', isGlobal: true, status: 'Active' as const },
+  { name: 'CATIA', code: 'CATIA', category: 'CAD', description: 'Dassault High-end CAD', isGlobal: true, status: 'Active' as const },
+
+  // SAP Modules (10 apps)
+  { name: 'SAP ERP', code: 'SAP', category: 'ERP', description: 'SAP ERP System', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP PP', code: 'PP', category: 'ERP', description: 'Production Planning', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP MM', code: 'MM', category: 'ERP', description: 'Materials Management', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP MDG', code: 'MDG', category: 'ERP', description: 'Master Data Governance', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP CRM', code: 'CRM', category: 'ERP', description: 'Customer Relationship Mgmt', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP VC', code: 'VC', category: 'ERP', description: 'Variant Configuration', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP S/4HANA', code: 'S4H', category: 'ERP', description: 'Next-gen SAP ERP', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP Fiori', code: 'FIORI', category: 'UX', description: 'SAP User Experience', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP BW/4HANA', code: 'BW4', category: 'Analytics', description: 'SAP Data Warehouse', isGlobal: true, status: 'Active' as const },
+  { name: 'SAP Solution Manager', code: 'SOLMAN', category: 'Operations', description: 'Application Lifecycle Mgmt', isGlobal: true, status: 'Active' as const },
+
+  // Low-Code Platforms (4 apps)
+  { name: 'Mendix', code: 'MNDX', category: 'Low-Code', description: 'Low-code Development Platform', isGlobal: true, status: 'Active' as const },
+  { name: 'OutSystems', code: 'OSYS', category: 'Low-Code', description: 'Low-code Platform', isGlobal: true, status: 'Active' as const },
+  { name: 'Power Apps', code: 'PWRAPP', category: 'Low-Code', description: 'Microsoft Low-code', isGlobal: true, status: 'Active' as const },
+  { name: 'Power BI', code: 'PWRBI', category: 'Analytics', description: 'Microsoft Business Intelligence', isGlobal: true, status: 'Active' as const },
+
+  // Custom Applications (6 apps)
+  { name: 'iAlign', code: 'IALN', category: 'Custom', description: 'Portfolio Management System', isGlobal: false, status: 'Active' as const },
+  { name: 'Engineering Portal', code: 'ENGP', category: 'Custom', description: 'Custom .NET Engineering Portal', isGlobal: false, status: 'Active' as const },
+  { name: 'Resource Hub', code: 'RESH', category: 'Custom', description: 'Node.js Resource Management', isGlobal: false, status: 'Active' as const },
+  { name: 'Project Dashboard', code: 'PDASH', category: 'Custom', description: 'React Project Dashboard', isGlobal: false, status: 'Active' as const },
+  { name: 'Data Integration Hub', code: 'DIHUB', category: 'Custom', description: 'Middleware Integration', isGlobal: false, status: 'Active' as const },
+  { name: 'Analytics Engine', code: 'AENG', category: 'Custom', description: 'Custom Reporting Engine', isGlobal: false, status: 'Active' as const },
+
+  // Development & Collaboration (10 apps)
+  { name: 'Visual Studio', code: 'VS', category: 'IDE', description: 'Microsoft IDE', isGlobal: true, status: 'Active' as const },
+  { name: 'VS Code', code: 'VSC', category: 'IDE', description: 'Code Editor', isGlobal: true, status: 'Active' as const },
+  { name: 'Git', code: 'GIT', category: 'VCS', description: 'Version Control System', isGlobal: true, status: 'Active' as const },
+  { name: 'JIRA', code: 'JIRA', category: 'PM', description: 'Project Management', isGlobal: true, status: 'Active' as const },
+  { name: 'Confluence', code: 'CONF', category: 'Docs', description: 'Documentation Platform', isGlobal: true, status: 'Active' as const },
+  { name: 'Azure DevOps', code: 'AZDO', category: 'DevOps', description: 'CI/CD Platform', isGlobal: true, status: 'Active' as const },
+  { name: 'Jenkins', code: 'JNKS', category: 'CI/CD', description: 'Automation Server', isGlobal: true, status: 'Active' as const },
+  { name: 'Postman', code: 'PSTMN', category: 'Testing', description: 'API Testing', isGlobal: true, status: 'Active' as const },
+  { name: 'Selenium', code: 'SELN', category: 'Testing', description: 'Web Automation', isGlobal: true, status: 'Active' as const },
+  { name: 'SoapUI', code: 'SOAP', category: 'Testing', description: 'Web Services Testing', isGlobal: true, status: 'Active' as const },
+
+  // Infrastructure & Support (10 apps)
+  { name: 'Citrix Virtual Apps', code: 'CITX', category: 'VDI', description: 'Virtual Desktop Infrastructure', isGlobal: true, status: 'Active' as const },
+  { name: 'VMware Horizon', code: 'VMVDI', category: 'VDI', description: 'VMware VDI', isGlobal: true, status: 'Active' as const },
+  { name: 'ServiceNow', code: 'SNOW', category: 'ITSM', description: 'IT Service Management', isGlobal: true, status: 'Active' as const },
+  { name: 'BMC Remedy', code: 'REMEDY', category: 'ITSM', description: 'Service Desk', isGlobal: true, status: 'Active' as const },
+  { name: 'Microsoft Azure', code: 'AZURE', category: 'Cloud', description: 'Cloud Platform', isGlobal: true, status: 'Active' as const },
+  { name: 'AWS', code: 'AWS', category: 'Cloud', description: 'Amazon Cloud', isGlobal: true, status: 'Active' as const },
+  { name: 'Docker', code: 'DCKR', category: 'Container', description: 'Containerization', isGlobal: true, status: 'Active' as const },
+  { name: 'Kubernetes', code: 'K8S', category: 'Container', description: 'Container Orchestration', isGlobal: true, status: 'Active' as const },
+  { name: 'Terraform', code: 'TF', category: 'IaC', description: 'Infrastructure as Code', isGlobal: true, status: 'Active' as const },
+  { name: 'Ansible', code: 'ANSBL', category: 'Config', description: 'Configuration Management', isGlobal: true, status: 'Active' as const },
+];
+
+/**
+ * TECHNOLOGIES DATA - 80+ Technologies mapped to Apps
+ */
+export const enterpriseTechnologies = [
+  // Teamcenter Technologies (appId: 1)
+  { name: 'Teamcenter ITK', code: 'TC-ITK', category: 'API', description: 'Integration Toolkit' },
+  { name: 'Teamcenter SOA', code: 'TC-SOA', category: 'API', description: 'Service-Oriented Architecture' },
+  { name: 'Active Workspace', code: 'TC-AW', category: 'Platform', description: 'Teamcenter Web UI' },
+  { name: 'Teamcenter RAC', code: 'TC-RAC', category: 'Client', description: 'Rich Application Client' },
+
+  // NX Technologies (appId: 2)
+  { name: 'NX Open', code: 'NX-OPEN', category: 'API', description: 'NX API' },
+  { name: 'NX CAD', code: 'NX-CAD', category: 'Modeling', description: 'NX Design' },
+  { name: 'NX CAM', code: 'NX-CAM', category: 'Manufacturing', description: 'NX CAM' },
+  { name: 'NX CAE', code: 'NX-CAE', category: 'Simulation', description: 'NX Analysis' },
+
+  // SolidWorks Technologies (appId: 3)
+  { name: 'SolidWorks API', code: 'SW-API', category: 'API', description: 'SolidWorks Automation' },
+  { name: 'SolidWorks PDM', code: 'SW-PDM', category: 'Platform', description: 'Product Data Management' },
+  { name: 'SolidWorks Simulation', code: 'SW-SIM', category: 'Analysis', description: 'FEA Simulation' },
+
+  // Creo Technologies (appId: 4)
+  { name: 'Creo Toolkit', code: 'CREO-TK', category: 'API', description: 'Creo API' },
+  { name: 'Creo Parametric', code: 'CREO-PAR', category: 'Modeling', description: 'Parametric Design' },
+  { name: 'Windchill', code: 'WNDCHL', category: 'PLM', description: 'PTC PLM' },
+
+  // Inventor Technologies (appId: 5)
+  { name: 'Inventor API', code: 'INV-API', category: 'API', description: 'Inventor Automation' },
+  { name: 'Vault', code: 'VAULT', category: 'PDM', description: 'Data Management' },
+
+  // AutoCAD Technologies (appId: 6)
+  { name: 'AutoLISP', code: 'LISP', category: 'Language', description: 'CAD Scripting' },
+  { name: 'AutoCAD API', code: 'ACAD-API', category: 'API', description: '.NET API' },
+
+  // E3.series Technologies (appId: 7)
+  { name: 'E3.series Platform', code: 'E3-PLT', category: 'Platform', description: 'Electrical Design' },
+
+  // ANSYS Technologies (appId: 8)
+  { name: 'ANSYS Mechanical', code: 'ANSYS-MECH', category: 'FEA', description: 'Structural Analysis' },
+  { name: 'ANSYS Fluent', code: 'ANSYS-CFD', category: 'CFD', description: 'Fluid Dynamics' },
+  { name: 'ANSYS APDL', code: 'ANSYS-APDL', category: 'Language', description: 'Parametric Design Language' },
+
+  // Simcenter Technologies (appId: 9)
+  { name: 'Simcenter 3D', code: 'SIMC-3D', category: 'CAE', description: '3D Simulation' },
+  { name: 'Simcenter Amesim', code: 'SIMC-AMESIM', category: 'Systems', description: 'System Simulation' },
+
+  // CATIA Technologies (appId: 10)
+  { name: 'CATIA V5', code: 'CATIA-V5', category: 'Platform', description: 'CATIA V5' },
+  { name: 'CATIA V6', code: 'CATIA-V6', category: 'Platform', description: '3DEXPERIENCE' },
+
+  // SAP Technologies (appId: 11-20)
+  { name: 'SAP ECC 6.0', code: 'ECC', category: 'Platform', description: 'SAP ECC' },
+  { name: 'SAP PP Module', code: 'PP-MOD', category: 'Module', description: 'Production Planning' },
+  { name: 'SAP MM Module', code: 'MM-MOD', category: 'Module', description: 'Materials Management' },
+  { name: 'SAP MDG Platform', code: 'MDG-PLT', category: 'Platform', description: 'Master Data Governance' },
+  { name: 'SAP CRM Module', code: 'CRM-MOD', category: 'Module', description: 'CRM' },
+  { name: 'SAP VC Engine', code: 'VC-ENG', category: 'Engine', description: 'Variant Configuration' },
+  { name: 'SAP S/4HANA Platform', code: 'S4H-PLT', category: 'Platform', description: 'S/4HANA' },
+  { name: 'SAP Fiori Elements', code: 'FIORI-ELEM', category: 'Framework', description: 'Fiori UX' },
+  { name: 'SAP BW/4HANA Platform', code: 'BW4-PLT', category: 'Platform', description: 'BW/4HANA' },
+  { name: 'SAP Solution Manager', code: 'SOLMAN-PLT', category: 'Platform', description: 'Solution Manager' },
+  { name: 'ABAP', code: 'ABAP', category: 'Language', description: 'SAP Programming' },
+  { name: 'ABAP OO', code: 'ABAP-OO', category: 'Language', description: 'Object-Oriented ABAP' },
+  { name: 'SAP Basis', code: 'BASIS', category: 'Admin', description: 'System Administration' },
+  { name: 'SAP HANA', code: 'HANA', category: 'Database', description: 'In-memory Database' },
+  { name: 'SAP Gateway', code: 'GATEWAY', category: 'Integration', description: 'OData Services' },
+  { name: 'SAP NetWeaver', code: 'NETWVR', category: 'Platform', description: 'Application Platform' },
+  { name: 'CDS Views', code: 'CDS', category: 'Framework', description: 'Core Data Services' },
+  { name: 'SAP BTP', code: 'BTP', category: 'Cloud', description: 'Business Technology Platform' },
+
+  // Mendix Technologies (appId: 21-24)
+  { name: 'Mendix Studio Pro', code: 'MNDX-PRO', category: 'IDE', description: 'Desktop Modeler' },
+  { name: 'Mendix Runtime', code: 'MNDX-RT', category: 'Platform', description: 'Execution Engine' },
+  { name: 'OutSystems Platform', code: 'OSYS-PLT', category: 'Platform', description: 'Low-code Platform' },
+  { name: 'Power Fx', code: 'PWRFX', category: 'Language', description: 'Power Apps Formula' },
+  { name: 'DAX', code: 'DAX', category: 'Language', description: 'Power BI Formula' },
+
+  // Custom App Technologies (appId: 25-30)
+  { name: 'React', code: 'REACT', category: 'Framework', description: 'React.js' },
+  { name: 'Node.js', code: 'NODE', category: 'Runtime', description: 'JavaScript Runtime' },
+  { name: '.NET Framework', code: 'DOTNET-FW', category: 'Framework', description: '.NET 4.x' },
+  { name: '.NET Core', code: 'DOTNET-CORE', category: 'Framework', description: '.NET 6+' },
+  { name: 'ASP.NET', code: 'ASPNET', category: 'Framework', description: 'Web Framework' },
+  { name: 'Entity Framework', code: 'EF', category: 'ORM', description: 'Object-Relational Mapping' },
+  { name: 'Express.js', code: 'EXPRESS', category: 'Framework', description: 'Node.js Framework' },
+  { name: 'TypeScript', code: 'TS', category: 'Language', description: 'Typed JavaScript' },
+  { name: 'Angular', code: 'NG', category: 'Framework', description: 'Angular Framework' },
+  { name: 'Vue.js', code: 'VUE', category: 'Framework', description: 'Vue Framework' },
+
+  // Development Tools Technologies (appId: 31-40)
+  { name: 'C#', code: 'CSHARP', category: 'Language', description: 'C# Language' },
+  { name: 'JavaScript', code: 'JS', category: 'Language', description: 'JavaScript' },
+  { name: 'Git SCM', code: 'GIT-SCM', category: 'VCS', description: 'Source Control' },
+  { name: 'JIRA Agile', code: 'JIRA-AGL', category: 'PM', description: 'Agile PM' },
+  { name: 'Confluence Wiki', code: 'CONF-WIKI', category: 'Docs', description: 'Documentation' },
+  { name: 'Azure Pipelines', code: 'AZ-PIPE', category: 'CI/CD', description: 'CI/CD' },
+  { name: 'Jenkins Pipeline', code: 'JNKS-PIPE', category: 'CI/CD', description: 'Pipeline' },
+  { name: 'Postman Collections', code: 'PSTMN-COLL', category: 'Testing', description: 'API Collections' },
+  { name: 'Selenium WebDriver', code: 'SELN-WD', category: 'Testing', description: 'Web Automation' },
+  { name: 'SoapUI Pro', code: 'SOAP-PRO', category: 'Testing', description: 'API Testing' },
+
+  // Infrastructure Technologies (appId: 41-50)
+  { name: 'Citrix XenApp', code: 'CITX-XAPP', category: 'VDI', description: 'Application Virtualization' },
+  { name: 'VMware vSphere', code: 'VMVDI-VSP', category: 'Virtualization', description: 'VMware Platform' },
+  { name: 'ServiceNow ITSM', code: 'SNOW-ITSM', category: 'Platform', description: 'IT Service Mgmt' },
+  { name: 'BMC ITSM', code: 'REMEDY-ITSM', category: 'Platform', description: 'IT Service Mgmt' },
+  { name: 'Azure Cloud', code: 'AZURE-CLD', category: 'Cloud', description: 'Azure Services' },
+  { name: 'AWS Cloud', code: 'AWS-CLD', category: 'Cloud', description: 'AWS Services' },
+  { name: 'Docker Engine', code: 'DCKR-ENG', category: 'Container', description: 'Container Runtime' },
+  { name: 'Kubernetes Cluster', code: 'K8S-CLSTR', category: 'Orchestration', description: 'K8s' },
+  { name: 'Terraform HCL', code: 'TF-HCL', category: 'IaC', description: 'Infrastructure Code' },
+  { name: 'Ansible Playbooks', code: 'ANSBL-PLAY', category: 'Config', description: 'Configuration' },
+
+  // Database Technologies
+  { name: 'SQL Server', code: 'MSSQL', category: 'Database', description: 'Microsoft SQL Server' },
+  { name: 'Oracle Database', code: 'ORACLE-DB', category: 'Database', description: 'Oracle DB' },
+  { name: 'PostgreSQL', code: 'PGSQL', category: 'Database', description: 'PostgreSQL' },
+  { name: 'MongoDB', code: 'MONGO', category: 'Database', description: 'NoSQL Database' },
+  { name: 'MySQL', code: 'MYSQL', category: 'Database', description: 'MySQL Database' },
+];
+
+/**
+ * ROLES DATA - 90+ Professional Roles
+ * Organized by function: PM/FA, Development, SAP, Engineering, Infrastructure
+ */
+export const enterpriseRoles = [
+  // Project & Portfolio Management (8 roles)
+  { name: 'Project Manager (PM)', code: 'PM', level: 'Senior' as const, category: 'Management' },
+  { name: 'Portfolio Manager', code: 'PFM', level: 'Lead', category: 'Management' },
+  { name: 'Program Manager', code: 'PRGM', level: 'Lead', category: 'Management' },
+  { name: 'Product Owner', code: 'PO', level: 'Mid', category: 'Management' },
+  { name: 'Scrum Master', code: 'SM', level: 'Mid', category: 'Management' },
+  { name: 'Release Manager', code: 'RM', level: 'Senior', category: 'Management' },
+  { name: 'PMO Analyst', code: 'PMO-ANLST', level: 'Junior', category: 'Management' },
+  { name: 'Resource Manager', code: 'RESMGR', level: 'Mid', category: 'Management' },
+
+  // Business Analysis (6 roles)
+  { name: 'Functional Analyst (FA)', code: 'FA', level: 'Mid', category: 'Analysis' },
+  { name: 'Business Analyst', code: 'BA', level: 'Mid', category: 'Analysis' },
+  { name: 'Requirements Analyst', code: 'REQ-ANLST', level: 'Mid', category: 'Analysis' },
+  { name: 'Solution Architect', code: 'SOL-ARCH', level: 'Lead', category: 'Architecture' },
+  { name: 'Process Analyst', code: 'PROC-ANLST', level: 'Mid', category: 'Analysis' },
+  { name: 'Data Analyst', code: 'DATA-ANLST', level: 'Mid', category: 'Analysis' },
+
+  // Development Roles (15 roles)
+  { name: 'Full-Stack Developer', code: 'FS-DEV', level: 'Senior', category: 'Development' },
+  { name: '.NET Developer', code: 'NET-DEV', level: 'Senior', category: 'Development' },
+  { name: 'Node.js Developer', code: 'NODE-DEV', level: 'Mid', category: 'Development' },
+  { name: 'React Developer', code: 'REACT-DEV', level: 'Mid', category: 'Development' },
+  { name: 'Frontend Developer', code: 'FE-DEV', level: 'Mid', category: 'Development' },
+  { name: 'Backend Developer', code: 'BE-DEV', level: 'Senior', category: 'Development' },
+  { name: 'Angular Developer', code: 'NG-DEV', level: 'Mid', category: 'Development' },
+  { name: 'Vue.js Developer', code: 'VUE-DEV', level: 'Mid', category: 'Development' },
+  { name: 'API Developer', code: 'API-DEV', level: 'Senior', category: 'Development' },
+  { name: 'Integration Developer', code: 'INT-DEV', level: 'Senior', category: 'Development' },
+  { name: 'Mendix Developer', code: 'MNDX-DEV', level: 'Mid', category: 'Development' },
+  { name: 'Low-Code Developer', code: 'LC-DEV', level: 'Mid', category: 'Development' },
+  { name: 'Power Apps Developer', code: 'PWRAPP-DEV', level: 'Junior', category: 'Development' },
+  { name: 'Technical Lead', code: 'TECH-LEAD', level: 'Lead', category: 'Leadership' },
+  { name: 'Development Manager', code: 'DEV-MGR', level: 'Lead', category: 'Leadership' },
+
+  // QA/Testing (5 roles)
+  { name: 'QA Tester', code: 'QA', level: 'Mid', category: 'Testing' },
+  { name: 'Test Analyst', code: 'TEST-ANLST', level: 'Mid', category: 'Testing' },
+  { name: 'Automation Test Engineer', code: 'AUTO-TEST', level: 'Senior', category: 'Testing' },
+  { name: 'Performance Tester', code: 'PERF-TEST', level: 'Senior', category: 'Testing' },
+  { name: 'UAT Coordinator', code: 'UAT-COORD', level: 'Junior', category: 'Testing' },
+
+  // SAP Functional (10 roles)
+  { name: 'SAP PP Consultant', code: 'SAP-PP', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP MM Consultant', code: 'SAP-MM', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP MDG Consultant', code: 'SAP-MDG', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP CRM Consultant', code: 'SAP-CRM', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP VC Consultant', code: 'SAP-VC', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP SD Consultant', code: 'SAP-SD', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP FICO Consultant', code: 'SAP-FICO', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP Functional Architect', code: 'SAP-FUNC-ARCH', level: 'Lead', category: 'SAP-Functional' },
+  { name: 'SAP S/4HANA Consultant', code: 'SAP-S4H', level: 'Senior', category: 'SAP-Functional' },
+  { name: 'SAP Business Analyst', code: 'SAP-BA', level: 'Mid', category: 'SAP-Functional' },
+
+  // SAP Technical (7 roles)
+  { name: 'SAP ABAP Developer', code: 'SAP-ABAP', level: 'Senior', category: 'SAP-Technical' },
+  { name: 'SAP Basis Administrator', code: 'SAP-BASIS', level: 'Senior', category: 'SAP-Technical' },
+  { name: 'SAP HANA Administrator', code: 'SAP-HANA-ADM', level: 'Senior', category: 'SAP-Technical' },
+  { name: 'SAP Security Consultant', code: 'SAP-SEC', level: 'Senior', category: 'SAP-Technical' },
+  { name: 'SAP Integration Consultant', code: 'SAP-INT', level: 'Senior', category: 'SAP-Technical' },
+  { name: 'SAP Fiori Developer', code: 'SAP-FIORI-DEV', level: 'Mid', category: 'SAP-Technical' },
+  { name: 'SAP BTP Developer', code: 'SAP-BTP-DEV', level: 'Mid', category: 'SAP-Technical' },
+
+  // Database & Infrastructure (8 roles)
+  { name: 'Database Administrator (DBA)', code: 'DBA', level: 'Senior', category: 'Infrastructure' },
+  { name: 'SQL Server DBA', code: 'MSSQL-DBA', level: 'Senior', category: 'Infrastructure' },
+  { name: 'Oracle DBA', code: 'ORACLE-DBA', level: 'Senior', category: 'Infrastructure' },
+  { name: 'VDI Administrator', code: 'VDI-ADM', level: 'Senior', category: 'Infrastructure' },
+  { name: 'Citrix Administrator', code: 'CITX-ADM', level: 'Senior', category: 'Infrastructure' },
+  { name: 'VMware Administrator', code: 'VMWARE-ADM', level: 'Senior', category: 'Infrastructure' },
+  { name: 'System Administrator', code: 'SYSADM', level: 'Mid', category: 'Infrastructure' },
+  { name: 'Infrastructure Engineer', code: 'INFRA-ENG', level: 'Senior', category: 'Infrastructure' },
+
+  // Engineering Roles (7 roles)
+  { name: 'PLM Administrator', code: 'PLM-ADM', level: 'Senior', category: 'Engineering' },
+  { name: 'Teamcenter Administrator', code: 'TC-ADM', level: 'Senior', category: 'Engineering' },
+  { name: 'CAD Administrator', code: 'CAD-ADM', level: 'Mid', category: 'Engineering' },
+  { name: 'Mechanical Design Engineer', code: 'MECH-ENG', level: 'Senior', category: 'Engineering' },
+  { name: 'Electrical Design Engineer', code: 'ELEC-ENG', level: 'Senior', category: 'Engineering' },
+  { name: 'Simulation Engineer', code: 'SIM-ENG', level: 'Senior', category: 'Engineering' },
+  { name: 'CAD Engineer', code: 'CAD-ENG', level: 'Mid', category: 'Engineering' },
+
+  // DevOps & Cloud (6 roles)
+  { name: 'DevOps Engineer', code: 'DEVOPS', level: 'Senior', category: 'DevOps' },
+  { name: 'Cloud Engineer', code: 'CLOUD-ENG', level: 'Senior', category: 'DevOps' },
+  { name: 'Azure Administrator', code: 'AZURE-ADM', level: 'Mid', category: 'DevOps' },
+  { name: 'CI/CD Engineer', code: 'CICD-ENG', level: 'Mid', category: 'DevOps' },
+  { name: 'Site Reliability Engineer (SRE)', code: 'SRE', level: 'Senior', category: 'DevOps' },
+  { name: 'Platform Engineer', code: 'PLAT-ENG', level: 'Senior', category: 'DevOps' },
+
+  // Architecture & Leadership (6 roles)
+  { name: 'Enterprise Architect', code: 'ENT-ARCH', level: 'Lead', category: 'Architecture' },
+  { name: 'Technical Architect', code: 'TECH-ARCH', level: 'Lead', category: 'Architecture' },
+  { name: 'Data Architect', code: 'DATA-ARCH', level: 'Lead', category: 'Architecture' },
+  { name: 'Cloud Architect', code: 'CLOUD-ARCH', level: 'Lead', category: 'Architecture' },
+  { name: 'Engineering Manager', code: 'ENG-MGR', level: 'Lead', category: 'Leadership' },
+  { name: 'IT Manager', code: 'IT-MGR', level: 'Lead', category: 'Leadership' },
+
+  // Support & Operations (8 roles)
+  { name: 'Application Support Engineer', code: 'APP-SUPP', level: 'Mid', category: 'Support' },
+  { name: 'Technical Support Specialist', code: 'TECH-SUPP', level: 'Junior', category: 'Support' },
+  { name: 'Service Desk Analyst', code: 'SD-ANLST', level: 'Junior', category: 'Support' },
+  { name: 'IT Support Engineer', code: 'IT-SUPP', level: 'Mid', category: 'Support' },
+  { name: 'Operations Analyst', code: 'OPS-ANLST', level: 'Mid', category: 'Support' },
+  { name: 'Production Support Engineer', code: 'PROD-SUPP', level: 'Senior', category: 'Support' },
+  { name: 'Application Administrator', code: 'APP-ADM', level: 'Mid', category: 'Support' },
+  { name: 'Network Administrator', code: 'NET-ADM', level: 'Senior', category: 'Support' },
+];
+
+/**
+ * CAPABILITY MAPPINGS - Realistic combinations of App/Tech/Role
+ * These show which technologies and roles typically work together
+ */
+export const capabilityMappings = [
+  // Engineering PLM Capabilities
+  { app: 'Teamcenter', tech: 'Teamcenter ITK', role: 'PLM Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'Teamcenter', tech: 'Teamcenter SOA', role: 'Integration Developer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'Teamcenter', tech: 'Active Workspace', role: 'Teamcenter Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'NX', tech: 'NX Open', role: 'CAD Engineer', proficiency: 'Advanced', yearsExp: 3 },
+  { app: 'NX', tech: 'NX CAD', role: 'Mechanical Design Engineer', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'SolidWorks', tech: 'SolidWorks API', role: 'CAD Engineer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'SolidWorks', tech: 'SolidWorks PDM', role: 'CAD Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'Creo', tech: 'Creo Toolkit', role: 'CAD Engineer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'ANSYS', tech: 'ANSYS Mechanical', role: 'Simulation Engineer', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'E3.series', tech: 'E3.series Platform', role: 'Electrical Design Engineer', proficiency: 'Advanced', yearsExp: 4 },
+
+  // SAP Functional Capabilities
+  { app: 'SAP PP', tech: 'SAP PP Module', role: 'SAP PP Consultant', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'SAP MM', tech: 'SAP MM Module', role: 'SAP MM Consultant', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'SAP MDG', tech: 'SAP MDG Platform', role: 'SAP MDG Consultant', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'SAP CRM', tech: 'SAP CRM Module', role: 'SAP CRM Consultant', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'SAP VC', tech: 'SAP VC Engine', role: 'SAP VC Consultant', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'SAP S/4HANA', tech: 'SAP S/4HANA Platform', role: 'SAP S/4HANA Consultant', proficiency: 'Advanced', yearsExp: 3 },
+
+  // SAP Technical Capabilities
+  { app: 'SAP ERP', tech: 'ABAP', role: 'SAP ABAP Developer', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'SAP ERP', tech: 'ABAP OO', role: 'SAP ABAP Developer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'SAP ERP', tech: 'SAP Basis', role: 'SAP Basis Administrator', proficiency: 'Expert', yearsExp: 7 },
+  { app: 'SAP S/4HANA', tech: 'SAP HANA', role: 'SAP HANA Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'SAP Fiori', tech: 'SAP Fiori Elements', role: 'SAP Fiori Developer', proficiency: 'Advanced', yearsExp: 3 },
+  { app: 'SAP ERP', tech: 'SAP Gateway', role: 'SAP Integration Consultant', proficiency: 'Advanced', yearsExp: 4 },
+
+  // Custom Development Capabilities
+  { app: 'iAlign', tech: 'React', role: 'React Developer', proficiency: 'Expert', yearsExp: 4 },
+  { app: 'iAlign', tech: 'TypeScript', role: 'Full-Stack Developer', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'Engineering Portal', tech: '.NET Framework', role: '.NET Developer', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'Engineering Portal', tech: 'ASP.NET', role: '.NET Developer', proficiency: 'Advanced', yearsExp: 5 },
+  { app: 'Engineering Portal', tech: 'C#', role: 'Backend Developer', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'Resource Hub', tech: 'Node.js', role: 'Node.js Developer', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'Resource Hub', tech: 'Express.js', role: 'Backend Developer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'Project Dashboard', tech: 'Angular', role: 'Frontend Developer', proficiency: 'Advanced', yearsExp: 3 },
+  { app: 'Project Dashboard', tech: 'Vue.js', role: 'Frontend Developer', proficiency: 'Expert', yearsExp: 4 },
+
+  // Low-Code Capabilities
+  { app: 'Mendix', tech: 'Mendix Studio Pro', role: 'Mendix Developer', proficiency: 'Expert', yearsExp: 3 },
+  { app: 'Mendix', tech: 'Mendix Runtime', role: 'Low-Code Developer', proficiency: 'Advanced', yearsExp: 2 },
+  { app: 'Power Apps', tech: 'Power Fx', role: 'Power Apps Developer', proficiency: 'Intermediate', yearsExp: 2 },
+  { app: 'Power BI', tech: 'DAX', role: 'Data Analyst', proficiency: 'Advanced', yearsExp: 3 },
+
+  // Infrastructure & Support Capabilities
+  { app: 'Citrix Virtual Apps', tech: 'Citrix XenApp', role: 'VDI Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'VMware Horizon', tech: 'VMware vSphere', role: 'VMware Administrator', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'Microsoft Azure', tech: 'Azure Cloud', role: 'Cloud Engineer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'AWS', tech: 'AWS Cloud', role: 'Cloud Architect', proficiency: 'Expert', yearsExp: 6 },
+  { app: 'Docker', tech: 'Docker Engine', role: 'DevOps Engineer', proficiency: 'Advanced', yearsExp: 3 },
+  { app: 'Kubernetes', tech: 'Kubernetes Cluster', role: 'Platform Engineer', proficiency: 'Expert', yearsExp: 4 },
+
+  // Database Capabilities (using existing apps)
+  { app: 'SAP S/4HANA', tech: 'SAP HANA', role: 'SAP HANA Administrator', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'SAP ERP', tech: 'SAP Basis', role: 'Database Administrator (DBA)', proficiency: 'Expert', yearsExp: 7 },
+
+  // Testing & QA Capabilities
+  { app: 'Selenium', tech: 'Selenium WebDriver', role: 'Automation Test Engineer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'Postman', tech: 'Postman Collections', role: 'QA Tester', proficiency: 'Intermediate', yearsExp: 2 },
+  { app: 'SoapUI', tech: 'SoapUI Pro', role: 'Test Analyst', proficiency: 'Advanced', yearsExp: 3 },
+
+  // DevOps Capabilities
+  { app: 'Azure DevOps', tech: 'Azure Pipelines', role: 'CI/CD Engineer', proficiency: 'Advanced', yearsExp: 3 },
+  { app: 'Jenkins', tech: 'Jenkins Pipeline', role: 'DevOps Engineer', proficiency: 'Expert', yearsExp: 5 },
+  { app: 'Git', tech: 'Git SCM', role: 'Full-Stack Developer', proficiency: 'Advanced', yearsExp: 4 },
+  { app: 'Terraform', tech: 'Terraform HCL', role: 'Cloud Engineer', proficiency: 'Advanced', yearsExp: 3 },
+];
+
+/**
+ * Seed function to populate database with enterprise data
+ */
+export const seedEnterpriseData = async () => {
+  try {
+    console.log('🌱 Seeding enterprise Apps, Technologies, and Roles...\n');
+
+    // 1. Seed Apps
+    console.log('📱 Creating Apps...');
+    const apps: any[] = [];
+    for (const appData of enterpriseApps) {
+      const app = await App.create({ ...appData, isActive: true });
+      apps.push(app);
+    }
+    console.log(`   ✅ Created ${apps.length} apps\n`);
+
+    // 2. Seed Technologies (map to correct appId)
+    console.log('⚙️  Creating Technologies...');
+    const technologies: any[] = [];
+
+    // Create a mapping of app codes to IDs
+    const appCodeMap: { [key: string]: number } = {};
+    apps.forEach(app => {
+      appCodeMap[app.code] = app.id;
+    });
+
+    for (let i = 0; i < enterpriseTechnologies.length; i++) {
+      const techData = enterpriseTechnologies[i];
+
+      // Find the app for this technology
+      let appId = 1; // default
+      const techCode = techData.code;
+
+      // Map technology to app based on code patterns
+      if (techCode.startsWith('TC-')) appId = appCodeMap['TC'];
+      else if (techCode.startsWith('NX-')) appId = appCodeMap['NX'];
+      else if (techCode.startsWith('SW-')) appId = appCodeMap['SW'];
+      else if (techCode.startsWith('CREO-') || techCode === 'WNDCHL') appId = appCodeMap['CREO'];
+      else if (techCode.startsWith('INV-') || techCode === 'VAULT') appId = appCodeMap['INV'];
+      else if (techCode.startsWith('ACAD-') || techCode === 'LISP') appId = appCodeMap['ACAD'];
+      else if (techCode.startsWith('E3-')) appId = appCodeMap['E3S'];
+      else if (techCode.startsWith('ANSYS-')) appId = appCodeMap['ANSYS'];
+      else if (techCode.startsWith('SIMC-')) appId = appCodeMap['SIMC'];
+      else if (techCode.startsWith('CATIA-')) appId = appCodeMap['CATIA'];
+      else if (techCode === 'ECC' || techCode === 'ABAP' || techCode === 'ABAP-OO' || techCode === 'BASIS' ||
+               techCode === 'HANA' || techCode === 'GATEWAY' || techCode === 'NETWVR' || techCode === 'CDS' || techCode === 'BTP')
+        appId = appCodeMap['SAP'];
+      else if (techCode === 'PP-MOD') appId = appCodeMap['PP'];
+      else if (techCode === 'MM-MOD') appId = appCodeMap['MM'];
+      else if (techCode === 'MDG-PLT') appId = appCodeMap['MDG'];
+      else if (techCode === 'CRM-MOD') appId = appCodeMap['CRM'];
+      else if (techCode === 'VC-ENG') appId = appCodeMap['VC'];
+      else if (techCode === 'S4H-PLT') appId = appCodeMap['S4H'];
+      else if (techCode === 'FIORI-ELEM') appId = appCodeMap['FIORI'];
+      else if (techCode === 'BW4-PLT') appId = appCodeMap['BW4'];
+      else if (techCode === 'SOLMAN-PLT') appId = appCodeMap['SOLMAN'];
+      else if (techCode.startsWith('MNDX-')) appId = appCodeMap['MNDX'];
+      else if (techCode.startsWith('OSYS-')) appId = appCodeMap['OSYS'];
+      else if (techCode === 'PWRFX') appId = appCodeMap['PWRAPP'];
+      else if (techCode === 'DAX') appId = appCodeMap['PWRBI'];
+      else if (techCode === 'REACT' || techCode === 'TS' || techCode === 'JS') appId = appCodeMap['IALN'];
+      else if (techCode === 'NODE' || techCode === 'EXPRESS') appId = appCodeMap['RESH'];
+      else if (techCode.startsWith('DOTNET-') || techCode === 'ASPNET' || techCode === 'EF' || techCode === 'CSHARP')
+        appId = appCodeMap['ENGP'];
+      else if (techCode === 'NG' || techCode === 'VUE') appId = appCodeMap['PDASH'];
+      else if (techCode === 'GIT-SCM') appId = appCodeMap['GIT'];
+      else if (techCode.startsWith('JIRA-')) appId = appCodeMap['JIRA'];
+      else if (techCode.startsWith('CONF-')) appId = appCodeMap['CONF'];
+      else if (techCode.startsWith('AZ-')) appId = appCodeMap['AZDO'];
+      else if (techCode.startsWith('JNKS-')) appId = appCodeMap['JNKS'];
+      else if (techCode.startsWith('PSTMN-')) appId = appCodeMap['PSTMN'];
+      else if (techCode.startsWith('SELN-')) appId = appCodeMap['SELN'];
+      else if (techCode.startsWith('SOAP-')) appId = appCodeMap['SOAP'];
+      else if (techCode.startsWith('CITX-')) appId = appCodeMap['CITX'];
+      else if (techCode.startsWith('VMVDI-')) appId = appCodeMap['VMVDI'];
+      else if (techCode.startsWith('SNOW-')) appId = appCodeMap['SNOW'];
+      else if (techCode.startsWith('REMEDY-')) appId = appCodeMap['REMEDY'];
+      else if (techCode.startsWith('AZURE-')) appId = appCodeMap['AZURE'];
+      else if (techCode.startsWith('AWS-')) appId = appCodeMap['AWS'];
+      else if (techCode.startsWith('DCKR-')) appId = appCodeMap['DCKR'];
+      else if (techCode.startsWith('K8S-')) appId = appCodeMap['K8S'];
+      else if (techCode.startsWith('TF-')) appId = appCodeMap['TF'];
+      else if (techCode.startsWith('ANSBL-')) appId = appCodeMap['ANSBL'];
+
+      const tech = await Technology.create({
+        ...techData,
+        appId,
+        isActive: true
+      });
+      technologies.push(tech);
+    }
+    console.log(`   ✅ Created ${technologies.length} technologies\n`);
+
+    // 3. Seed Roles (generic roles not tied to specific tech)
+    console.log('👥 Creating Roles...');
+    const roles: any[] = [];
+    for (const roleData of enterpriseRoles) {
+      const role = await Role.create({
+        ...roleData,
+        appId: undefined, // Generic roles not tied to app
+        technologyId: undefined, // Generic roles not tied to tech
+        isActive: true
+      } as any);
+      roles.push(role);
+    }
+    console.log(`   ✅ Created ${roles.length} roles\n`);
+
+    console.log('🎉 Enterprise data seeding completed!\n');
+    console.log('📊 Summary:');
+    console.log(`   - Apps: ${apps.length}`);
+    console.log(`   - Technologies: ${technologies.length}`);
+    console.log(`   - Roles: ${roles.length}`);
+    console.log(`   - Capability Mappings: ${capabilityMappings.length} (reference data)\n`);
+
+    return { apps, technologies, roles };
+  } catch (error) {
+    console.error('❌ Enterprise data seeding failed:', error);
+    throw error;
+  }
+};
+
+// Export for use in main seed script
+export default seedEnterpriseData;

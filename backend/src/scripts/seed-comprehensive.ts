@@ -19,6 +19,7 @@ import ResourceCapability from '../models/ResourceCapability';
 import ProjectRequirement from '../models/ProjectRequirement';
 import ProjectDomainImpact from '../models/ProjectDomainImpact';
 import ProjectDependency from '../models/ProjectDependency';
+import { enterpriseApps, enterpriseTechnologies, enterpriseRoles, capabilityMappings } from './seed-enterprise-data';
 
 const DOMAIN_NAMES = [
   'Engineering', 'VC', 'Make', 'Buy', 'Quality',
@@ -173,80 +174,102 @@ const seedDatabase = async (dropTables: boolean = true) => {
     });
     console.log(`   ✅ Created baseline scenario\n`);
 
-    // 3. Create Apps, Technologies, and Roles
-    console.log('3️⃣  Creating Apps, Technologies, and Roles...');
+    // 3. Create Apps, Technologies, and Roles (Using Enterprise Data)
+    console.log('3️⃣  Creating Apps, Technologies, and Roles (Enterprise)...');
 
-    const appsData = [
-      { name: 'SAP', code: 'SAP', category: 'ERP', description: 'SAP ERP System', isGlobal: true, status: 'Active' as const },
-      { name: 'Salesforce', code: 'SFDC', category: 'CRM', description: 'Salesforce CRM', isGlobal: true, status: 'Active' as const },
-      { name: 'Oracle', code: 'ORCL', category: 'Database', description: 'Oracle Database & Applications', isGlobal: true, status: 'Active' as const },
-      { name: 'Custom Applications', code: 'CUSTOM', category: 'Custom', description: 'Custom built applications', isGlobal: false, status: 'Active' as const },
-    ];
-
+    // Seed Apps from enterprise data
     const apps: any[] = [];
-    for (const appData of appsData) {
+    for (const appData of enterpriseApps) {
       const app = await App.create({ ...appData, isActive: true });
       apps.push(app);
     }
-
     console.log(`   ✅ Created ${apps.length} apps`);
 
-    const technologiesData: any[] = [
-      { appId: 1, name: 'SAP ECC', code: 'ECC', category: 'Platform', description: 'SAP ECC 6.0' },
-      { appId: 1, name: 'SAP S/4HANA', code: 'S4H', category: 'Platform', description: 'SAP S/4HANA' },
-      { appId: 1, name: 'SAP Fiori', code: 'FIORI', category: 'Framework', description: 'SAP Fiori UX' },
-      { appId: 1, name: 'SAP BW', code: 'BW', category: 'Platform', description: 'SAP Business Warehouse' },
-      { appId: 2, name: 'Sales Cloud', code: 'SALES', category: 'Platform', description: 'Salesforce Sales Cloud' },
-      { appId: 2, name: 'Service Cloud', code: 'SERVICE', category: 'Platform', description: 'Salesforce Service Cloud' },
-      { appId: 2, name: 'Marketing Cloud', code: 'MKTG', category: 'Platform', description: 'Salesforce Marketing Cloud' },
-      { appId: 3, name: 'Oracle DB', code: 'ODB', category: 'Database', description: 'Oracle Database' },
-      { appId: 3, name: 'Oracle Fusion', code: 'FUSION', category: 'Platform', description: 'Oracle Fusion Applications' },
-      { appId: 4, name: 'React', code: 'REACT', category: 'Framework', description: 'React.js Framework' },
-      { appId: 4, name: 'Node.js', code: 'NODE', category: 'Platform', description: 'Node.js Runtime' },
-      { appId: 4, name: 'Python', code: 'PY', category: 'Language', description: 'Python Language' },
-      { appId: 4, name: '.NET', code: 'DOTNET', category: 'Framework', description: 'Microsoft .NET Framework' },
-      { appId: 4, name: 'Java', code: 'JAVA', category: 'Language', description: 'Java Platform' },
-      { appId: 4, name: 'Angular', code: 'NG', category: 'Framework', description: 'Angular Framework' },
-      { appId: 4, name: 'Vue.js', code: 'VUE', category: 'Framework', description: 'Vue.js Framework' },
-      { appId: 4, name: 'Django', code: 'DJANGO', category: 'Framework', description: 'Django Framework' },
-      { appId: 4, name: 'Spring Boot', code: 'SPRING', category: 'Framework', description: 'Spring Boot Framework' },
-      { appId: 4, name: 'Express.js', code: 'EXPRESS', category: 'Framework', description: 'Express.js Framework' },
-      { appId: 4, name: 'Flask', code: 'FLASK', category: 'Framework', description: 'Flask Framework' },
-    ];
+    // Create app code mapping for technology linking
+    const appCodeMap: { [key: string]: number } = {};
+    apps.forEach(app => {
+      appCodeMap[app.code] = app.id;
+    });
 
+    // Seed Technologies from enterprise data (with proper appId mapping)
     const technologies: any[] = [];
-    for (const techData of technologiesData) {
-      const tech = await Technology.create({ ...techData, isActive: true });
+    for (const techData of enterpriseTechnologies) {
+      const techCode = techData.code;
+      let appId = 1; // default
+
+      // Map technology to app based on code patterns
+      if (techCode.startsWith('TC-')) appId = appCodeMap['TC'];
+      else if (techCode.startsWith('NX-')) appId = appCodeMap['NX'];
+      else if (techCode.startsWith('SW-')) appId = appCodeMap['SW'];
+      else if (techCode.startsWith('CREO-') || techCode === 'WNDCHL') appId = appCodeMap['CREO'];
+      else if (techCode.startsWith('INV-') || techCode === 'VAULT') appId = appCodeMap['INV'];
+      else if (techCode.startsWith('ACAD-') || techCode === 'LISP') appId = appCodeMap['ACAD'];
+      else if (techCode.startsWith('E3-')) appId = appCodeMap['E3S'];
+      else if (techCode.startsWith('ANSYS-')) appId = appCodeMap['ANSYS'];
+      else if (techCode.startsWith('SIMC-')) appId = appCodeMap['SIMC'];
+      else if (techCode.startsWith('CATIA-')) appId = appCodeMap['CATIA'];
+      else if (techCode === 'S4H-PLT' || techCode === 'HANA') appId = appCodeMap['S4H']; // S/4HANA specific techs
+      else if (techCode === 'ECC' || techCode === 'ABAP' || techCode === 'ABAP-OO' || techCode === 'BASIS' ||
+               techCode === 'GATEWAY' || techCode === 'NETWVR' || techCode === 'CDS' || techCode === 'BTP')
+        appId = appCodeMap['SAP']; // SAP ERP general techs
+      else if (techCode === 'PP-MOD') appId = appCodeMap['PP'];
+      else if (techCode === 'MM-MOD') appId = appCodeMap['MM'];
+      else if (techCode === 'MDG-PLT') appId = appCodeMap['MDG'];
+      else if (techCode === 'CRM-MOD') appId = appCodeMap['CRM'];
+      else if (techCode === 'VC-ENG') appId = appCodeMap['VC'];
+      else if (techCode === 'FIORI-ELEM') appId = appCodeMap['FIORI'];
+      else if (techCode === 'BW4-PLT') appId = appCodeMap['BW4'];
+      else if (techCode === 'SOLMAN-PLT') appId = appCodeMap['SOLMAN'];
+      else if (techCode.startsWith('MNDX-')) appId = appCodeMap['MNDX'];
+      else if (techCode.startsWith('OSYS-')) appId = appCodeMap['OSYS'];
+      else if (techCode === 'PWRFX') appId = appCodeMap['PWRAPP'];
+      else if (techCode === 'DAX') appId = appCodeMap['PWRBI'];
+      else if (techCode === 'REACT' || techCode === 'TS') appId = appCodeMap['IALN'];
+      else if (techCode === 'NODE' || techCode === 'EXPRESS') appId = appCodeMap['RESH'];
+      else if (techCode.startsWith('DOTNET-') || techCode === 'ASPNET' || techCode === 'EF' || techCode === 'CSHARP')
+        appId = appCodeMap['ENGP'];
+      else if (techCode === 'NG' || techCode === 'VUE' || techCode === 'JS') appId = appCodeMap['PDASH'];
+      else if (techCode === 'GIT-SCM') appId = appCodeMap['GIT'];
+      else if (techCode.startsWith('JIRA-')) appId = appCodeMap['JIRA'];
+      else if (techCode.startsWith('CONF-')) appId = appCodeMap['CONF'];
+      else if (techCode.startsWith('AZ-')) appId = appCodeMap['AZDO'];
+      else if (techCode.startsWith('JNKS-')) appId = appCodeMap['JNKS'];
+      else if (techCode.startsWith('PSTMN-')) appId = appCodeMap['PSTMN'];
+      else if (techCode.startsWith('SELN-')) appId = appCodeMap['SELN'];
+      else if (techCode.startsWith('SOAP-')) appId = appCodeMap['SOAP'];
+      else if (techCode.startsWith('CITX-')) appId = appCodeMap['CITX'];
+      else if (techCode.startsWith('VMVDI-')) appId = appCodeMap['VMVDI'];
+      else if (techCode.startsWith('SNOW-')) appId = appCodeMap['SNOW'];
+      else if (techCode.startsWith('REMEDY-')) appId = appCodeMap['REMEDY'];
+      else if (techCode.startsWith('AZURE-')) appId = appCodeMap['AZURE'];
+      else if (techCode.startsWith('AWS-')) appId = appCodeMap['AWS'];
+      else if (techCode.startsWith('DCKR-')) appId = appCodeMap['DCKR'];
+      else if (techCode.startsWith('K8S-')) appId = appCodeMap['K8S'];
+      else if (techCode.startsWith('TF-')) appId = appCodeMap['TF'];
+      else if (techCode.startsWith('ANSBL-')) appId = appCodeMap['ANSBL'];
+      else if (techCode === 'MSSQL' || techCode === 'ORACLE-DB' || techCode === 'PGSQL' || techCode === 'MONGO' || techCode === 'MYSQL')
+        appId = appCodeMap['SAP']; // Generic database - map to SAP for now
+
+      const tech = await Technology.create({
+        ...techData,
+        appId,
+        isActive: true
+      });
       technologies.push(tech);
     }
-
     console.log(`   ✅ Created ${technologies.length} technologies`);
 
-    const rolesData: any[] = [
-      { appId: 1, technologyId: 1, name: 'SAP ECC Consultant', code: 'ECC-CON', level: 'Senior', category: 'Consulting' },
-      { appId: 1, technologyId: 2, name: 'SAP S/4HANA Architect', code: 'S4H-ARCH', level: 'Lead', category: 'Architecture' },
-      { appId: 1, technologyId: 2, name: 'SAP S/4HANA Developer', code: 'S4H-DEV', level: 'Mid', category: 'Development' },
-      { appId: 1, technologyId: 3, name: 'SAP Fiori Developer', code: 'FIORI-DEV', level: 'Mid', category: 'Development' },
-      { appId: 1, technologyId: 4, name: 'SAP BW Consultant', code: 'BW-CON', level: 'Senior', category: 'Consulting' },
-      { appId: 2, technologyId: 5, name: 'Salesforce Developer', code: 'SFDC-DEV', level: 'Mid', category: 'Development' },
-      { appId: 2, technologyId: 5, name: 'Salesforce Admin', code: 'SFDC-ADM', level: 'Junior', category: 'Operations' },
-      { appId: 2, technologyId: 6, name: 'Service Cloud Specialist', code: 'SVC-SPEC', level: 'Senior', category: 'Consulting' },
-      { appId: 3, technologyId: 8, name: 'Oracle DBA', code: 'ORA-DBA', level: 'Senior', category: 'Operations' },
-      { appId: 3, technologyId: 9, name: 'Oracle Fusion Developer', code: 'FUSION-DEV', level: 'Mid', category: 'Development' },
-      { appId: 4, technologyId: 10, name: 'React Developer', code: 'REACT-DEV', level: 'Mid', category: 'Development' },
-      { appId: 4, technologyId: 11, name: 'Node.js Developer', code: 'NODE-DEV', level: 'Mid', category: 'Development' },
-      { appId: 4, technologyId: 12, name: 'Python Developer', code: 'PY-DEV', level: 'Mid', category: 'Development' },
-      { appId: 4, technologyId: 13, name: '.NET Developer', code: 'NET-DEV', level: 'Senior', category: 'Development' },
-      { appId: 4, technologyId: 14, name: 'Java Developer', code: 'JAVA-DEV', level: 'Senior', category: 'Development' },
-      { appId: 4, technologyId: 15, name: 'Full Stack Developer', code: 'FS-DEV', level: 'Lead', category: 'Development' },
-    ];
-
+    // Seed Roles from enterprise data (generic roles not tied to specific apps)
     const roles: any[] = [];
-    for (const roleData of rolesData) {
-      const role = await Role.create({ ...roleData, isActive: true });
+    for (const roleData of enterpriseRoles) {
+      const role = await Role.create({
+        ...roleData,
+        appId: undefined, // Generic roles not tied to app
+        technologyId: undefined, // Generic roles not tied to tech
+        isActive: true
+      } as any); // Cast to any to bypass strict type checking for level field
       roles.push(role);
     }
-
     console.log(`   ✅ Created ${roles.length} roles\n`);
 
     // 4. Create Domains
@@ -379,48 +402,110 @@ const seedDatabase = async (dropTables: boolean = true) => {
 
     console.log(`   ✅ Created ${resources.length} resources\n`);
 
-    // 7. Create Resource Capabilities
+    // 7. Create Resource Capabilities (Using Realistic Capability Mappings)
     console.log('7️⃣  Creating resource capabilities...');
     let capabilityCount = 0;
     const proficiencyLevels: Array<'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'> = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
+    // Create name-to-ID mappings for quick lookup
+    const appNameMap: { [key: string]: any } = {};
+    apps.forEach(app => { appNameMap[app.name] = app; });
+
+    const techNameMap: { [key: string]: any } = {};
+    technologies.forEach(tech => { techNameMap[tech.name] = tech; });
+
+    const roleNameMap: { [key: string]: any } = {};
+    roles.forEach(role => { roleNameMap[role.name] = role; });
+
     for (const resource of resources) {
       const numCapabilities = Math.floor(Math.random() * 3) + 2; // 2-4 capabilities
+      const usedCombos = new Set<string>(); // Track used combos to avoid duplicates
 
       for (let i = 0; i < numCapabilities; i++) {
-        const app = apps[Math.floor(Math.random() * apps.length)];
-        const techsForApp = technologies.filter(t => t.appId === app.id);
-        if (techsForApp.length === 0) continue;
+        let mapping;
+        let attempts = 0;
+        const maxAttempts = 10;
 
-        const technology = techsForApp[Math.floor(Math.random() * techsForApp.length)];
-        const rolesForTech = roles.filter(r => r.technologyId === technology.id);
-        if (rolesForTech.length === 0) continue;
+        // Try to find a unique capability mapping
+        do {
+          mapping = capabilityMappings[Math.floor(Math.random() * capabilityMappings.length)];
+          attempts++;
+        } while (
+          usedCombos.has(`${mapping.app}-${mapping.tech}-${mapping.role}`) &&
+          attempts < maxAttempts
+        );
 
-        const role = rolesForTech[Math.floor(Math.random() * rolesForTech.length)];
+        // If we couldn't find from mappings, fall back to random assignment
+        if (!appNameMap[mapping.app] || !techNameMap[mapping.tech] || !roleNameMap[mapping.role]) {
+          // Fallback: random assignment
+          const app = apps[Math.floor(Math.random() * apps.length)];
+          const techsForApp = technologies.filter(t => t.appId === app.id);
+          if (techsForApp.length === 0) continue;
 
-        const existing = await ResourceCapability.findOne({
-          where: { resourceId: resource.id, appId: app.id, technologyId: technology.id, roleId: role.id },
-        });
+          const technology = techsForApp[Math.floor(Math.random() * techsForApp.length)];
+          const role = roles[Math.floor(Math.random() * roles.length)];
 
-        if (!existing) {
-          await ResourceCapability.create({
-            resourceId: resource.id,
-            appId: app.id,
-            technologyId: technology.id,
-            roleId: role.id,
-            proficiencyLevel: proficiencyLevels[Math.floor(Math.random() * 4)],
-            yearsOfExperience: Math.floor(Math.random() * 10) + 1,
-            isPrimary: i === 0,
-            lastUsedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
-            certifications: i === 0 ? JSON.stringify(['Certified Professional']) : undefined,
-            isActive: true,
+          const comboKey = `${app.id}-${technology.id}-${role.id}`;
+          if (usedCombos.has(comboKey)) continue;
+
+          const existing = await ResourceCapability.findOne({
+            where: { resourceId: resource.id, appId: app.id, technologyId: technology.id, roleId: role.id },
           });
-          capabilityCount++;
+
+          if (!existing) {
+            await ResourceCapability.create({
+              resourceId: resource.id,
+              appId: app.id,
+              technologyId: technology.id,
+              roleId: role.id,
+              proficiencyLevel: proficiencyLevels[Math.floor(Math.random() * 4)],
+              yearsOfExperience: Math.floor(Math.random() * 10) + 1,
+              isPrimary: i === 0,
+              lastUsedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+              certifications: i === 0 ? JSON.stringify(['Certified Professional']) : undefined,
+              isActive: true,
+            });
+            capabilityCount++;
+            usedCombos.add(comboKey);
+          }
+        } else {
+          // Use capability mapping data
+          const app = appNameMap[mapping.app];
+          const technology = techNameMap[mapping.tech];
+          const role = roleNameMap[mapping.role];
+
+          const comboKey = `${app.id}-${technology.id}-${role.id}`;
+          if (usedCombos.has(comboKey)) continue;
+
+          const existing = await ResourceCapability.findOne({
+            where: { resourceId: resource.id, appId: app.id, technologyId: technology.id, roleId: role.id },
+          });
+
+          if (!existing) {
+            // Use proficiency and years from mapping, or defaults
+            const proficiency = (mapping.proficiency as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert') || 'Intermediate';
+            const yearsExp = mapping.yearsExp || Math.floor(Math.random() * 5) + 2;
+
+            await ResourceCapability.create({
+              resourceId: resource.id,
+              appId: app.id,
+              technologyId: technology.id,
+              roleId: role.id,
+              proficiencyLevel: proficiency,
+              yearsOfExperience: yearsExp,
+              isPrimary: i === 0,
+              lastUsedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+              certifications: i === 0 && proficiency === 'Expert' ? JSON.stringify([`${mapping.tech} Certified Professional`]) : undefined,
+              isActive: true,
+            });
+            capabilityCount++;
+            usedCombos.add(comboKey);
+          }
         }
       }
     }
 
-    console.log(`   ✅ Created ${capabilityCount} resource capabilities\n`);
+    console.log(`   ✅ Created ${capabilityCount} resource capabilities (using realistic mappings)\n`);
 
     // 8. Create Projects
     console.log('8️⃣  Creating projects...');
@@ -511,7 +596,7 @@ const seedDatabase = async (dropTables: boolean = true) => {
 
     console.log(`   ✅ Created ${projects.length} projects\n`);
 
-    // 8. Create Project Requirements
+    // 8. Create Project Requirements (Using Realistic Capability Mappings)
     console.log('8️⃣  Creating project requirements...');
     let requirementCount = 0;
     const reqProficiencyLevels: Array<'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'> = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
@@ -519,44 +604,99 @@ const seedDatabase = async (dropTables: boolean = true) => {
 
     for (const project of projects) {
       const numRequirements = Math.floor(Math.random() * 4) + 3; // 3-6 requirements
+      const usedCombos = new Set<string>(); // Track used combos to avoid duplicates
 
       for (let i = 0; i < numRequirements; i++) {
-        const app = apps[Math.floor(Math.random() * apps.length)];
-        const techsForApp = technologies.filter(t => t.appId === app.id);
-        if (techsForApp.length === 0) continue;
+        let mapping;
+        let attempts = 0;
+        const maxAttempts = 10;
 
-        const technology = techsForApp[Math.floor(Math.random() * techsForApp.length)];
-        const rolesForTech = roles.filter(r => r.technologyId === technology.id);
-        if (rolesForTech.length === 0) continue;
+        // Try to find a unique capability mapping
+        do {
+          mapping = capabilityMappings[Math.floor(Math.random() * capabilityMappings.length)];
+          attempts++;
+        } while (
+          usedCombos.has(`${mapping.app}-${mapping.tech}-${mapping.role}`) &&
+          attempts < maxAttempts
+        );
 
-        const role = rolesForTech[Math.floor(Math.random() * rolesForTech.length)];
+        // If we couldn't find from mappings, fall back to random assignment
+        if (!appNameMap[mapping.app] || !techNameMap[mapping.tech] || !roleNameMap[mapping.role]) {
+          // Fallback: random assignment
+          const app = apps[Math.floor(Math.random() * apps.length)];
+          const techsForApp = technologies.filter(t => t.appId === app.id);
+          if (techsForApp.length === 0) continue;
 
-        const existing = await ProjectRequirement.findOne({
-          where: { projectId: project.id, appId: app.id, technologyId: technology.id, roleId: role.id },
-        });
+          const technology = techsForApp[Math.floor(Math.random() * techsForApp.length)];
+          const role = roles[Math.floor(Math.random() * roles.length)];
 
-        if (!existing) {
-          await ProjectRequirement.create({
-            projectId: project.id,
-            appId: app.id,
-            technologyId: technology.id,
-            roleId: role.id,
-            proficiencyLevel: reqProficiencyLevels[Math.floor(Math.random() * 4)],
-            minYearsExp: Math.floor(Math.random() * 5) + 2,
-            requiredCount: Math.floor(Math.random() * 3) + 1,
-            fulfilledCount: 0,
-            priority: reqPriorities[Math.floor(Math.random() * 4)],
-            isFulfilled: false,
-            startDate: project.startDate,
-            endDate: project.endDate,
-            isActive: true,
+          const comboKey = `${app.id}-${technology.id}-${role.id}`;
+          if (usedCombos.has(comboKey)) continue;
+
+          const existing = await ProjectRequirement.findOne({
+            where: { projectId: project.id, appId: app.id, technologyId: technology.id, roleId: role.id },
           });
-          requirementCount++;
+
+          if (!existing) {
+            await ProjectRequirement.create({
+              projectId: project.id,
+              appId: app.id,
+              technologyId: technology.id,
+              roleId: role.id,
+              proficiencyLevel: reqProficiencyLevels[Math.floor(Math.random() * 4)],
+              minYearsExp: Math.floor(Math.random() * 5) + 2,
+              requiredCount: Math.floor(Math.random() * 3) + 1,
+              fulfilledCount: 0,
+              priority: reqPriorities[Math.floor(Math.random() * 4)],
+              isFulfilled: false,
+              startDate: project.startDate,
+              endDate: project.endDate,
+              isActive: true,
+            });
+            requirementCount++;
+            usedCombos.add(comboKey);
+          }
+        } else {
+          // Use capability mapping data
+          const app = appNameMap[mapping.app];
+          const technology = techNameMap[mapping.tech];
+          const role = roleNameMap[mapping.role];
+
+          const comboKey = `${app.id}-${technology.id}-${role.id}`;
+          if (usedCombos.has(comboKey)) continue;
+
+          const existing = await ProjectRequirement.findOne({
+            where: { projectId: project.id, appId: app.id, technologyId: technology.id, roleId: role.id },
+          });
+
+          if (!existing) {
+            // Use proficiency and years from mapping, or defaults
+            const proficiency = (mapping.proficiency as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert') || 'Intermediate';
+            const minYearsExp = mapping.yearsExp ? Math.max(1, mapping.yearsExp - 2) : Math.floor(Math.random() * 3) + 2;
+
+            await ProjectRequirement.create({
+              projectId: project.id,
+              appId: app.id,
+              technologyId: technology.id,
+              roleId: role.id,
+              proficiencyLevel: proficiency,
+              minYearsExp,
+              requiredCount: Math.floor(Math.random() * 3) + 1,
+              fulfilledCount: 0,
+              priority: reqPriorities[Math.floor(Math.random() * 4)],
+              isFulfilled: false,
+              startDate: project.startDate,
+              endDate: project.endDate,
+              isActive: true,
+            });
+            requirementCount++;
+            usedCombos.add(comboKey);
+          }
         }
       }
     }
 
-    console.log(`   ✅ Created ${requirementCount} project requirements\n`);
+    console.log(`   ✅ Created ${requirementCount} project requirements (using realistic mappings)\n`);
 
     // 9. Create Project Domain Impacts (Cross-Domain Impact Tracking)
     console.log('9️⃣  Creating project domain impacts...');
