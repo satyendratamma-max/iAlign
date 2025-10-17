@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import sequelize from '../config/database';
+import { Op } from 'sequelize';
 import User from '../models/User';
 import Scenario from '../models/Scenario';
 import SegmentFunction from '../models/SegmentFunction';
@@ -44,6 +45,41 @@ const TARGET_SPRINTS = ['Sprint 1', 'Sprint 2', 'Sprint 3', 'Sprint 4', 'Sprint 
 const seedDatabase = async (dropTables: boolean = true) => {
   try {
     console.log('🌱 Starting comprehensive database seeding...\n');
+
+    // Backup existing users (except Admin) before dropping tables
+    let backedUpUsers: any[] = [];
+    if (dropTables) {
+      try {
+        console.log('💾 Backing up existing users (excluding Admin)...');
+        const existingUsers = await User.findAll({
+          where: {
+            email: {
+              [Op.ne]: 'admin@ialign.com'
+            }
+          },
+          raw: true
+        });
+
+        backedUpUsers = existingUsers.map((user: any) => ({
+          username: user.username,
+          email: user.email,
+          passwordHash: user.passwordHash,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          phoneNumber: user.phoneNumber,
+          department: user.department,
+          timezone: user.timezone,
+          preferences: user.preferences,
+          lastLoginDate: user.lastLoginDate,
+          isActive: user.isActive,
+        }));
+
+        console.log(`   ✅ Backed up ${backedUpUsers.length} existing users\n`);
+      } catch (error) {
+        console.log('   ℹ️  No existing users to backup (fresh database)\n');
+      }
+    }
 
     // Sync database
     if (dropTables) {
@@ -161,7 +197,25 @@ const seedDatabase = async (dropTables: boolean = true) => {
       users.push(user);
     }
 
-    console.log(`   ✅ Created ${users.length} users\n`);
+    console.log(`   ✅ Created ${users.length} seed users\n`);
+
+    // Restore backed up users (if any)
+    if (backedUpUsers.length > 0) {
+      console.log('🔄 Restoring previously backed up users...');
+      let restoredCount = 0;
+
+      for (const userData of backedUpUsers) {
+        try {
+          const restoredUser = await User.create(userData);
+          users.push(restoredUser);
+          restoredCount++;
+        } catch (error: any) {
+          console.error(`   ⚠️  Failed to restore user ${userData.email}: ${error.message}`);
+        }
+      }
+
+      console.log(`   ✅ Restored ${restoredCount} existing users\n`);
+    }
 
     // 2. Create Baseline Scenario
     console.log('2️⃣  Creating baseline scenario...');
