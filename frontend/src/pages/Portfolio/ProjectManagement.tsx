@@ -87,6 +87,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -112,6 +113,8 @@ interface Project {
   businessPriority?: string;
   type?: string;
   fiscalYear?: string;
+  targetRelease?: string;
+  targetSprint?: string;
   progress: number;
   currentPhase?: string;
   budget?: number;
@@ -403,6 +406,72 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit, projectRisks }
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Kanban Column Component
+interface KanbanColumnProps {
+  groupName: string;
+  groupProjects: Project[];
+  onEdit: (project: Project) => void;
+  projectRisks: Record<number, number>;
+}
+
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, onEdit, projectRisks }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `kanban-column-${groupName}`,
+  });
+
+  return (
+    <Paper
+      ref={setNodeRef}
+      sx={{
+        minWidth: 320,
+        maxWidth: 320,
+        p: 2,
+        bgcolor: isOver ? 'primary.lighter' : 'grey.50',
+        border: isOver ? '2px solid' : '1px solid',
+        borderColor: isOver ? 'primary.main' : 'grey.200',
+        flex: '0 0 auto',
+        transition: 'all 0.2s',
+        minHeight: groupProjects.length === 0 ? 150 : 'auto',
+      }}
+    >
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="subtitle1" fontWeight="bold">
+          {groupName}
+        </Typography>
+        <Chip label={groupProjects.length} size="small" color="primary" />
+      </Box>
+
+      {groupProjects.length === 0 ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 100,
+            border: '2px dashed',
+            borderColor: isOver ? 'primary.main' : 'grey.300',
+            borderRadius: 1,
+            bgcolor: isOver ? 'primary.lighter' : 'transparent',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {isOver ? 'Drop here' : 'Empty - Drag projects here'}
+          </Typography>
+        </Box>
+      ) : (
+        <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {groupProjects.map((project) => (
+              <KanbanCard key={project.id} project={project} onEdit={onEdit} projectRisks={projectRisks} />
+            ))}
+          </Box>
+        </SortableContext>
+      )}
+    </Paper>
   );
 };
 
@@ -835,6 +904,8 @@ const ProjectManagement = () => {
     segmentFunction: [] as string[],
     type: '',
     fiscalYear: [] as string[],
+    targetRelease: [] as string[],
+    targetSprint: [] as string[],
     status: [] as string[],
     priority: '',
     currentPhase: '',
@@ -844,7 +915,7 @@ const ProjectManagement = () => {
 
   // Sorting state
   type OrderDirection = 'asc' | 'desc';
-  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus' | 'risk';
+  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'targetRelease' | 'targetSprint' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus' | 'risk';
   const [orderBy, setOrderBy] = useState<SortableColumn>('projectNumber');
   const [order, setOrder] = useState<OrderDirection>('asc');
   const [projectRisks, setProjectRisks] = useState<Record<number, number>>({});
@@ -852,8 +923,8 @@ const ProjectManagement = () => {
   // Swimlane Configuration State
   const [swimlaneConfig, setSwimlaneConfig] = useState<{
     enabled: boolean;
-    level1: 'domain' | 'segmentFunction' | 'type';
-    level2: 'domain' | 'segmentFunction' | 'type';
+    level1: 'domain' | 'segmentFunction' | 'type' | 'targetRelease' | 'targetSprint';
+    level2: 'domain' | 'segmentFunction' | 'type' | 'targetRelease' | 'targetSprint';
     level2Enabled: boolean;
     rotateLevel1: boolean;
     rotateLevel2: boolean;
@@ -1941,8 +2012,10 @@ const ProjectManagement = () => {
     return { impacting, impactedBy };
   };
 
-  // Get unique fiscal years from projects
+  // Get unique fiscal years, target releases, and target sprints from projects
   const uniqueFiscalYears = Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
+  const uniqueTargetReleases = Array.from(new Set(projects.map(p => p.targetRelease).filter(Boolean))) as string[];
+  const uniqueTargetSprints = Array.from(new Set(projects.map(p => p.targetSprint).filter(Boolean))) as string[];
 
   // Sorting handler
   const handleRequestSort = (property: SortableColumn) => {
@@ -1964,6 +2037,8 @@ const ProjectManagement = () => {
       (filters.segmentFunction.length === 0 || filters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
       (filters.type === '' || (project.type || '').toLowerCase().includes(filters.type.toLowerCase())) &&
       (filters.fiscalYear.length === 0 || filters.fiscalYear.includes(project.fiscalYear || '')) &&
+      (filters.targetRelease.length === 0 || filters.targetRelease.includes(project.targetRelease || '')) &&
+      (filters.targetSprint.length === 0 || filters.targetSprint.includes(project.targetSprint || '')) &&
       (filters.status.length === 0 || filters.status.includes(project.status)) &&
       (filters.priority === '' || project.priority === filters.priority) &&
       (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
@@ -1999,6 +2074,14 @@ const ProjectManagement = () => {
       case 'fiscalYear':
         aValue = a.fiscalYear?.toLowerCase() || '';
         bValue = b.fiscalYear?.toLowerCase() || '';
+        break;
+      case 'targetRelease':
+        aValue = a.targetRelease?.toLowerCase() || '';
+        bValue = b.targetRelease?.toLowerCase() || '';
+        break;
+      case 'targetSprint':
+        aValue = a.targetSprint?.toLowerCase() || '';
+        bValue = b.targetSprint?.toLowerCase() || '';
         break;
       case 'status':
         aValue = a.status?.toLowerCase() || '';
@@ -2069,7 +2152,7 @@ const ProjectManagement = () => {
   });
 
   // Swimlane grouping helper functions
-  const getGroupKey = (project: Project, groupBy: 'domain' | 'segmentFunction' | 'type'): string => {
+  const getGroupKey = (project: Project, groupBy: 'domain' | 'segmentFunction' | 'type' | 'targetRelease' | 'targetSprint'): string => {
     switch (groupBy) {
       case 'domain':
         return project.domain?.name || 'Unassigned';
@@ -2077,12 +2160,16 @@ const ProjectManagement = () => {
         return project.segmentFunctionData?.name || 'Unassigned';
       case 'type':
         return project.type || 'Unassigned';
+      case 'targetRelease':
+        return project.targetRelease || 'Unassigned';
+      case 'targetSprint':
+        return project.targetSprint || 'Unassigned';
       default:
         return 'Unassigned';
     }
   };
 
-  const getGroupLabel = (groupBy: 'domain' | 'segmentFunction' | 'type'): string => {
+  const getGroupLabel = (groupBy: 'domain' | 'segmentFunction' | 'type' | 'targetRelease' | 'targetSprint'): string => {
     switch (groupBy) {
       case 'domain':
         return 'Domain';
@@ -2090,6 +2177,10 @@ const ProjectManagement = () => {
         return 'Segment Function';
       case 'type':
         return 'Type';
+      case 'targetRelease':
+        return 'Target Release';
+      case 'targetSprint':
+        return 'Target Sprint';
       default:
         return '';
     }
@@ -3093,6 +3184,10 @@ const ProjectManagement = () => {
         return project.domain?.name || 'No Domain';
       case 'fiscalYear':
         return project.fiscalYear || 'No Fiscal Year';
+      case 'targetRelease':
+        return project.targetRelease || 'No Target Release';
+      case 'targetSprint':
+        return project.targetSprint || 'No Target Sprint';
       case 'priority':
         return project.priority || 'No Priority';
       case 'healthStatus':
@@ -3104,14 +3199,58 @@ const ProjectManagement = () => {
     }
   };
 
-  const groupedProjects = filteredProjects.reduce((groups, project) => {
-    const groupValue = getKanbanGroupValue(project);
-    if (!groups[groupValue]) {
-      groups[groupValue] = [];
+  // Define all possible values for each grouping type
+  const getAllPossibleGroups = (): string[] => {
+    switch (kanbanGroupBy) {
+      case 'status':
+        return ['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled'];
+      case 'priority':
+        return ['Critical', 'High', 'Medium', 'Low'];
+      case 'healthStatus':
+        return ['Green', 'Yellow', 'Red'];
+      case 'currentPhase':
+        return ['Initiation', 'Planning', 'Execution', 'Monitoring', 'Closure'];
+      case 'domain':
+        // Get unique domain names from all projects
+        return Array.from(new Set(projects.map(p => p.domain?.name).filter(Boolean))) as string[];
+      case 'fiscalYear':
+        // Get unique fiscal years from all projects
+        return Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
+      case 'targetRelease':
+        // Get unique target releases from all projects
+        return Array.from(new Set(projects.map(p => p.targetRelease).filter(Boolean))) as string[];
+      case 'targetSprint':
+        // Get unique target sprints from all projects
+        return Array.from(new Set(projects.map(p => p.targetSprint).filter(Boolean))) as string[];
+      default:
+        return [];
     }
-    groups[groupValue].push(project);
-    return groups;
-  }, {} as Record<string, Project[]>);
+  };
+
+  // Initialize groupedProjects with all possible columns (including empty ones)
+  const groupedProjects = (() => {
+    const allGroups = getAllPossibleGroups();
+
+    // Initialize with empty arrays for all possible groups
+    const initialGroups: Record<string, Project[]> = {};
+    allGroups.forEach(group => {
+      initialGroups[group] = [];
+    });
+
+    // Populate with actual projects
+    filteredProjects.forEach(project => {
+      const groupValue = getKanbanGroupValue(project);
+
+      // If the group doesn't exist in our predefined list, add it
+      if (!initialGroups[groupValue]) {
+        initialGroups[groupValue] = [];
+      }
+
+      initialGroups[groupValue].push(project);
+    });
+
+    return initialGroups;
+  })();
 
   // Sort projects within each group by rank
   Object.keys(groupedProjects).forEach(group => {
@@ -3137,22 +3276,33 @@ const ProjectManagement = () => {
     if (!over) return;
 
     const activeId = active.id as number;
-    const overId = over.id as number;
+    const overId = over.id;
 
     if (activeId === overId) return;
 
     const activeProject = projects.find(p => p.id === activeId);
-    const overProject = projects.find(p => p.id === overId);
-
-    if (!activeProject || !overProject) return;
+    if (!activeProject) return;
 
     const activeGroup = getKanbanGroupValue(activeProject);
-    const overGroup = getKanbanGroupValue(overProject);
+    let overGroup: string;
+    let overIndex: number;
+
+    // Check if dropped on another project or on a column
+    if (typeof overId === 'string' && overId.startsWith('kanban-column-')) {
+      // Dropped on an empty column
+      overGroup = overId.replace('kanban-column-', '');
+      overIndex = -1; // Add to end of column
+    } else {
+      // Dropped on another project
+      const overProject = projects.find(p => p.id === overId as number);
+      if (!overProject) return;
+      overGroup = getKanbanGroupValue(overProject);
+      overIndex = projects.findIndex(p => p.id === overId);
+    }
 
     // Reorder projects
     const updatedProjects = [...projects];
     const activeIndex = updatedProjects.findIndex(p => p.id === activeId);
-    const overIndex = updatedProjects.findIndex(p => p.id === overId);
 
     const [removed] = updatedProjects.splice(activeIndex, 1);
 
@@ -3175,7 +3325,14 @@ const ProjectManagement = () => {
       }
     }
 
-    updatedProjects.splice(overIndex, 0, removed);
+    // Insert at the appropriate position
+    if (overIndex === -1) {
+      // Dropped on empty column - add to end
+      updatedProjects.push(removed);
+    } else {
+      // Dropped on another project - insert at that position
+      updatedProjects.splice(overIndex, 0, removed);
+    }
 
     // Update ranks based on new positions within the group
     const groupProjects = updatedProjects.filter(p => getKanbanGroupValue(p) === overGroup);
@@ -3514,6 +3671,24 @@ const ProjectManagement = () => {
                   Fiscal Year
                 </TableSortLabel>
               </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'targetRelease'}
+                  direction={orderBy === 'targetRelease' ? order : 'asc'}
+                  onClick={() => handleRequestSort('targetRelease')}
+                >
+                  Target Release
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ minWidth: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'targetSprint'}
+                  direction={orderBy === 'targetSprint' ? order : 'asc'}
+                  onClick={() => handleRequestSort('targetSprint')}
+                >
+                  Target Sprint
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ minWidth: 110 }}>
                 <TableSortLabel
                   active={orderBy === 'status'}
@@ -3667,6 +3842,50 @@ const ProjectManagement = () => {
                     <MenuItem key={year} value={year}>
                       <Checkbox checked={filters.fiscalYear.indexOf(year) > -1} size="small" />
                       {year}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  select
+                  placeholder="All"
+                  value={filters.targetRelease}
+                  onChange={(e) => setFilters({ ...filters, targetRelease: e.target.value as unknown as string[] })}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) =>
+                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                  }}
+                  fullWidth
+                >
+                  {uniqueTargetReleases.map((release) => (
+                    <MenuItem key={release} value={release}>
+                      <Checkbox checked={filters.targetRelease.indexOf(release) > -1} size="small" />
+                      {release}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  select
+                  placeholder="All"
+                  value={filters.targetSprint}
+                  onChange={(e) => setFilters({ ...filters, targetSprint: e.target.value as unknown as string[] })}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) =>
+                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                  }}
+                  fullWidth
+                >
+                  {uniqueTargetSprints.map((sprint) => (
+                    <MenuItem key={sprint} value={sprint}>
+                      <Checkbox checked={filters.targetSprint.indexOf(sprint) > -1} size="small" />
+                      {sprint}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -3832,6 +4051,8 @@ const ProjectManagement = () => {
                 </TableCell>
                 <TableCell>{project.type || '-'}</TableCell>
                 <TableCell>{project.fiscalYear || '-'}</TableCell>
+                <TableCell>{project.targetRelease || '-'}</TableCell>
+                <TableCell>{project.targetSprint || '-'}</TableCell>
                 <TableCell>
                   <Chip label={project.status} size="small" color={getStatusColor(project.status)} />
                 </TableCell>
@@ -3989,6 +4210,8 @@ const ProjectManagement = () => {
                 <MenuItem value="status">Status</MenuItem>
                 <MenuItem value="domain">Domain</MenuItem>
                 <MenuItem value="fiscalYear">Fiscal Year</MenuItem>
+                <MenuItem value="targetRelease">Target Release</MenuItem>
+                <MenuItem value="targetSprint">Target Sprint</MenuItem>
                 <MenuItem value="priority">Priority</MenuItem>
                 <MenuItem value="healthStatus">Health Status</MenuItem>
                 <MenuItem value="currentPhase">Current Phase</MenuItem>
@@ -3997,31 +4220,13 @@ const ProjectManagement = () => {
 
             <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
               {Object.entries(groupedProjects).map(([groupName, groupProjects]) => (
-                <Paper
+                <KanbanColumn
                   key={groupName}
-                  sx={{
-                    minWidth: 320,
-                    maxWidth: 320,
-                    p: 2,
-                    bgcolor: 'grey.50',
-                    flex: '0 0 auto',
-                  }}
-                >
-                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {groupName}
-                    </Typography>
-                    <Chip label={groupProjects.length} size="small" color="primary" />
-                  </Box>
-
-                  <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      {groupProjects.map((project) => (
-                        <KanbanCard key={project.id} project={project} onEdit={handleOpenDialog} projectRisks={projectRisks} />
-                      ))}
-                    </Box>
-                  </SortableContext>
-                </Paper>
+                  groupName={groupName}
+                  groupProjects={groupProjects}
+                  onEdit={handleOpenDialog}
+                  projectRisks={projectRisks}
+                />
               ))}
             </Box>
           </Box>
@@ -4287,6 +4492,62 @@ const ProjectManagement = () => {
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  size="small"
+                  select
+                  fullWidth
+                  label="Target Release"
+                  value={filters.targetRelease}
+                  onChange={(e) => setFilters({ ...filters, targetRelease: e.target.value as unknown as string[] })}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(selected as string[]).map((value) => (
+                          <Chip key={value} label={value} size="small" sx={{ height: 20 }} />
+                        ))}
+                      </Box>
+                    ),
+                  }}
+                  sx={{ bgcolor: 'background.paper' }}
+                >
+                  {uniqueTargetReleases.map((release) => (
+                    <MenuItem key={release} value={release}>
+                      <Checkbox checked={filters.targetRelease.indexOf(release) > -1} size="small" />
+                      {release}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  size="small"
+                  select
+                  fullWidth
+                  label="Target Sprint"
+                  value={filters.targetSprint}
+                  onChange={(e) => setFilters({ ...filters, targetSprint: e.target.value as unknown as string[] })}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(selected as string[]).map((value) => (
+                          <Chip key={value} label={value} size="small" sx={{ height: 20 }} />
+                        ))}
+                      </Box>
+                    ),
+                  }}
+                  sx={{ bgcolor: 'background.paper' }}
+                >
+                  {uniqueTargetSprints.map((sprint) => (
+                    <MenuItem key={sprint} value={sprint}>
+                      <Checkbox checked={filters.targetSprint.indexOf(sprint) > -1} size="small" />
+                      {sprint}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -4297,6 +4558,8 @@ const ProjectManagement = () => {
                     segmentFunction: [],
                     type: '',
                     fiscalYear: [],
+                    targetRelease: [],
+                    targetSprint: [],
                     status: [],
                     priority: '',
                     currentPhase: '',
@@ -4385,6 +4648,8 @@ const ProjectManagement = () => {
                           <MenuItem value="domain">Domain</MenuItem>
                           <MenuItem value="segmentFunction">Segment Function</MenuItem>
                           <MenuItem value="type">Type</MenuItem>
+                          <MenuItem value="targetRelease">Target Release</MenuItem>
+                          <MenuItem value="targetSprint">Target Sprint</MenuItem>
                         </TextField>
                       </Box>
 
@@ -4404,6 +4669,8 @@ const ProjectManagement = () => {
                           <MenuItem value="domain" disabled={swimlaneConfig.level1 === 'domain'}>Domain</MenuItem>
                           <MenuItem value="segmentFunction" disabled={swimlaneConfig.level1 === 'segmentFunction'}>Segment Function</MenuItem>
                           <MenuItem value="type" disabled={swimlaneConfig.level1 === 'type'}>Type</MenuItem>
+                          <MenuItem value="targetRelease" disabled={swimlaneConfig.level1 === 'targetRelease'}>Target Release</MenuItem>
+                          <MenuItem value="targetSprint" disabled={swimlaneConfig.level1 === 'targetSprint'}>Target Sprint</MenuItem>
                         </TextField>
                       </Box>
 
@@ -5914,6 +6181,38 @@ const ProjectManagement = () => {
                   <MenuItem value="FY25">FY25</MenuItem>
                   <MenuItem value="FY26">FY26</MenuItem>
                   <MenuItem value="FY27">FY27</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Target Release"
+                  value={currentProject.targetRelease || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, targetRelease: e.target.value })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {uniqueTargetReleases.map((release) => (
+                    <MenuItem key={release} value={release}>{release}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Target Sprint"
+                  value={currentProject.targetSprint || ''}
+                  onChange={(e) =>
+                    setCurrentProject({ ...currentProject, targetSprint: e.target.value })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {uniqueTargetSprints.map((sprint) => (
+                    <MenuItem key={sprint} value={sprint}>{sprint}</MenuItem>
+                  ))}
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>

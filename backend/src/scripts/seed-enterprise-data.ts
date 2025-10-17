@@ -487,8 +487,6 @@ export const seedEnterpriseData = async () => {
     for (const roleData of enterpriseRoles) {
       const role = await Role.create({
         ...roleData,
-        appId: undefined, // Generic roles not tied to app
-        technologyId: undefined, // Generic roles not tied to tech
         isActive: true
       } as any);
       roles.push(role);

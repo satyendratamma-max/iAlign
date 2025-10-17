@@ -47,6 +47,7 @@ import {
 import axios from 'axios';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { calculateMaxConcurrentAllocation } from '../../utils/allocationCalculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -303,7 +304,7 @@ const Dashboard = () => {
     // Calculate resource metrics (filtered by domain)
     const resourceUtilization = resources.map((resource: any) => {
       const resourceAllocs = allocations.filter(a => a.resourceId === resource.id);
-      const totalAllocation = resourceAllocs.reduce((sum, a) => sum + a.allocationPercentage, 0);
+      const totalAllocation = calculateMaxConcurrentAllocation(resourceAllocs);
       return { ...resource, totalAllocation };
     });
 

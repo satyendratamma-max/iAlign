@@ -55,7 +55,7 @@ const getRiskLevel = (score: number): 'Low' | 'Medium' | 'High' => {
  * Calculate automatic health status based on actual project metrics
  * This overrides manual health status when metrics indicate problems
  */
-const calculateAutoHealthStatus = (project: Project): 'Green' | 'Yellow' | 'Red' => {
+export const calculateAutoHealthStatus = (project: Project): 'Green' | 'Yellow' | 'Red' => {
   const criticalIssues: string[] = [];
   const warningIssues: string[] = [];
 

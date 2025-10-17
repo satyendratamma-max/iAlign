@@ -29,6 +29,7 @@ import {
   ErrorOutline,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { calculateResourceAllocations } from '../../utils/allocationCalculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -49,6 +50,8 @@ interface Allocation {
   resourceId: number;
   projectId: number;
   allocationPercentage: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface Domain {
@@ -110,12 +113,9 @@ const CapacityDashboard = () => {
   const totalResources = resources.length;
   const avgUtilization = resources.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) / totalResources || 0;
 
-  // Calculate actual utilization from allocations
-  const resourceUtilization = new Map<number, number>();
-  allocations.forEach(allocation => {
-    const current = resourceUtilization.get(allocation.resourceId) || 0;
-    resourceUtilization.set(allocation.resourceId, current + allocation.allocationPercentage);
-  });
+  // Calculate actual utilization from allocations (using time-based overlap calculation)
+  const resourceUtilization = calculateResourceAllocations(allocations);
+  const resourceActualUtilization = resourceUtilization; // Same map, use for both purposes
 
   const allocatedResources = resourceUtilization.size;
   const totalAllocations = allocations.length;
@@ -127,13 +127,6 @@ const CapacityDashboard = () => {
   }, 0);
 
   const avgHourlyRate = resources.reduce((sum, r) => sum + (r.hourlyRate || 0), 0) / totalResources || 0;
-
-  // Calculate capacity status metrics based on actual allocations
-  const resourceActualUtilization = new Map<number, number>();
-  allocations.forEach(allocation => {
-    const current = resourceActualUtilization.get(allocation.resourceId) || 0;
-    resourceActualUtilization.set(allocation.resourceId, current + allocation.allocationPercentage);
-  });
 
   // Get all resource IDs
   const allResourceIds = resources.map(r => r.id);

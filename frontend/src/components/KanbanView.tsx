@@ -27,6 +27,7 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { calculateMaxConcurrentAllocation } from '../utils/allocationCalculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -218,7 +219,7 @@ const DraggableResourceCard = ({
 
 // Allocated Resource Card (in middle column)
 const AllocatedResourceCard = ({ resource, allocations }: { resource: Resource; allocations: Allocation[] }) => {
-  const totalAllocation = allocations.reduce((sum, a) => sum + a.allocationPercentage, 0);
+  const totalAllocation = calculateMaxConcurrentAllocation(allocations);
 
   return (
     <Card
@@ -531,7 +532,7 @@ const KanbanView = ({ resources, projects, allocations, scenarioId, onRefresh }:
 
     resources.forEach(resource => {
       const resourceAllocations = allocationsByResource[resource.id] || [];
-      const totalAllocation = resourceAllocations.reduce((sum, a) => sum + a.allocationPercentage, 0);
+      const totalAllocation = calculateMaxConcurrentAllocation(resourceAllocations);
 
       if (totalAllocation === 0 || totalAllocation < 75) {
         available.push(resource);
@@ -644,7 +645,7 @@ const KanbanView = ({ resources, projects, allocations, scenarioId, onRefresh }:
   };
 
   const getTotalAllocation = (resourceId: number) => {
-    return (allocationsByResource[resourceId] || []).reduce((sum, a) => sum + a.allocationPercentage, 0);
+    return calculateMaxConcurrentAllocation(allocationsByResource[resourceId] || []);
   };
 
   return (

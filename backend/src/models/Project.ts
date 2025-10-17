@@ -17,6 +17,8 @@ export interface ProjectAttributes {
   businessPriority?: string;
   type?: string;
   fiscalYear?: string;
+  targetRelease?: string;
+  targetSprint?: string;
   progress: number;
   currentPhase?: string;
   budget?: number;
@@ -73,6 +75,8 @@ class Project extends Model<ProjectAttributes> implements ProjectAttributes {
   declare businessPriority?: string;
   declare type?: string;
   declare fiscalYear?: string;
+  declare targetRelease?: string;
+  declare targetSprint?: string;
   declare progress: number;
   declare currentPhase?: string;
   declare budget?: number;
@@ -177,6 +181,14 @@ Project.init(
     },
     fiscalYear: {
       type: DataTypes.STRING(10),
+      allowNull: true,
+    },
+    targetRelease: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    targetSprint: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
     progress: {

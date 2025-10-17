@@ -38,6 +38,8 @@ const PHASES = [
 ];
 
 const FISCAL_YEARS = ['FY24', 'FY25', 'FY26', 'FY27'];
+const TARGET_RELEASES = ['R1.0', 'R1.1', 'R2.0', 'R2.1', 'R3.0'];
+const TARGET_SPRINTS = ['Sprint 1', 'Sprint 2', 'Sprint 3', 'Sprint 4', 'Sprint 5', 'Sprint 6'];
 
 const seedDatabase = async (dropTables: boolean = true) => {
   try {
@@ -264,8 +266,6 @@ const seedDatabase = async (dropTables: boolean = true) => {
     for (const roleData of enterpriseRoles) {
       const role = await Role.create({
         ...roleData,
-        appId: undefined, // Generic roles not tied to app
-        technologyId: undefined, // Generic roles not tied to tech
         isActive: true
       } as any); // Cast to any to bypass strict type checking for level field
       roles.push(role);
@@ -573,6 +573,8 @@ const seedDatabase = async (dropTables: boolean = true) => {
           businessDecision: businessDecisions[Math.floor(Math.random() * 3)],
           type: template.type,
           fiscalYear,
+          targetRelease: TARGET_RELEASES[Math.floor(Math.random() * TARGET_RELEASES.length)],
+          targetSprint: TARGET_SPRINTS[Math.floor(Math.random() * TARGET_SPRINTS.length)],
           progress,
           currentPhase: PHASES[Math.floor(progress / 15)],
           budget,

@@ -116,16 +116,51 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === 'Administrator';
 
-  // Load collapsed state from localStorage
+  // Helper function to find which section contains the current path
+  const findSectionForPath = (path: string, sections: typeof menuSections) => {
+    for (const section of sections) {
+      if (section.items.some(item => item.path === path)) {
+        return section.title;
+      }
+    }
+    return null;
+  };
+
+  // Initialize collapsed state: collapse all except the section containing current route
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('sidebarCollapsedSections');
-    return saved ? JSON.parse(saved) : {};
+    const allSections = [...menuSections, ...(isAdmin ? [adminMenuSection] : [])];
+    const activeSection = findSectionForPath(location.pathname, allSections);
+
+    // Create initial state with all sections collapsed except active one
+    const initialState: Record<string, boolean> = {};
+    allSections.forEach(section => {
+      // Always keep 'Main' expanded, and expand the section with active route
+      initialState[section.title] = section.title !== 'Main' && section.title !== activeSection;
+    });
+
+    return initialState;
   });
 
-  // Save collapsed state to localStorage
+  // Auto-expand/collapse sections based on navigation
   useEffect(() => {
-    localStorage.setItem('sidebarCollapsedSections', JSON.stringify(collapsedSections));
-  }, [collapsedSections]);
+    const allSections = [...menuSections, ...(isAdmin ? [adminMenuSection] : [])];
+    const activeSection = findSectionForPath(location.pathname, allSections);
+
+    if (activeSection) {
+      setCollapsedSections(prev => {
+        const newState = { ...prev };
+
+        // Collapse all sections except 'Main' and the active section
+        allSections.forEach(section => {
+          if (section.title !== 'Main') {
+            newState[section.title] = section.title !== activeSection;
+          }
+        });
+
+        return newState;
+      });
+    }
+  }, [location.pathname, isAdmin]);
 
   const toggleSection = (sectionTitle: string) => {
     setCollapsedSections(prev => ({

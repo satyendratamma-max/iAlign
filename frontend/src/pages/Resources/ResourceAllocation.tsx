@@ -46,6 +46,7 @@ import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
 import TimelineView from '../../components/TimelineView';
 import KanbanView from '../../components/KanbanView';
+import { calculateMaxConcurrentAllocation } from '../../utils/allocationCalculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -453,7 +454,6 @@ const ResourceAllocation = () => {
           avgMatchScore: 0,
         };
       }
-      acc[resourceId].totalAllocation += allocation.allocationPercentage;
       acc[resourceId].allocations.push(allocation);
 
       if (allocation.matchScore) {
@@ -468,6 +468,13 @@ const ResourceAllocation = () => {
       return acc;
     }, {});
   }, [filteredAllocations]);
+
+  // Calculate max concurrent allocation for each resource
+  Object.keys(resourceStats).forEach(resourceId => {
+    resourceStats[resourceId].totalAllocation = calculateMaxConcurrentAllocation(
+      resourceStats[resourceId].allocations
+    );
+  });
 
   const overAllocatedResources = useMemo(() => {
     return Object.values(resourceStats).filter(

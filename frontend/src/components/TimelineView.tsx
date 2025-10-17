@@ -22,6 +22,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { startOfMonth, endOfMonth, eachMonthOfInterval, format, differenceInDays } from 'date-fns';
 import axios from 'axios';
+import { calculateMaxConcurrentAllocation } from '../utils/allocationCalculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -258,7 +259,7 @@ const ResourceRow = ({
     data: { resource },
   });
 
-  const totalAllocation = allocations.reduce((sum, a) => sum + a.allocationPercentage, 0);
+  const totalAllocation = calculateMaxConcurrentAllocation(allocations);
   const isOverAllocated = totalAllocation > 100;
   const availablePercentage = Math.max(0, 100 - totalAllocation);
 
