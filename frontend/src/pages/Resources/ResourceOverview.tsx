@@ -34,8 +34,12 @@ import {
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar from '../../components/common/ActionBar';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { People as PeopleIcon } from '@mui/icons-material';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -381,90 +385,73 @@ const ResourceOverview = () => {
 
   return (
     <Box>
-      <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        mb={{ xs: 2, sm: 3 }}
-        gap={{ xs: 2, sm: 0 }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-            }}
-            gutterBottom
-          >
-            Resource Overview
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-          >
-            Overview of all enterprise resources and utilization
-          </Typography>
-        </Box>
-        <Box
-          display="flex"
-          flexWrap="wrap"
-          gap={1}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
+      <PageHeader
+        title="Resource Overview"
+        subtitle="Overview of all enterprise resources and utilization"
+        icon={<PeopleIcon sx={{ fontSize: 32 }} />}
+      />
+
+      <ActionBar elevation={1}>
+        <Button
+          variant="outlined"
+          startIcon={<TemplateIcon />}
+          onClick={generateResourceTemplate}
+          size="small"
         >
-          <Button
-            variant="outlined"
-            startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={generateResourceTemplate}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Template
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={handleExport}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Export
-          </Button>
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<UploadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Import
-            <input
-              type="file"
-              hidden
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImport}
-            />
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-            size="small"
-            sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-          >
-            Add Resource
-          </Button>
-        </Box>
-      </Box>
+          Template
+        </Button>
 
-      <Box mb={3}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleExport}
+          size="small"
+        >
+          Export
+        </Button>
+
+        <Button
+          variant="outlined"
+          component="label"
+          startIcon={<UploadIcon />}
+          size="small"
+        >
+          Import
+          <input
+            type="file"
+            hidden
+            accept=".csv,.xlsx,.xls"
+            onChange={handleImport}
+          />
+        </Button>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+          size="small"
+          sx={{
+            px: 3,
+            fontWeight: 600,
+            boxShadow: 2,
+            '&:hover': {
+              boxShadow: 4,
+            },
+          }}
+        >
+          Add Resource
+        </Button>
+      </ActionBar>
+
+      <FilterPanel title="Filter Resources" defaultExpanded={true}>
         <SharedFilters />
-      </Box>
+      </FilterPanel>
 
-      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, borderRadius: 1.5 }}>
         <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>
-          <TableHead>
+          <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
               <TableCell sx={{ minWidth: 110 }}>Employee ID</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Name</TableCell>

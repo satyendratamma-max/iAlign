@@ -16,6 +16,8 @@ import {
   TextField,
 } from '@mui/material';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import {
   Business,
@@ -219,46 +221,33 @@ const DomainsList = () => {
 
   return (
     <Box>
-      <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        mb={{ xs: 3, sm: 4 }}
-        gap={{ xs: 2, sm: 0 }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-            }}
-            gutterBottom
-          >
-            Domains
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-          >
-            Select a domain to view its segment functions, projects, and team capacity
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <SharedFilters />
+      <PageHeader
+        title="Domains"
+        subtitle="Select a domain to view its segment functions, projects, and team capacity"
+        icon={<Business sx={{ fontSize: 32 }} />}
+        actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenDialog}
+            size="small"
             sx={{
-              whiteSpace: 'nowrap',
+              px: 3,
+              fontWeight: 600,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
             }}
           >
             Add Domain
           </Button>
-        </Box>
-      </Box>
+        }
+      />
+
+      <FilterPanel title="Filter Domains" defaultExpanded={false}>
+        <SharedFilters />
+      </FilterPanel>
 
       <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
         {filteredDomains.map((domain) => {

@@ -24,6 +24,8 @@ import {
   SortByAlpha,
 } from '@mui/icons-material';
 import axios from 'axios';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar from '../../components/common/ActionBar';
 import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -213,52 +215,63 @@ const SegmentFunctionList = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
+      <Button
+        startIcon={<ArrowBack />}
+        onClick={() => navigate('/domains')}
+        sx={{ mb: 2 }}
+        variant="outlined"
+        size="small"
+      >
+        Back to Domains
+      </Button>
+
+      <PageHeader
+        title={`${domain?.name} Segment Functions`}
+        subtitle={domain?.description || 'View and manage segment functions for this domain'}
+        icon={<Folder sx={{ fontSize: 32 }} />}
+        actions={
           <Button
-            startIcon={<ArrowBack />}
-            onClick={() => navigate('/domains')}
-            sx={{ mb: 2 }}
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenDialog}
+            size="small"
+            sx={{
+              px: 3,
+              fontWeight: 600,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
+            }}
           >
-            Back to Domains
+            Add Segment Function
           </Button>
-          <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
-              {domain?.name} Segment Functions
-            </Typography>
-            <Box display="flex" gap={1}>
-              <Button
-                variant={sortOrder === 'asc' ? 'contained' : 'outlined'}
-                size="small"
-                startIcon={<SortByAlpha />}
-                onClick={() => setSortOrder('asc')}
-                sx={{ minWidth: 'auto' }}
-              >
-                A-Z
-              </Button>
-              <Button
-                variant={sortOrder === 'desc' ? 'contained' : 'outlined'}
-                size="small"
-                startIcon={<SortByAlpha sx={{ transform: 'scaleY(-1)' }} />}
-                onClick={() => setSortOrder('desc')}
-                sx={{ minWidth: 'auto' }}
-              >
-                Z-A
-              </Button>
-            </Box>
-          </Box>
-          <Typography color="text.secondary">
-            {domain?.description || 'View and manage segment functions for this domain'}
+        }
+      />
+
+      <ActionBar elevation={1}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary', mr: 1 }}>
+            Sort:
           </Typography>
+          <Button
+            variant={sortOrder === 'asc' ? 'contained' : 'outlined'}
+            size="small"
+            startIcon={<SortByAlpha />}
+            onClick={() => setSortOrder('asc')}
+          >
+            A-Z
+          </Button>
+          <Button
+            variant={sortOrder === 'desc' ? 'contained' : 'outlined'}
+            size="small"
+            startIcon={<SortByAlpha sx={{ transform: 'scaleY(-1)' }} />}
+            onClick={() => setSortOrder('desc')}
+          >
+            Z-A
+          </Button>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenDialog}
-        >
-          Add Segment Function
-        </Button>
-      </Box>
+      </ActionBar>
 
       <Grid container spacing={3}>
         {segmentFunctions.map((segmentFunction) => (

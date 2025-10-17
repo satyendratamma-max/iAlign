@@ -66,6 +66,9 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
@@ -3462,158 +3465,144 @@ const ProjectManagement = () => {
 
   return (
     <Box sx={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        mb={{ xs: 2, sm: 3 }}
-        gap={{ xs: 2, sm: 0 }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-            }}
-            gutterBottom
-          >
-            Project Management
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-          >
-            Manage and track all enterprise projects
-          </Typography>
-        </Box>
-        <Box
-          display="flex"
-          flexWrap="wrap"
-          gap={1}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
-        >
+      <PageHeader
+        title="Project Management"
+        subtitle="Manage and track all enterprise projects"
+        icon={<HubIcon sx={{ fontSize: 32 }} />}
+      />
+
+      <ActionBar elevation={1}>
+        <ActionGroup divider>
           <Button
             variant={viewMode === 'list' ? 'contained' : 'outlined'}
-            startIcon={<ViewListIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            startIcon={<ViewListIcon />}
             onClick={() => setViewMode('list')}
             size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             List
           </Button>
           <Button
             variant={viewMode === 'gantt' ? 'contained' : 'outlined'}
-            startIcon={<TimelineIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            startIcon={<TimelineIcon />}
             onClick={() => setViewMode('gantt')}
             size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Gantt
           </Button>
           <Button
             variant={viewMode === 'kanban' ? 'contained' : 'outlined'}
-            startIcon={<ViewKanbanIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
+            startIcon={<ViewKanbanIcon />}
             onClick={() => setViewMode('kanban')}
             size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
           >
             Kanban
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={generateProjectTemplate}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Template
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={handleExport}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Export to </Box>Excel
-          </Button>
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<UploadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Import from </Box>Excel
-            <input
-              type="file"
-              hidden
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImport}
-            />
-          </Button>
-          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
-          <Button
-            variant="contained"
-            startIcon={<CameraAltIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            endIcon={<ExpandMoreIcon />}
-            onClick={(e) => setExportViewAnchor(e.currentTarget)}
-            size="small"
-            disabled={exportingView}
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            {exportingView ? 'Exporting...' : 'Export View'}
-          </Button>
-          <Menu
-            anchorEl={exportViewAnchor}
-            open={Boolean(exportViewAnchor)}
-            onClose={() => setExportViewAnchor(null)}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
-            }}
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-          >
-            <MenuItem onClick={() => handleViewExport('png')}>
-              <ImageIcon sx={{ mr: 1, fontSize: 20 }} />
-              Export as PNG
-            </MenuItem>
-            <MenuItem onClick={() => handleViewExport('pdf')}>
-              <PictureAsPdfIcon sx={{ mr: 1, fontSize: 20 }} />
-              Export as PDF
-            </MenuItem>
-          </Menu>
-          <Button
-            variant="outlined"
-            startIcon={<DependencyIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={handleOpenDependencyManagerDialog}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Dependencies
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-            size="small"
-            sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-          >
-            Add Project
-          </Button>
-        </Box>
-      </Box>
+        </ActionGroup>
+
+        <Button
+          variant="outlined"
+          startIcon={<TemplateIcon />}
+          onClick={generateProjectTemplate}
+          size="small"
+        >
+          Template
+        </Button>
+
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleExport}
+          size="small"
+        >
+          Export
+        </Button>
+
+        <Button
+          variant="outlined"
+          component="label"
+          startIcon={<UploadIcon />}
+          size="small"
+        >
+          Import
+          <input
+            type="file"
+            hidden
+            accept=".csv,.xlsx,.xls"
+            onChange={handleImport}
+          />
+        </Button>
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <Button
+          variant="outlined"
+          startIcon={<CameraAltIcon />}
+          endIcon={<ExpandMoreIcon />}
+          onClick={(e) => setExportViewAnchor(e.currentTarget)}
+          size="small"
+          disabled={exportingView}
+        >
+          {exportingView ? 'Exporting...' : 'Export View'}
+        </Button>
+        <Menu
+          anchorEl={exportViewAnchor}
+          open={Boolean(exportViewAnchor)}
+          onClose={() => setExportViewAnchor(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={() => handleViewExport('png')}>
+            <ImageIcon sx={{ mr: 1, fontSize: 20 }} />
+            Export as PNG
+          </MenuItem>
+          <MenuItem onClick={() => handleViewExport('pdf')}>
+            <PictureAsPdfIcon sx={{ mr: 1, fontSize: 20 }} />
+            Export as PDF
+          </MenuItem>
+        </Menu>
+
+        <Button
+          variant="outlined"
+          startIcon={<DependencyIcon />}
+          onClick={handleOpenDependencyManagerDialog}
+          size="small"
+        >
+          Dependencies
+        </Button>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+          size="small"
+          sx={{
+            px: 3,
+            fontWeight: 600,
+            boxShadow: 2,
+            '&:hover': {
+              boxShadow: 4,
+            },
+          }}
+        >
+          Add Project
+        </Button>
+      </ActionBar>
 
       <Box ref={contentRef}>
       {viewMode === 'list' && (
         <>
-          <SharedFilters />
-          <TableContainer component={Paper} sx={{ overflowX: 'auto', mt: 2 }}>
+          <FilterPanel title="Filter Projects" defaultExpanded={true}>
+            <SharedFilters />
+          </FilterPanel>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2 }}>
           <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
             <TableRow>
@@ -7022,9 +7011,18 @@ const ProjectManagement = () => {
       <DependencyManagerDialog
         open={openDependencyManagerDialog}
         onClose={handleCloseDependencyManagerDialog}
-        dependencies={dependencies}
-        projects={filteredProjects}
-        milestones={milestones.filter(m => filteredProjects.some(p => p.id === m.projectId))}
+        dependencies={dependencies.filter(dep => {
+          // Show dependency if either predecessor or successor is in filtered projects
+          const predInFilter = dep.predecessorType === 'project'
+            ? filteredProjects.some(p => p.id === dep.predecessorId)
+            : milestones.some(m => m.id === dep.predecessorId && filteredProjects.some(p => p.id === m.projectId));
+          const succInFilter = dep.successorType === 'project'
+            ? filteredProjects.some(p => p.id === dep.successorId)
+            : milestones.some(m => m.id === dep.successorId && filteredProjects.some(p => p.id === m.projectId));
+          return predInFilter || succInFilter;
+        })}
+        projects={projects}
+        milestones={milestones}
         onDelete={handleDeleteDependency}
         onAddNew={handleOpenDependencyCreateDialog}
       />

@@ -14,8 +14,11 @@ import {
   CircularProgress,
   LinearProgress,
   Tooltip,
+  Paper,
 } from '@mui/material';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import {
   People,
@@ -27,6 +30,7 @@ import {
   HourglassEmpty,
   Warning,
   ErrorOutline,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { calculateResourceAllocations } from '../../utils/allocationCalculations';
@@ -171,17 +175,15 @@ const CapacityDashboard = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Capacity Dashboard
-          </Typography>
-          <Typography color="text.secondary">
-            Unified capacity planning with predictive analytics
-          </Typography>
-        </Box>
+      <PageHeader
+        title="Capacity Dashboard"
+        subtitle="Unified capacity planning with predictive analytics"
+        icon={<DashboardIcon sx={{ fontSize: 32 }} />}
+      />
+
+      <FilterPanel title="Filter Resources" defaultExpanded={false}>
         <SharedFilters />
-      </Box>
+      </FilterPanel>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -310,9 +312,9 @@ const CapacityDashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Resource Utilization
               </Typography>
-              <TableContainer>
+              <TableContainer component={Paper} sx={{ boxShadow: 2, borderRadius: 1.5 }}>
                 <Table>
-                  <TableHead>
+                  <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
                     <TableRow>
                       <TableCell>Employee</TableCell>
                       <TableCell>Role</TableCell>

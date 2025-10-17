@@ -32,9 +32,13 @@ import {
   CheckCircle,
   Schedule,
   Warning,
+  Flag as FlagIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar from '../../components/common/ActionBar';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -411,109 +415,80 @@ const MilestonesOverview = () => {
 
   return (
     <Box>
-      <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        mb={{ xs: 2, sm: 3 }}
-        gap={{ xs: 2, sm: 0 }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-            }}
-            gutterBottom
-          >
-            Project Milestones
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-          >
-            Track and manage milestones across all projects
-          </Typography>
-        </Box>
-        <Box
-          display="flex"
-          flexWrap="wrap"
-          gap={1}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
-        >
-          <Button
-            variant="outlined"
-            startIcon={<TemplateIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={generateTemplate}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Template
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            onClick={handleExport}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Export
-          </Button>
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<UploadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-            size="small"
-            sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
-          >
-            Import
-            <input
-              type="file"
-              hidden
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImport}
-            />
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-            size="small"
-            sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-          >
-            Add Milestone
-          </Button>
-        </Box>
-      </Box>
+      <PageHeader
+        title="Project Milestones"
+        subtitle="Track and manage milestones across all projects"
+        icon={<FlagIcon sx={{ fontSize: 32 }} />}
+      />
 
       {upcomingMilestones.length > 0 && (
-        <Alert severity="info" sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
           <strong>{upcomingMilestones.length}</strong> milestone(s) due within the next 30 days
         </Alert>
       )}
 
-      {/* Global Filters */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Filters</Typography>
-          {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-            <Button
-              size="small"
-              onClick={() => dispatch(clearAllFilters())}
-              variant="outlined"
-            >
-              Clear All Filters
-            </Button>
-          )}
-        </Box>
+      <ActionBar elevation={1}>
+        <Button
+          variant="outlined"
+          startIcon={<TemplateIcon />}
+          onClick={generateTemplate}
+          size="small"
+        >
+          Template
+        </Button>
+
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleExport}
+          size="small"
+        >
+          Export
+        </Button>
+
+        <Button
+          variant="outlined"
+          component="label"
+          startIcon={<UploadIcon />}
+          size="small"
+        >
+          Import
+          <input
+            type="file"
+            hidden
+            accept=".csv,.xlsx,.xls"
+            onChange={handleImport}
+          />
+        </Button>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+          size="small"
+          sx={{
+            px: 3,
+            fontWeight: 600,
+            boxShadow: 2,
+            '&:hover': {
+              boxShadow: 4,
+            },
+          }}
+        >
+          Add Milestone
+        </Button>
+      </ActionBar>
+
+      <FilterPanel title="Filter Milestones" defaultExpanded={true}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={4}>
             <TextField
               select
               fullWidth
               label="Domain"
+              size="small"
               value={selectedDomainIds}
               onChange={(e) => {
                 const value = e.target.value;
@@ -541,6 +516,7 @@ const MilestonesOverview = () => {
               select
               fullWidth
               label="Business Decision"
+              size="small"
               value={selectedBusinessDecisions}
               onChange={(e) => {
                 const value = e.target.value;
@@ -561,12 +537,25 @@ const MilestonesOverview = () => {
               ))}
             </TextField>
           </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
+              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                <Button
+                  size="small"
+                  onClick={() => dispatch(clearAllFilters())}
+                  variant="outlined"
+                >
+                  Clear All Filters
+                </Button>
+              )}
+            </Box>
+          </Grid>
         </Grid>
-      </Paper>
+      </FilterPanel>
 
-      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, borderRadius: 1.5 }}>
         <Table sx={{ minWidth: { xs: 700, md: 900 } }}>
-          <TableHead>
+          <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
               <TableCell sx={{ minWidth: 180 }}>Milestone Name</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Project</TableCell>

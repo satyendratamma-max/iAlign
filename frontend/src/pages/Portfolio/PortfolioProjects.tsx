@@ -30,8 +30,11 @@ import {
   Visibility,
   People as PeopleIcon,
   Hub,
+  Folder as FolderIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import Paper from '@mui/material/Paper';
+import PageHeader from '../../components/common/PageHeader';
 import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -336,24 +339,29 @@ const PortfolioProjects = () => {
 
   return (
     <Box>
-      <Box mb={4}>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate(`/domain/${segmentFunction?.domainId}/segment-functions`)}
-          sx={{ mb: 2 }}
-        >
-          Back to Segment Functions
-        </Button>
-        <Typography variant="h4" gutterBottom>
-          {segmentFunction?.name}
-        </Typography>
-        <Typography color="text.secondary">
-          {segmentFunction?.description || 'Segment function projects overview'}
-        </Typography>
-        {segmentFunction?.domain && (
-          <Chip label={segmentFunction.domain.name} sx={{ mt: 1 }} />
-        )}
-      </Box>
+      <Button
+        startIcon={<ArrowBack />}
+        onClick={() => navigate(`/domain/${segmentFunction?.domainId}/segment-functions`)}
+        variant="outlined"
+        size="small"
+        sx={{ mb: 2 }}
+      >
+        Back to Segment Functions
+      </Button>
+
+      <PageHeader
+        title={segmentFunction?.name || 'Segment Function Projects'}
+        subtitle={
+          segmentFunction?.description || 'Segment function projects overview'
+        }
+        icon={<FolderIcon sx={{ fontSize: 32 }} />}
+      />
+
+      {segmentFunction?.domain && (
+        <Box sx={{ mb: 3 }}>
+          <Chip label={segmentFunction.domain.name} color="primary" variant="outlined" />
+        </Box>
+      )}
 
       {/* Projects grouped by Fiscal Year */}
       {fiscalYears.length > 0 ? (
@@ -365,9 +373,9 @@ const PortfolioProjects = () => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <TableContainer>
+              <TableContainer component={Paper} sx={{ boxShadow: 2, borderRadius: 1.5 }}>
                 <Table>
-                  <TableHead>
+                  <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
                     <TableRow>
                       <TableCell>
                         <TableSortLabel

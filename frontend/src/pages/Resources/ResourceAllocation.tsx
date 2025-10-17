@@ -41,6 +41,9 @@ import {
   InfoOutlined,
 } from '@mui/icons-material';
 import axios from 'axios';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -553,53 +556,59 @@ const ResourceAllocation = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom fontWeight="bold">
-            Resource Allocation Matrix
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Capability-based resource allocation with smart matching scores
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Add Allocation
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Resource Allocation Matrix"
+        subtitle="Capability-based resource allocation with smart matching scores"
+        icon={<TableChartIcon sx={{ fontSize: 32 }} />}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            size="small"
+            sx={{
+              px: 3,
+              fontWeight: 600,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
+            }}
+          >
+            Add Allocation
+          </Button>
+        }
+      />
 
-      {/* View Tabs */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs
-          value={currentView}
-          onChange={(_, newValue) => setCurrentView(newValue)}
-          variant="fullWidth"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab
-            value="table"
-            icon={<TableChartIcon />}
-            label="Table View"
-            iconPosition="start"
-          />
-          <Tab
-            value="timeline"
-            icon={<TimelineIcon />}
-            label="Timeline View"
-            iconPosition="start"
-          />
-          <Tab
-            value="kanban"
-            icon={<ViewKanbanIcon />}
-            label="Kanban View"
-            iconPosition="start"
-          />
-        </Tabs>
-      </Paper>
+      <ActionBar elevation={1}>
+        <ActionGroup divider>
+          <Button
+            variant={currentView === 'table' ? 'contained' : 'outlined'}
+            startIcon={<TableChartIcon />}
+            onClick={() => setCurrentView('table')}
+            size="small"
+          >
+            Table
+          </Button>
+          <Button
+            variant={currentView === 'timeline' ? 'contained' : 'outlined'}
+            startIcon={<TimelineIcon />}
+            onClick={() => setCurrentView('timeline')}
+            size="small"
+          >
+            Timeline
+          </Button>
+          <Button
+            variant={currentView === 'kanban' ? 'contained' : 'outlined'}
+            startIcon={<ViewKanbanIcon />}
+            onClick={() => setCurrentView('kanban')}
+            size="small"
+          >
+            Kanban
+          </Button>
+        </ActionGroup>
+      </ActionBar>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
@@ -610,20 +619,7 @@ const ResourceAllocation = () => {
       {/* Render appropriate view */}
       {currentView === 'timeline' && (
         <>
-          {/* Global Filters for Timeline */}
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold">Filters</Typography>
-              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                <Button
-                  size="small"
-                  onClick={() => dispatch(clearAllFilters())}
-                  variant="outlined"
-                >
-                  Clear All Filters
-                </Button>
-              )}
-            </Box>
+          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -679,8 +675,21 @@ const ResourceAllocation = () => {
                   ))}
                 </TextField>
               </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
+                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                    <Button
+                      size="small"
+                      onClick={() => dispatch(clearAllFilters())}
+                      variant="outlined"
+                    >
+                      Clear All Filters
+                    </Button>
+                  )}
+                </Box>
+              </Grid>
             </Grid>
-          </Paper>
+          </FilterPanel>
           <TimelineView
             resources={filteredResources}
             projects={filteredProjects}
@@ -695,20 +704,7 @@ const ResourceAllocation = () => {
 
       {currentView === 'kanban' && (
         <>
-          {/* Global Filters for Kanban */}
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold">Filters</Typography>
-              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                <Button
-                  size="small"
-                  onClick={() => dispatch(clearAllFilters())}
-                  variant="outlined"
-                >
-                  Clear All Filters
-                </Button>
-              )}
-            </Box>
+          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -764,8 +760,21 @@ const ResourceAllocation = () => {
                   ))}
                 </TextField>
               </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
+                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                    <Button
+                      size="small"
+                      onClick={() => dispatch(clearAllFilters())}
+                      variant="outlined"
+                    >
+                      Clear All Filters
+                    </Button>
+                  )}
+                </Box>
+              </Grid>
             </Grid>
-          </Paper>
+          </FilterPanel>
           <KanbanView
             resources={filteredResources}
             projects={filteredProjects}
@@ -778,75 +787,77 @@ const ResourceAllocation = () => {
 
       {currentView === 'table' && (
         <>
-          {/* Global Filters */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Filters</Typography>
-          {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-            <Button
-              size="small"
-              onClick={() => dispatch(clearAllFilters())}
-              variant="outlined"
-            >
-              Clear All Filters
-            </Button>
-          )}
-        </Box>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
-              fullWidth
-              label="Domain"
-              value={selectedDomainIds}
-              onChange={(e) => {
-                const value = e.target.value;
-                dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
-              }}
-              SelectProps={{
-                multiple: true,
-                renderValue: (selected) => {
-                  const selectedArray = selected as number[];
-                  return selectedArray.length === 0
-                    ? 'All Domains'
-                    : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-                },
-              }}
-            >
-              {domains.map((domain) => (
-                <MenuItem key={domain.id} value={domain.id}>
-                  <Chip label={domain.name} size="small" />
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
-              fullWidth
-              label="Business Decision"
-              value={selectedBusinessDecisions}
-              onChange={(e) => {
-                const value = e.target.value;
-                dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
-              }}
-              SelectProps={{
-                multiple: true,
-                renderValue: (selected) => {
-                  const selectedArray = selected as string[];
-                  return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
-                },
-              }}
-            >
-              {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                <MenuItem key={decision} value={decision!}>
-                  <Chip label={decision} size="small" />
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-        </Grid>
-      </Paper>
+          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Domain"
+                  value={selectedDomainIds}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as number[];
+                      return selectedArray.length === 0
+                        ? 'All Domains'
+                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
+                    },
+                  }}
+                >
+                  {domains.map((domain) => (
+                    <MenuItem key={domain.id} value={domain.id}>
+                      <Chip label={domain.name} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Business Decision"
+                  value={selectedBusinessDecisions}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
+                  }}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => {
+                      const selectedArray = selected as string[];
+                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
+                    },
+                  }}
+                >
+                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
+                    <MenuItem key={decision} value={decision!}>
+                      <Chip label={decision} size="small" />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
+                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
+                    <Button
+                      size="small"
+                      onClick={() => dispatch(clearAllFilters())}
+                      variant="outlined"
+                    >
+                      Clear All Filters
+                    </Button>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          </FilterPanel>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

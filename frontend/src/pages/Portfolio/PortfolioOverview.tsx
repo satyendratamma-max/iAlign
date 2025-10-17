@@ -22,8 +22,11 @@ import {
   Tooltip,
   Divider,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, FolderOpen } from '@mui/icons-material';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import ActionBar from '../../components/common/ActionBar';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -427,30 +430,37 @@ const PortfolioOverview = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Portfolio Overview
-          </Typography>
-          <Typography color="text.secondary">
-            Strategic oversight and governance of enterprise IT initiatives
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <SharedFilters />
+      <PageHeader
+        title="Portfolio Overview"
+        subtitle="Strategic oversight and governance of enterprise IT initiatives"
+        icon={<FolderOpen sx={{ fontSize: 32 }} />}
+        actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            size="small"
+            sx={{
+              px: 3,
+              fontWeight: 600,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
+            }}
           >
             Add Segment Function
           </Button>
-        </Box>
-      </Box>
+        }
+      />
 
-      <TableContainer component={Paper}>
+      <FilterPanel title="Filter Segment Functions" defaultExpanded={false}>
+        <SharedFilters />
+      </FilterPanel>
+
+      <TableContainer component={Paper} sx={{ boxShadow: 2, borderRadius: 1.5 }}>
         <Table>
-          <TableHead>
+          <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Domain</TableCell>
