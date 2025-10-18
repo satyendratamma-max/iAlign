@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import ResourceAllocation from '../models/ResourceAllocation';
 import Resource from '../models/Resource';
 import Project from '../models/Project';
@@ -9,7 +10,85 @@ import App from '../models/App';
 import Technology from '../models/Technology';
 import Role from '../models/Role';
 import Domain from '../models/Domain';
+import User from '../models/User';
 import { calculateMatchScore } from '../utils/resourceMatcher';
+import { createNotification } from './notification.controller';
+import logger from '../config/logger';
+
+// Helper function to check for resource over-allocation
+const checkResourceOverAllocation = async (resourceId: number, allocationId?: number) => {
+  try {
+    // Get all active allocations for this resource
+    const allocations = await ResourceAllocation.findAll({
+      where: {
+        resourceId,
+        isActive: true,
+        ...(allocationId && { id: { [Op.ne]: allocationId } }), // Exclude current allocation if updating
+      },
+      include: [
+        {
+          model: Resource,
+          as: 'resource',
+          attributes: ['firstName', 'lastName', 'employeeId'],
+        },
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['name'],
+        },
+      ],
+    });
+
+    // Group allocations by date range and calculate total percentage
+    const dateRanges: Map<string, { total: number; allocations: any[] }> = new Map();
+
+    allocations.forEach((allocation: any) => {
+      const start = allocation.startDate ? new Date(allocation.startDate) : null;
+      const end = allocation.endDate ? new Date(allocation.endDate) : null;
+
+      if (start && end) {
+        const key = `${start.toISOString()}-${end.toISOString()}`;
+        const existing = dateRanges.get(key) || { total: 0, allocations: [] };
+        existing.total += allocation.allocationPercentage || 0;
+        existing.allocations.push(allocation);
+        dateRanges.set(key, existing);
+      }
+    });
+
+    // Check if any date range exceeds 100%
+    const overAllocations: any[] = [];
+    dateRanges.forEach((data, _key) => {
+      if (data.total > 100) {
+        overAllocations.push(data);
+      }
+    });
+
+    // If over-allocated, notify admins
+    if (overAllocations.length > 0 && allocations.length > 0) {
+      const allocation: any = allocations[0];
+      const resource = allocation.resource;
+      const resourceName = `${resource.firstName} ${resource.lastName} (${resource.employeeId})`;
+      const maxAllocation = Math.max(...overAllocations.map((o) => o.total));
+
+      const adminUsers = await User.findAll({
+        where: { role: 'Administrator', isActive: true },
+      });
+
+      await Promise.all(
+        adminUsers.map((admin) =>
+          createNotification(
+            admin.id,
+            'warning',
+            'Resource Over-Allocation Detected',
+            `${resourceName} is over-allocated at ${Math.round(maxAllocation)}% across overlapping projects.`
+          )
+        )
+      );
+    }
+  } catch (error) {
+    logger.error('Failed to check resource over-allocation:', error);
+  }
+};
 
 export const getAllAllocations = async (req: Request, res: Response) => {
   try {
@@ -319,6 +398,11 @@ export const createAllocation = async (req: Request, res: Response) => {
 
     const allocation = await ResourceAllocation.create(allocationData);
 
+    // Check for over-allocation and notify if needed
+    if (allocation.resourceId) {
+      await checkResourceOverAllocation(allocation.resourceId);
+    }
+
     const fullAllocation = await ResourceAllocation.findOne({
       where: { id: allocation.id },
       include: [
@@ -459,6 +543,11 @@ export const updateAllocation = async (req: Request, res: Response) => {
     }
 
     await allocation.update(updateData);
+
+    // Check for over-allocation and notify if needed
+    if (allocation.resourceId) {
+      await checkResourceOverAllocation(allocation.resourceId, allocation.id);
+    }
 
     const updatedAllocation = await ResourceAllocation.findOne({
       where: { id },

@@ -129,7 +129,6 @@ app.use(`/api/${API_VERSION}/capacity-plans`, capacityPlanRoutes);
 app.use(`/api/${API_VERSION}/scenarios`, scenarioRoutes);
 app.use(`/api/${API_VERSION}/recommendations`, recommendationRoutes);
 app.use(`/api/${API_VERSION}/analytics`, analyticsRoutes);
-app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/milestones`, milestoneRoutes);
 app.use(`/api/${API_VERSION}/allocations`, allocationRoutes);
 // app.use(`/api/${API_VERSION}/pipelines`, pipelineRoutes); // Temporarily disabled

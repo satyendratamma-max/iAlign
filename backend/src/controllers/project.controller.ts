@@ -4,8 +4,10 @@ import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
 import Milestone from '../models/Milestone';
+import User from '../models/User';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
+import { createNotification } from './notification.controller';
 
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -93,6 +95,27 @@ export const createProject = async (req: Request, res: Response, next: NextFunct
 
     logger.info(`Project created: ${project.name}`);
 
+    // Notify all admin users about the new project
+    try {
+      const adminUsers = await User.findAll({
+        where: { role: 'Administrator', isActive: true },
+      });
+
+      await Promise.all(
+        adminUsers.map((admin) =>
+          createNotification(
+            admin.id,
+            'info',
+            'New Project Created',
+            `Project "${project.name}" has been created with priority ${project.priority || 'Not Set'}.`
+          )
+        )
+      );
+    } catch (notifError) {
+      // Log but don't fail the request if notification fails
+      logger.error('Failed to send project creation notifications:', notifError);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
@@ -159,9 +182,48 @@ export const updateProject = async (req: Request, res: Response, next: NextFunct
       );
     }
 
+    const oldStatus = project.status;
     await project.update(updateData);
 
     logger.info(`Project updated: ${project.name}`);
+
+    // Notify admins about project status changes
+    try {
+      if (updateData.status && updateData.status !== oldStatus) {
+        const adminUsers = await User.findAll({
+          where: { role: 'Administrator', isActive: true },
+        });
+
+        let notificationType: 'success' | 'info' | 'warning' = 'info';
+        let title = '';
+        let message = '';
+
+        if (updateData.status === 'Completed') {
+          notificationType = 'success';
+          title = 'Project Completed';
+          message = `Project "${project.name}" has been marked as completed.`;
+        } else if (updateData.status === 'On Hold') {
+          notificationType = 'warning';
+          title = 'Project On Hold';
+          message = `Project "${project.name}" has been put on hold.`;
+        } else if (updateData.status === 'Cancelled') {
+          notificationType = 'warning';
+          title = 'Project Cancelled';
+          message = `Project "${project.name}" has been cancelled.`;
+        } else {
+          title = 'Project Status Changed';
+          message = `Project "${project.name}" status changed from ${oldStatus} to ${updateData.status}.`;
+        }
+
+        await Promise.all(
+          adminUsers.map((admin) =>
+            createNotification(admin.id, notificationType, title, message)
+          )
+        );
+      }
+    } catch (notifError) {
+      logger.error('Failed to send project update notifications:', notifError);
+    }
 
     res.json({
       success: true,

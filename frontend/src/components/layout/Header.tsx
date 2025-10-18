@@ -10,6 +10,8 @@ import {
   Tooltip,
   Badge,
   Typography,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Notifications,
@@ -22,6 +24,7 @@ import {
   Warning,
   Error as ErrorIcon,
   DoneAll,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
@@ -50,6 +53,15 @@ const Header = ({ onMenuClick }: HeaderProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { mode, toggleColorMode } = useThemeMode();
@@ -59,8 +71,24 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     const token = localStorage.getItem('token');
     if (token && user) {
       fetchNotifications();
+
+      // Auto-refresh notifications every 30 seconds
+      const intervalId = setInterval(() => {
+        fetchNotifications();
+      }, 30000);
+
+      // Cleanup interval on component unmount
+      return () => clearInterval(intervalId);
     }
   }, [user]);
+
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -74,6 +102,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
       // Silently handle auth errors to avoid console spam
       if (error?.response?.status !== 401) {
         console.error('Failed to fetch notifications:', error);
+        // Don't show error for background refresh failures
       }
     }
   };
@@ -100,8 +129,10 @@ const Header = ({ onMenuClick }: HeaderProps) => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       await axios.put(`${API_URL}/notifications/${notificationId}/read`, {}, config);
       await fetchNotifications();
+      // Silently mark as read without showing a snackbar (to avoid spam)
     } catch (error: any) {
       console.error('Failed to mark notification as read:', error);
+      showSnackbar('Failed to mark notification as read', 'error');
     }
   };
 
@@ -110,9 +141,26 @@ const Header = ({ onMenuClick }: HeaderProps) => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
       await axios.put(`${API_URL}/notifications/read-all`, {}, config);
-      fetchNotifications();
-    } catch (error) {
+      await fetchNotifications();
+      showSnackbar('All notifications marked as read', 'success');
+    } catch (error: any) {
       console.error('Failed to mark all notifications as read:', error);
+      showSnackbar('Failed to mark all notifications as read', 'error');
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent marking as read when deleting
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_URL}/notifications/${notificationId}`, config);
+      await fetchNotifications();
+      showSnackbar('Notification deleted successfully', 'success');
+    } catch (error: any) {
+      console.error('Failed to delete notification:', error);
+      const errorMessage = error?.response?.data?.message || 'Failed to delete notification';
+      showSnackbar(errorMessage, 'error');
     }
   };
 
@@ -302,7 +350,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                       cursor: notification.isRead ? 'default' : 'pointer',
                     }}
                   >
-                    <Box sx={{ display: 'flex', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                       <Box sx={{ mt: 0.5 }}>{getNotificationIcon(notification.type)}</Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="body2" fontWeight={notification.isRead ? 400 : 600}>
@@ -315,6 +363,20 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                           {formatTime(notification.createdDate)}
                         </Typography>
                       </Box>
+                      <Tooltip title="Delete notification">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleDeleteNotification(notification.id, e)}
+                          sx={{
+                            color: 'text.secondary',
+                            '&:hover': {
+                              color: 'error.main',
+                            },
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </MenuItem>
                 ))}
@@ -357,6 +419,23 @@ const Header = ({ onMenuClick }: HeaderProps) => {
           </Menu>
         </Box>
       </Toolbar>
+
+      {/* Snackbar for success/error messages */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </AppBar>
   );
 };
