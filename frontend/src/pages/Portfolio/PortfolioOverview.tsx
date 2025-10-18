@@ -62,6 +62,7 @@ interface Project {
   budget?: number;
   forecastedCost?: number;
   actualCost?: number;
+  businessDecision?: string;
 }
 
 interface ProjectRiskScore {
@@ -421,10 +422,27 @@ const PortfolioOverview = () => {
     );
   }
 
+  // Get unique business decisions from projects
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   const filteredSegmentFunctions = segmentFunctions.filter((sf) => {
+    // Get projects for this segment function
+    const sfProjects = projects.filter(
+      (project) => project.segmentFunctionId === sf.id
+    );
+
+    // Check if any project matches the business decision filter
+    const matchesBusinessDecision =
+      selectedBusinessDecisions.length === 0 ||
+      sfProjects.some((project) =>
+        selectedBusinessDecisions.includes(project.businessDecision || '')
+      );
+
     return (
       (selectedDomainIds.length === 0 || selectedDomainIds.includes(sf.domainId || 0)) &&
-      (selectedBusinessDecisions.length === 0)
+      matchesBusinessDecision
     );
   });
 
@@ -457,8 +475,7 @@ const PortfolioOverview = () => {
 
       <CompactFilterBar
         domains={domains}
-        businessDecisions={[]}
-        showBusinessDecisionFilter={false}
+        businessDecisions={uniqueBusinessDecisions}
         extraActions={<FilterPresets />}
       />
 

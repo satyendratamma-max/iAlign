@@ -60,6 +60,7 @@ interface Project {
   status: string;
   domainId?: number;
   budget?: number;
+  businessDecision?: string;
   segmentFunctionId?: number;
   segmentFunctionData?: {
     domainId?: number;
@@ -212,10 +213,29 @@ const DomainsList = () => {
     );
   }
 
+  // Get unique business decisions from projects
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   const filteredDomains = domains.filter((domain) => {
+    // Get projects for this domain
+    const domainProjects = projects.filter(
+      (project) =>
+        project.domainId === domain.id ||
+        project.segmentFunctionData?.domainId === domain.id
+    );
+
+    // Check if any project matches the business decision filter
+    const matchesBusinessDecision =
+      selectedBusinessDecisions.length === 0 ||
+      domainProjects.some((project) =>
+        selectedBusinessDecisions.includes(project.businessDecision || '')
+      );
+
     return (
       (selectedDomainIds.length === 0 || selectedDomainIds.includes(domain.id)) &&
-      (selectedBusinessDecisions.length === 0)
+      matchesBusinessDecision
     );
   });
 
@@ -248,8 +268,7 @@ const DomainsList = () => {
 
       <CompactFilterBar
         domains={domains}
-        businessDecisions={[]}
-        showBusinessDecisionFilter={false}
+        businessDecisions={uniqueBusinessDecisions}
         extraActions={<FilterPresets />}
       />
 

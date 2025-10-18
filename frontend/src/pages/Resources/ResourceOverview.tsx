@@ -141,6 +141,11 @@ interface NewCapability {
   isPrimary: boolean;
 }
 
+interface Project {
+  id: number;
+  businessDecision?: string;
+}
+
 const ResourceOverview = () => {
   const { selectedDomainIds } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
@@ -150,6 +155,7 @@ const ResourceOverview = () => {
   const [apps, setApps] = useState<App[]>([]);
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -171,15 +177,17 @@ const ResourceOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      // Resources are shared across scenarios, no scenarioId filtering needed
-      const [resourcesRes, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes] = await Promise.all([
+      // Resources are shared across scenarios, but projects are scenario-specific
+      const [resourcesRes, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/apps`, config),
         axios.get(`${API_URL}/technologies`, config),
         axios.get(`${API_URL}/roles`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
       ]);
 
       setResources(resourcesRes.data.data);
@@ -188,6 +196,7 @@ const ResourceOverview = () => {
       setApps(appsRes.data.data);
       setTechnologies(techsRes.data.data);
       setRoles(rolesRes.data.data);
+      setProjects(projectsRes.data.data);
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
@@ -383,6 +392,11 @@ const ResourceOverview = () => {
     );
   }
 
+  // Get unique business decisions from projects
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   return (
     <Box>
       <PageHeader
@@ -448,8 +462,7 @@ const ResourceOverview = () => {
 
       <CompactFilterBar
         domains={domains}
-        businessDecisions={[]}
-        showBusinessDecisionFilter={false}
+        businessDecisions={uniqueBusinessDecisions}
         extraActions={<FilterPresets />}
       />
 

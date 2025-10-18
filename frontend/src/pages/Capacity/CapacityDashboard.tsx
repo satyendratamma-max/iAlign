@@ -20,6 +20,7 @@ import CompactFilterBar from '../../components/common/CompactFilterBar';
 import FilterPresets from '../../components/common/FilterPresets';
 import PageHeader from '../../components/common/PageHeader';
 import { useAppSelector } from '../../hooks/redux';
+import { useScenario } from '../../contexts/ScenarioContext';
 import {
   People,
   TrendingUp,
@@ -63,36 +64,68 @@ interface Domain {
   name: string;
 }
 
+interface Project {
+  id: number;
+  businessDecision?: string;
+}
+
 const CapacityDashboard = () => {
+  const { activeScenario } = useScenario();
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [resources, setResources] = useState<Resource[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!activeScenario) return;
+
       try {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
+        const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-        const [resourcesRes, allocationsRes] = await Promise.all([
+        const [resourcesRes, allocationsRes, domainsRes, projectsRes] = await Promise.all([
           axios.get(`${API_URL}/resources`, config),
           axios.get(`${API_URL}/allocations`, config),
+          axios.get(`${API_URL}/domains`, config),
+          axios.get(`${API_URL}/projects${scenarioParam}`, config),
         ]);
 
         const allResources = resourcesRes.data.data || [];
         const allAllocations = allocationsRes.data.data || [];
+        const allDomains = domainsRes.data.data || [];
+        const allProjects = projectsRes.data.data || [];
+
+        setDomains(allDomains);
+        setProjects(allProjects);
+
+        // Get project IDs that match the business decision filter
+        const matchingProjectIds = selectedBusinessDecisions.length === 0
+          ? new Set(allProjects.map((p: Project) => p.id))
+          : new Set(
+              allProjects
+                .filter((p: Project) => selectedBusinessDecisions.includes(p.businessDecision || ''))
+                .map((p: Project) => p.id)
+            );
+
+        // Filter allocations by business decision (via projects)
+        const businessDecisionFilteredAllocations = selectedBusinessDecisions.length === 0
+          ? allAllocations
+          : allAllocations.filter((a: Allocation) => matchingProjectIds.has(a.projectId));
 
         // Filter resources by domain if selected
         const filteredResources = selectedDomainIds.length === 0
           ? allResources
           : allResources.filter((r: Resource) => selectedDomainIds.includes(r.domainId || 0));
 
-        // Filter allocations to match filtered resources
+        // Filter allocations to match filtered resources and business decisions
         const filteredResourceIds = filteredResources.map((r: Resource) => r.id);
-        const filteredAllocations = selectedDomainIds.length === 0
-          ? allAllocations
-          : allAllocations.filter((a: Allocation) => filteredResourceIds.includes(a.resourceId));
+        const filteredAllocations = businessDecisionFilteredAllocations.filter((a: Allocation) =>
+          filteredResourceIds.includes(a.resourceId)
+        );
 
         setResources(filteredResources);
         setAllocations(filteredAllocations);
@@ -104,7 +137,7 @@ const CapacityDashboard = () => {
     };
 
     fetchData();
-  }, [selectedDomainIds, selectedBusinessDecisions]);
+  }, [activeScenario, selectedDomainIds, selectedBusinessDecisions]);
 
   if (loading) {
     return (
@@ -173,6 +206,11 @@ const CapacityDashboard = () => {
     }).format(value);
   };
 
+  // Get unique business decisions from projects
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   return (
     <Box>
       <PageHeader
@@ -183,9 +221,8 @@ const CapacityDashboard = () => {
       />
 
       <CompactFilterBar
-        domains={[]}
-        businessDecisions={[]}
-        showBusinessDecisionFilter={false}
+        domains={domains}
+        businessDecisions={uniqueBusinessDecisions}
         extraActions={<FilterPresets />}
       />
 
@@ -480,3 +517,4 @@ const CapacityDashboard = () => {
 };
 
 export default CapacityDashboard;
+

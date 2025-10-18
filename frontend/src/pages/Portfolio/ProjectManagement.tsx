@@ -295,7 +295,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit, projectRisks }
         cursor: 'grab',
         '&:active': { cursor: 'grabbing' },
         '&:hover': { boxShadow: 3 },
-        bgcolor: 'white',
+        backgroundColor: 'background.paper',
       }}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -394,7 +394,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, onEdit, projectRisks }
             sx={{
               height: 6,
               borderRadius: 1,
-              bgcolor: 'grey.200',
+              backgroundColor: 'action.hover',
               '& .MuiLinearProgress-bar': {
                 bgcolor: project.progress >= 75 ? '#4caf50' : project.progress >= 50 ? '#ff9800' : '#2196f3',
               },
@@ -432,9 +432,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, o
         minWidth: 320,
         maxWidth: 320,
         p: 2,
-        bgcolor: isOver ? 'primary.lighter' : 'grey.50',
+        backgroundColor: isOver ? 'primary.lighter' : 'background.default',
         border: isOver ? '2px solid' : '1px solid',
-        borderColor: isOver ? 'primary.main' : 'grey.200',
+        borderColor: isOver ? 'primary.main' : 'divider',
         flex: '0 0 auto',
         transition: 'all 0.2s',
         minHeight: groupProjects.length === 0 ? 150 : 'auto',
@@ -455,7 +455,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, o
             justifyContent: 'center',
             minHeight: 100,
             border: '2px dashed',
-            borderColor: isOver ? 'primary.main' : 'grey.300',
+            borderColor: isOver ? 'primary.main' : 'divider',
             borderRadius: 1,
             bgcolor: isOver ? 'primary.lighter' : 'transparent',
             transition: 'all 0.2s',

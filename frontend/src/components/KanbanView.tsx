@@ -12,6 +12,7 @@ import {
   Divider,
   Snackbar,
   Alert,
+  useTheme,
 } from '@mui/material';
 import {
   DndContext,
@@ -106,6 +107,7 @@ const DraggableResourceCard = ({
   resource: Resource;
   totalAllocation: number;
 }) => {
+  const theme = useTheme();
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `resource-${resource.id}`,
     data: { resource, type: 'resource' },
@@ -130,18 +132,19 @@ const DraggableResourceCard = ({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      style={{ backgroundColor: theme.palette.background.paper }}
       sx={{
         cursor: 'grab',
         opacity: isDragging ? 0.5 : 1,
         mb: 1,
-        bgcolor: isOver ? 'primary.lighter' : (isAvailable ? 'success.lighter' : 'action.hover'),
         border: isOver ? '2px solid' : '1px solid',
         borderColor: isOver ? 'primary.main' : (isAvailable ? 'success.main' : 'divider'),
-        boxShadow: isOver ? 4 : 0,
+        boxShadow: isOver ? 4 : 1,
         transform: isOver ? 'scale(1.03)' : 'scale(1)',
         '&:hover': {
           transform: isOver ? 'scale(1.03)' : 'translateY(-2px)',
           boxShadow: isOver ? 4 : 2,
+          borderColor: isAvailable ? 'success.main' : 'primary.main',
         },
         transition: 'all 0.2s',
         position: 'relative',
@@ -219,15 +222,22 @@ const DraggableResourceCard = ({
 
 // Allocated Resource Card (in middle column)
 const AllocatedResourceCard = ({ resource, allocations }: { resource: Resource; allocations: Allocation[] }) => {
+  const theme = useTheme();
   const totalAllocation = calculateMaxConcurrentAllocation(allocations);
 
   return (
     <Card
+      style={{ backgroundColor: theme.palette.background.paper }}
       sx={{
         mb: 1,
-        bgcolor: 'info.lighter',
         border: '1px solid',
         borderColor: 'info.main',
+        boxShadow: 1,
+        '&:hover': {
+          boxShadow: 2,
+          borderColor: 'info.main',
+        },
+        transition: 'all 0.2s',
       }}
     >
       <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
@@ -283,6 +293,7 @@ const DraggableProjectCard = ({
   project: Project;
   needsMoreResources: boolean;
 }) => {
+  const theme = useTheme();
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `project-${project.id}`,
     data: { project, type: 'project' },
@@ -304,18 +315,19 @@ const DraggableProjectCard = ({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      style={{ backgroundColor: theme.palette.background.paper }}
       sx={{
         cursor: 'grab',
         opacity: isDragging ? 0.5 : 1,
         mb: 1,
-        bgcolor: isOver ? 'primary.lighter' : (needsMoreResources ? 'warning.lighter' : 'success.lighter'),
         border: isOver ? '2px solid' : '1px solid',
         borderColor: isOver ? 'primary.main' : (needsMoreResources ? 'warning.main' : 'success.main'),
-        boxShadow: isOver ? 4 : 0,
+        boxShadow: isOver ? 4 : 1,
         transform: isOver ? 'scale(1.03)' : 'scale(1)',
         '&:hover': {
           transform: isOver ? 'scale(1.03)' : 'translateY(-2px)',
           boxShadow: isOver ? 4 : 2,
+          borderColor: needsMoreResources ? 'warning.main' : 'success.main',
         },
         transition: 'all 0.2s',
         position: 'relative',
@@ -402,6 +414,7 @@ const DroppableColumn = ({
   icon: React.ReactNode;
   children: React.ReactNode;
 }) => {
+  const theme = useTheme();
   const { setNodeRef, isOver } = useDroppable({
     id,
   });
@@ -409,11 +422,11 @@ const DroppableColumn = ({
   return (
     <Paper
       ref={setNodeRef}
+      style={{ backgroundColor: theme.palette.background.default }}
       sx={{
         p: 1.5,
         height: '100%',
         minHeight: 400,
-        bgcolor: isOver ? 'primary.lighter' : 'action.hover',
         border: isOver ? '2px dashed' : '1px dashed',
         borderColor: isOver ? 'primary.main' : 'divider',
         boxShadow: isOver ? 3 : 0,
@@ -512,6 +525,7 @@ const findBestCapabilityMatch = async (resourceId: number, projectId: number) =>
 };
 
 const KanbanView = ({ resources, projects, allocations, scenarioId, onRefresh }: KanbanViewProps) => {
+  // Kanban board with drag and drop functionality
   const [draggedItem, setDraggedItem] = useState<{ resource?: Resource; project?: Project } | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -757,3 +771,7 @@ const KanbanView = ({ resources, projects, allocations, scenarioId, onRefresh }:
 };
 
 export default KanbanView;
+
+
+
+
