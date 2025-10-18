@@ -23,10 +23,10 @@ import {
   Divider,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, FolderOpen } from '@mui/icons-material';
-import SharedFilters from '../../components/common/SharedFilters';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
-import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -434,6 +434,7 @@ const PortfolioOverview = () => {
         title="Portfolio Overview"
         subtitle="Strategic oversight and governance of enterprise IT initiatives"
         icon={<FolderOpen sx={{ fontSize: 32 }} />}
+        compact
         actions={
           <Button
             variant="contained"
@@ -454,9 +455,12 @@ const PortfolioOverview = () => {
         }
       />
 
-      <FilterPanel title="Filter Segment Functions" defaultExpanded={false}>
-        <SharedFilters />
-      </FilterPanel>
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={[]}
+        showBusinessDecisionFilter={false}
+        extraActions={<FilterPresets />}
+      />
 
       <TableContainer component={Paper} sx={{ boxShadow: 2, borderRadius: 1.5 }}>
         <Table>

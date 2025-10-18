@@ -355,6 +355,7 @@ const PortfolioProjects = () => {
           segmentFunction?.description || 'Segment function projects overview'
         }
         icon={<FolderIcon sx={{ fontSize: 32 }} />}
+        compact
       />
 
       {segmentFunction?.domain && (

@@ -65,10 +65,10 @@ import axios from 'axios';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
-import SharedFilters from '../../components/common/SharedFilters';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
-import FilterPanel from '../../components/common/FilterPanel';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
@@ -2154,6 +2154,11 @@ const ProjectManagement = () => {
     return 0;
   });
 
+  // Extract unique business decisions for filter options
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   // Swimlane grouping helper functions
   const getGroupKey = (project: Project, groupBy: 'domain' | 'segmentFunction' | 'type' | 'targetRelease' | 'targetSprint'): string => {
     switch (groupBy) {
@@ -3469,6 +3474,7 @@ const ProjectManagement = () => {
         title="Project Management"
         subtitle="Manage and track all enterprise projects"
         icon={<HubIcon sx={{ fontSize: 32 }} />}
+        compact
       />
 
       <ActionBar elevation={1}>
@@ -3596,12 +3602,15 @@ const ProjectManagement = () => {
         </Button>
       </ActionBar>
 
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={uniqueBusinessDecisions}
+        extraActions={<FilterPresets />}
+      />
+
       <Box ref={contentRef}>
       {viewMode === 'list' && (
         <>
-          <FilterPanel title="Filter Projects" defaultExpanded={true}>
-            <SharedFilters />
-          </FilterPanel>
           <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2 }}>
           <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
           <TableHead>
@@ -4323,9 +4332,6 @@ const ProjectManagement = () => {
             {filtersExpanded && (
               <Box sx={{ p: 1.5, pt: 0 }}>
                 <Grid container spacing={1.5}>
-                  <Grid item xs={12}>
-                    <SharedFilters />
-                  </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   size="small"

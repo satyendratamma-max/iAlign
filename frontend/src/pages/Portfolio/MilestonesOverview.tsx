@@ -38,7 +38,8 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
-import FilterPanel from '../../components/common/FilterPanel';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -398,6 +399,11 @@ const MilestonesOverview = () => {
     return filtered;
   }, [milestones, projects, selectedDomainIds, selectedBusinessDecisions, filters]);
 
+  // Extract unique business decisions for filter options
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -419,6 +425,7 @@ const MilestonesOverview = () => {
         title="Project Milestones"
         subtitle="Track and manage milestones across all projects"
         icon={<FlagIcon sx={{ fontSize: 32 }} />}
+        compact
       />
 
       {upcomingMilestones.length > 0 && (
@@ -481,77 +488,11 @@ const MilestonesOverview = () => {
         </Button>
       </ActionBar>
 
-      <FilterPanel title="Filter Milestones" defaultExpanded={true}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
-              fullWidth
-              label="Domain"
-              size="small"
-              value={selectedDomainIds}
-              onChange={(e) => {
-                const value = e.target.value;
-                dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
-              }}
-              SelectProps={{
-                multiple: true,
-                renderValue: (selected) => {
-                  const selectedArray = selected as number[];
-                  return selectedArray.length === 0
-                    ? 'All Domains'
-                    : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-                },
-              }}
-            >
-              {domains.map((domain) => (
-                <MenuItem key={domain.id} value={domain.id}>
-                  <Chip label={domain.name} size="small" />
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
-              fullWidth
-              label="Business Decision"
-              size="small"
-              value={selectedBusinessDecisions}
-              onChange={(e) => {
-                const value = e.target.value;
-                dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
-              }}
-              SelectProps={{
-                multiple: true,
-                renderValue: (selected) => {
-                  const selectedArray = selected as string[];
-                  return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
-                },
-              }}
-            >
-              {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                <MenuItem key={decision} value={decision!}>
-                  <Chip label={decision} size="small" />
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
-              {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                <Button
-                  size="small"
-                  onClick={() => dispatch(clearAllFilters())}
-                  variant="outlined"
-                >
-                  Clear All Filters
-                </Button>
-              )}
-            </Box>
-          </Grid>
-        </Grid>
-      </FilterPanel>
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={uniqueBusinessDecisions}
+        extraActions={<FilterPresets />}
+      />
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, borderRadius: 1.5 }}>
         <Table sx={{ minWidth: { xs: 700, md: 900 } }}>

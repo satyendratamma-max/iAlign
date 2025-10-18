@@ -16,9 +16,9 @@ import {
   Tooltip,
   Paper,
 } from '@mui/material';
-import SharedFilters from '../../components/common/SharedFilters';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import PageHeader from '../../components/common/PageHeader';
-import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import {
   People,
@@ -179,11 +179,15 @@ const CapacityDashboard = () => {
         title="Capacity Dashboard"
         subtitle="Unified capacity planning with predictive analytics"
         icon={<DashboardIcon sx={{ fontSize: 32 }} />}
+        compact
       />
 
-      <FilterPanel title="Filter Resources" defaultExpanded={false}>
-        <SharedFilters />
-      </FilterPanel>
+      <CompactFilterBar
+        domains={[]}
+        businessDecisions={[]}
+        showBusinessDecisionFilter={false}
+        extraActions={<FilterPresets />}
+      />
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

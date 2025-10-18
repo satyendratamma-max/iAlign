@@ -229,6 +229,7 @@ const SegmentFunctionList = () => {
         title={`${domain?.name} Segment Functions`}
         subtitle={domain?.description || 'View and manage segment functions for this domain'}
         icon={<Folder sx={{ fontSize: 32 }} />}
+        compact
         actions={
           <Button
             variant="contained"

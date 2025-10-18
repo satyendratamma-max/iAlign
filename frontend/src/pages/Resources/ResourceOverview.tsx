@@ -33,10 +33,10 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
-import SharedFilters from '../../components/common/SharedFilters';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
-import FilterPanel from '../../components/common/FilterPanel';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { People as PeopleIcon } from '@mui/icons-material';
@@ -389,6 +389,7 @@ const ResourceOverview = () => {
         title="Resource Overview"
         subtitle="Overview of all enterprise resources and utilization"
         icon={<PeopleIcon sx={{ fontSize: 32 }} />}
+        compact
       />
 
       <ActionBar elevation={1}>
@@ -445,9 +446,12 @@ const ResourceOverview = () => {
         </Button>
       </ActionBar>
 
-      <FilterPanel title="Filter Resources" defaultExpanded={true}>
-        <SharedFilters />
-      </FilterPanel>
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={[]}
+        showBusinessDecisionFilter={false}
+        extraActions={<FilterPresets />}
+      />
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, borderRadius: 1.5 }}>
         <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>

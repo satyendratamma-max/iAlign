@@ -43,7 +43,8 @@ import {
 import axios from 'axios';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
-import FilterPanel from '../../components/common/FilterPanel';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -547,6 +548,11 @@ const ResourceAllocation = () => {
 
   const { outboundCrossDomain, inboundCrossDomain } = calculateCrossDomainMetrics();
 
+  // Extract unique business decisions for filter options
+  const uniqueBusinessDecisions = Array.from(
+    new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -561,6 +567,7 @@ const ResourceAllocation = () => {
         title="Resource Allocation Matrix"
         subtitle="Capability-based resource allocation with smart matching scores"
         icon={<TableChartIcon sx={{ fontSize: 32 }} />}
+        compact
         actions={
           <Button
             variant="contained"
@@ -610,6 +617,12 @@ const ResourceAllocation = () => {
         </ActionGroup>
       </ActionBar>
 
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={uniqueBusinessDecisions}
+        extraActions={<FilterPresets />}
+      />
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
@@ -619,77 +632,6 @@ const ResourceAllocation = () => {
       {/* Render appropriate view */}
       {currentView === 'timeline' && (
         <>
-          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Domain"
-                  value={selectedDomainIds}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as number[];
-                      return selectedArray.length === 0
-                        ? 'All Domains'
-                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-                    },
-                  }}
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.id}>
-                      <Chip label={domain.name} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Business Decision"
-                  value={selectedBusinessDecisions}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as string[];
-                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
-                    },
-                  }}
-                >
-                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                    <MenuItem key={decision} value={decision!}>
-                      <Chip label={decision} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
-                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                    <Button
-                      size="small"
-                      onClick={() => dispatch(clearAllFilters())}
-                      variant="outlined"
-                    >
-                      Clear All Filters
-                    </Button>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </FilterPanel>
           <TimelineView
             resources={filteredResources}
             projects={filteredProjects}
@@ -704,77 +646,6 @@ const ResourceAllocation = () => {
 
       {currentView === 'kanban' && (
         <>
-          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Domain"
-                  value={selectedDomainIds}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as number[];
-                      return selectedArray.length === 0
-                        ? 'All Domains'
-                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-                    },
-                  }}
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.id}>
-                      <Chip label={domain.name} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Business Decision"
-                  value={selectedBusinessDecisions}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as string[];
-                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
-                    },
-                  }}
-                >
-                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                    <MenuItem key={decision} value={decision!}>
-                      <Chip label={decision} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
-                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                    <Button
-                      size="small"
-                      onClick={() => dispatch(clearAllFilters())}
-                      variant="outlined"
-                    >
-                      Clear All Filters
-                    </Button>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </FilterPanel>
           <KanbanView
             resources={filteredResources}
             projects={filteredProjects}
@@ -787,78 +658,6 @@ const ResourceAllocation = () => {
 
       {currentView === 'table' && (
         <>
-          <FilterPanel title="Filter Allocations" defaultExpanded={true}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Domain"
-                  value={selectedDomainIds}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setDomainFilter(typeof value === 'string' ? [parseInt(value)] : value as unknown as number[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as number[];
-                      return selectedArray.length === 0
-                        ? 'All Domains'
-                        : selectedArray.map(id => domains.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-                    },
-                  }}
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.id}>
-                      <Chip label={domain.name} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Business Decision"
-                  value={selectedBusinessDecisions}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    dispatch(setBusinessDecisionFilter(typeof value === 'string' ? [value] : value as string[]));
-                  }}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) => {
-                      const selectedArray = selected as string[];
-                      return selectedArray.length === 0 ? 'All Decisions' : selectedArray.join(', ');
-                    },
-                  }}
-                >
-                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                    <MenuItem key={decision} value={decision!}>
-                      <Chip label={decision} size="small" />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <Box display="flex" justifyContent="flex-end" alignItems="center" height="100%">
-                  {(selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0) && (
-                    <Button
-                      size="small"
-                      onClick={() => dispatch(clearAllFilters())}
-                      variant="outlined"
-                    >
-                      Clear All Filters
-                    </Button>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </FilterPanel>
-
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>

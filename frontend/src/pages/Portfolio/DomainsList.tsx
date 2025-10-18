@@ -15,9 +15,9 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
-import SharedFilters from '../../components/common/SharedFilters';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
+import FilterPresets from '../../components/common/FilterPresets';
 import PageHeader from '../../components/common/PageHeader';
-import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import {
   Business,
@@ -225,6 +225,7 @@ const DomainsList = () => {
         title="Domains"
         subtitle="Select a domain to view its segment functions, projects, and team capacity"
         icon={<Business sx={{ fontSize: 32 }} />}
+        compact
         actions={
           <Button
             variant="contained"
@@ -245,9 +246,12 @@ const DomainsList = () => {
         }
       />
 
-      <FilterPanel title="Filter Domains" defaultExpanded={false}>
-        <SharedFilters />
-      </FilterPanel>
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={[]}
+        showBusinessDecisionFilter={false}
+        extraActions={<FilterPresets />}
+      />
 
       <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
         {filteredDomains.map((domain) => {
