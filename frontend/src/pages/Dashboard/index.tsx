@@ -31,9 +31,8 @@ import {
   PictureAsPdf as PdfIcon,
   Dashboard as DashboardIcon,
 } from '@mui/icons-material';
-import SharedFilters from '../../components/common/SharedFilters';
 import PageHeader from '../../components/common/PageHeader';
-import FilterPanel from '../../components/common/FilterPanel';
+import CompactFilterBar from '../../components/common/CompactFilterBar';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import {
@@ -492,20 +491,27 @@ const Dashboard = () => {
     return 'error';
   };
 
+  // Get unique business decisions from projects
+  const uniqueBusinessDecisions = Array.from(
+    new Set(allProjects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
   return (
     <Box sx={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <PageHeader
         title="Executive Dashboard"
         subtitle={`${activeScenario?.name || 'Portfolio'} • Last updated: ${new Date().toLocaleString()}`}
-        icon={<DashboardIcon sx={{ fontSize: 32 }} />}
+        icon={<DashboardIcon sx={{ fontSize: 28 }} />}
+        compact
         actions={
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <IconButton
               onClick={() => setPresentationMode(!presentationMode)}
               color={presentationMode ? 'primary' : 'default'}
               title="Presentation Mode"
+              size="small"
             >
-              <FullscreenIcon />
+              <FullscreenIcon fontSize="small" />
             </IconButton>
             <Button
               variant="contained"
@@ -537,9 +543,10 @@ const Dashboard = () => {
         }
       />
 
-      <FilterPanel title="Dashboard Filters" defaultExpanded={false}>
-        <SharedFilters />
-      </FilterPanel>
+      <CompactFilterBar
+        domains={domains}
+        businessDecisions={uniqueBusinessDecisions}
+      />
 
       {/* Alert for Over-allocated Resources */}
       {resourceMetrics && resourceMetrics.overAllocatedResources > 0 && !presentationMode && (

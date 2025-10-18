@@ -7,6 +7,7 @@ interface PageHeaderProps {
   icon?: ReactNode;
   actions?: ReactNode;
   gradient?: boolean;
+  compact?: boolean;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
@@ -15,6 +16,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   icon,
   actions,
   gradient = true,
+  compact = false,
 }) => {
   const theme = useTheme();
 
@@ -22,8 +24,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     <Paper
       elevation={2}
       sx={{
-        mb: 3,
-        p: { xs: 2, sm: 3 },
+        mb: compact ? 0 : 3,
+        p: compact ? { xs: 1.5, sm: 2 } : { xs: 2, sm: 3 },
         background: gradient
           ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(
               theme.palette.primary.main,
@@ -48,8 +50,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                 display: { xs: 'none', sm: 'flex' },
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 56,
-                height: 56,
+                width: compact ? 40 : 56,
+                height: compact ? 40 : 56,
                 borderRadius: 2,
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                 color: 'white',
@@ -64,7 +66,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               variant="h4"
               sx={{
                 fontWeight: 700,
-                fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                fontSize: compact
+                  ? { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }
+                  : { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
                 color: theme.palette.text.primary,
                 lineHeight: 1.2,
                 mb: subtitle ? 0.5 : 0,
@@ -77,7 +81,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                 variant="body2"
                 sx={{
                   color: theme.palette.text.secondary,
-                  fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                  fontSize: compact
+                    ? { xs: '0.8125rem', sm: '0.875rem' }
+                    : { xs: '0.875rem', sm: '0.9375rem' },
                   fontWeight: 400,
                 }}
               >
