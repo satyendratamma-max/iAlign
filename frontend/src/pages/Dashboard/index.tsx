@@ -29,8 +29,11 @@ import {
   Fullscreen as FullscreenIcon,
   Image as ImageIcon,
   PictureAsPdf as PdfIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import SharedFilters from '../../components/common/SharedFilters';
+import PageHeader from '../../components/common/PageHeader';
+import FilterPanel from '../../components/common/FilterPanel';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import {
@@ -491,26 +494,12 @@ const Dashboard = () => {
 
   return (
     <Box sx={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      {/* Header with Export Button */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 700,
-                fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-              }}
-              gutterBottom
-            >
-              Executive Dashboard
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {activeScenario?.name || 'Portfolio'} • Last updated: {new Date().toLocaleString()}
-            </Typography>
-          </Box>
+      <PageHeader
+        title="Executive Dashboard"
+        subtitle={`${activeScenario?.name || 'Portfolio'} • Last updated: ${new Date().toLocaleString()}`}
+        icon={<DashboardIcon sx={{ fontSize: 32 }} />}
+        actions={
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <SharedFilters />
             <IconButton
               onClick={() => setPresentationMode(!presentationMode)}
               color={presentationMode ? 'primary' : 'default'}
@@ -545,8 +534,12 @@ const Dashboard = () => {
               </MenuItem>
             </Menu>
           </Box>
-        </Box>
-      </Box>
+        }
+      />
+
+      <FilterPanel title="Dashboard Filters" defaultExpanded={false}>
+        <SharedFilters />
+      </FilterPanel>
 
       {/* Alert for Over-allocated Resources */}
       {resourceMetrics && resourceMetrics.overAllocatedResources > 0 && !presentationMode && (
