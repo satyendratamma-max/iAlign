@@ -174,6 +174,7 @@ const FilterPresets = () => {
                     )}
                   </Box>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
               <IconButton
                 size="small"
