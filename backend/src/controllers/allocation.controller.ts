@@ -10,9 +10,8 @@ import App from '../models/App';
 import Technology from '../models/Technology';
 import Role from '../models/Role';
 import Domain from '../models/Domain';
-import User from '../models/User';
 import { calculateMatchScore } from '../utils/resourceMatcher';
-import { createNotification } from './notification.controller';
+import { notifyResourceAllocated, notifyResourceDeallocated, notifyResourceOverallocated } from '../services/notification.service';
 import logger from '../config/logger';
 
 // Helper function to check for resource over-allocation
@@ -29,7 +28,7 @@ const checkResourceOverAllocation = async (resourceId: number, allocationId?: nu
         {
           model: Resource,
           as: 'resource',
-          attributes: ['firstName', 'lastName', 'employeeId'],
+          attributes: ['firstName', 'lastName', 'employeeId', 'userId'],
         },
         {
           model: Project,
@@ -63,27 +62,13 @@ const checkResourceOverAllocation = async (resourceId: number, allocationId?: nu
       }
     });
 
-    // If over-allocated, notify admins
+    // If over-allocated, notify using new notification service
     if (overAllocations.length > 0 && allocations.length > 0) {
       const allocation: any = allocations[0];
       const resource = allocation.resource;
-      const resourceName = `${resource.firstName} ${resource.lastName} (${resource.employeeId})`;
       const maxAllocation = Math.max(...overAllocations.map((o) => o.total));
 
-      const adminUsers = await User.findAll({
-        where: { role: 'Administrator', isActive: true },
-      });
-
-      await Promise.all(
-        adminUsers.map((admin) =>
-          createNotification(
-            admin.id,
-            'warning',
-            'Resource Over-Allocation Detected',
-            `${resourceName} is over-allocated at ${Math.round(maxAllocation)}% across overlapping projects.`
-          )
-        )
-      );
+      await notifyResourceOverallocated(resource, maxAllocation);
     }
   } catch (error) {
     logger.error('Failed to check resource over-allocation:', error);
@@ -403,6 +388,7 @@ export const createAllocation = async (req: Request, res: Response) => {
       await checkResourceOverAllocation(allocation.resourceId);
     }
 
+    // Fetch full allocation details for notification
     const fullAllocation = await ResourceAllocation.findOne({
       where: { id: allocation.id },
       include: [
@@ -473,6 +459,19 @@ export const createAllocation = async (req: Request, res: Response) => {
         },
       ],
     });
+
+    // Notify stakeholders about the allocation
+    try {
+      if (fullAllocation) {
+        const resource = (fullAllocation as any).resource;
+        const project = (fullAllocation as any).project;
+        if (resource && project) {
+          await notifyResourceAllocated(fullAllocation, resource, project);
+        }
+      }
+    } catch (notifError) {
+      logger.error('Failed to send allocation notification:', notifError);
+    }
 
     return res.status(201).json({
       success: true,
@@ -640,6 +639,18 @@ export const deleteAllocation = async (req: Request, res: Response) => {
 
     const allocation = await ResourceAllocation.findOne({
       where: { id, isActive: true },
+      include: [
+        {
+          model: Resource,
+          as: 'resource',
+          attributes: ['id', 'firstName', 'lastName', 'userId'],
+        },
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name', 'projectManagerId'],
+        },
+      ],
     });
 
     if (!allocation) {
@@ -647,6 +658,17 @@ export const deleteAllocation = async (req: Request, res: Response) => {
         success: false,
         message: 'Allocation not found',
       });
+    }
+
+    // Notify stakeholders about the deallocation
+    try {
+      const resource = (allocation as any).resource;
+      const project = (allocation as any).project;
+      if (resource && project) {
+        await notifyResourceDeallocated(resource, project);
+      }
+    } catch (notifError) {
+      logger.error('Failed to send deallocation notification:', notifError);
     }
 
     // Soft delete

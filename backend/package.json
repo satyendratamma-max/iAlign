@@ -27,6 +27,7 @@
   "author": "Enterprise Architecture Team",
   "license": "MIT",
   "dependencies": {
+    "@types/nodemailer": "^7.0.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -38,6 +39,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mssql": "^12.0.0",
+    "nodemailer": "^7.0.9",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
