@@ -436,7 +436,9 @@ const DataLookup = () => {
                           <TableCell>
                             <Chip label={allocation.resourceId} size="small" color="secondary" />
                           </TableCell>
-                          <TableCell>{resource?.name || '-'}</TableCell>
+                          <TableCell>
+                            {resource ? `${resource.firstName} ${resource.lastName}` : '-'}
+                          </TableCell>
                           <TableCell>
                             <Chip label={allocation.projectId} size="small" color="secondary" />
                           </TableCell>

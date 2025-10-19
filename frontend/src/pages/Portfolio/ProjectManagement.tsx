@@ -5878,9 +5878,14 @@ const ProjectManagement = () => {
                         const horizontalGap = x2 - x1;
 
                         if (x2 > x1) {
-                          // Forward dependency (left to right) - ALWAYS terminate horizontally pointing RIGHT (→)
+                          // Forward dependency (left to right) - ALWAYS terminate horizontally pointing towards target
                           const startX = x1 + horizontalExit; // Exit point from predecessor
-                          const enterX = x2 - horizontalEnter; // Entry point before target (approaches from left)
+                          // Entry point depends on which end of the target bar we're connecting to
+                          // For 'start' points: enter from LEFT (outside the bar)
+                          // For 'end' points: enter from RIGHT (outside the bar)
+                          const enterX = dep.successorPoint === 'start'
+                            ? x2 - horizontalEnter // Approach from LEFT for start points
+                            : x2 + horizontalEnter; // Approach from RIGHT for end points
 
                           if (Math.abs(y2 - y1) < 5) {
                             // Same row - ensure horizontal termination by using entry point
@@ -5888,10 +5893,10 @@ const ProjectManagement = () => {
                           } else {
                             // Different rows - check if enough space for L-shaped routing
                             if (horizontalGap > minHorizontalSpace) {
-                              // Enough space - L-shaped with horizontal termination pointing RIGHT
+                              // Enough space - L-shaped with horizontal termination pointing towards target
                               pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${y2} L ${enterX} ${y2} L ${x2} ${y2}`;
                             } else {
-                              // Not enough space - U-shaped with horizontal termination pointing RIGHT
+                              // Not enough space - U-shaped with horizontal termination pointing towards target
                               if (y1 < y2) {
                                 // Going down - route above
                                 const clearanceY = y1 - verticalClearance;
@@ -5904,28 +5909,36 @@ const ProjectManagement = () => {
                             }
                           }
                         } else if (x2 === x1) {
-                          // Same position - U-shaped routing with horizontal termination pointing LEFT
+                          // Same position - U-shaped routing
                           const offsetX = x1 + horizontalExit;
-                          const enterX = x2 - horizontalEnter;
+                          // Entry point depends on which end of the target bar we're connecting to
+                          const enterX = dep.successorPoint === 'start'
+                            ? x2 - horizontalEnter
+                            : x2 + horizontalEnter;
                           const clearanceY = y1 < y2 ? y1 - verticalClearance : y1 + verticalClearance;
                           pathD = `M ${x1} ${y1} L ${offsetX} ${y1} L ${offsetX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                         } else {
-                          // Backward dependency (right to left) - ALWAYS terminate horizontally pointing LEFT (←)
+                          // Backward dependency (right to left) - ALWAYS terminate horizontally pointing towards target
                           const startX = x1 + horizontalExit; // Exit point from predecessor
-                          const enterX = x2 + horizontalEnter; // Entry point before target (approaches from right)
+                          // Entry point depends on which end of the target bar we're connecting to
+                          // For 'start' points: enter from LEFT (outside the bar)
+                          // For 'end' points: enter from RIGHT (outside the bar)
+                          const enterX = dep.successorPoint === 'start'
+                            ? x2 - horizontalEnter // Approach from LEFT for start points
+                            : x2 + horizontalEnter; // Approach from RIGHT for end points
 
                           // Route with proper clearance to avoid overlapping bars
-                          // ALWAYS end with horizontal segment pointing LEFT towards target
+                          // ALWAYS end with horizontal segment pointing towards target
                           if (y1 < y2) {
-                            // Going down and back - route above predecessor, horizontal termination pointing LEFT
+                            // Going down and back - route above predecessor
                             const clearanceY = y1 - verticalClearance;
                             pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           } else if (y1 > y2) {
-                            // Going up and back - route below predecessor, horizontal termination pointing LEFT
+                            // Going up and back - route below predecessor
                             const clearanceY = y1 + verticalClearance;
                             pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           } else {
-                            // Same row going backward - route above, horizontal termination pointing LEFT
+                            // Same row going backward - route above
                             const clearanceY = y1 - verticalClearance;
                             pathD = `M ${x1} ${y1} L ${startX} ${y1} L ${startX} ${clearanceY} L ${enterX} ${clearanceY} L ${enterX} ${y2} L ${x2} ${y2}`;
                           }

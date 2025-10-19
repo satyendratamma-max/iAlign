@@ -254,7 +254,7 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
                   </IconButton>
                 </ListItem>
               )}
-              <Collapse in={!isCollapsed || section.title === 'Main'} timeout="auto" unmountOnExit>
+              <Collapse in={!open || !isCollapsed || section.title === 'Main'} timeout="auto" unmountOnExit>
                 {section.items.map((item) => (
                   <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
                     <Tooltip title={!open ? item.text : ''} placement="right" arrow>
