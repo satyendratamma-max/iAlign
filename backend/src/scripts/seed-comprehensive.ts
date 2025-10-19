@@ -418,10 +418,76 @@ const seedDatabase = async (dropTables: boolean = true) => {
       'Security, OAuth, JWT',
     ];
 
-    // Create 15-20 resources per domain
+    // First, create Resource records for users who are employees
+    // Domain Managers (index 1-12), Project Managers (index 13-27), Team Leads (index 28-47)
+    // Admin (index 0) does NOT get a Resource record
+    console.log('   Creating employee resource records for Domain Managers, PMs, and Team Leads...');
+    const employeeUsers = users.slice(1); // Skip admin (index 0)
+
+    for (const user of employeeUsers) {
+      // Determine domain based on user role
+      let domainId: number;
+      let segmentFunctionId: number;
+      let userRole: string;
+
+      if (user.role === 'Domain Manager') {
+        // Domain managers get assigned to their own domain
+        const domainIndex = users.indexOf(user) - 1; // Subtract 1 to account for admin
+        domainId = domains[domainIndex % domains.length].id;
+        const domainSegmentFunctions = segmentFunctions.filter(sf => sf.domainId === domainId);
+        segmentFunctionId = domainSegmentFunctions[0].id;
+        userRole = 'Domain Manager';
+      } else if (user.role === 'Project Manager') {
+        // Project managers get randomly assigned to domains
+        const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+        domainId = randomDomain.id;
+        const domainSegmentFunctions = segmentFunctions.filter(sf => sf.domainId === domainId);
+        segmentFunctionId = domainSegmentFunctions[Math.floor(Math.random() * domainSegmentFunctions.length)].id;
+        userRole = 'Project Manager';
+      } else {
+        // Team leads get randomly assigned to domains
+        const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+        domainId = randomDomain.id;
+        const domainSegmentFunctions = segmentFunctions.filter(sf => sf.domainId === domainId);
+        segmentFunctionId = domainSegmentFunctions[Math.floor(Math.random() * domainSegmentFunctions.length)].id;
+        userRole = 'Team Lead';
+      }
+
+      const domain = domains.find(d => d.id === domainId);
+      const hourlyRate = userRole === 'Domain Manager' ? 150 : userRole === 'Project Manager' ? 120 : 100;
+      const primarySkill = primarySkills[Math.floor(Math.random() * primarySkills.length)];
+      const secondarySkills = secondarySkillSets[Math.floor(Math.random() * secondarySkillSets.length)];
+
+      const resource = await Resource.create({
+        userId: user.id, // Link to User account
+        domainId,
+        segmentFunctionId,
+        employeeId: `EMP${String(empId).padStart(4, '0')}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: userRole,
+        location: domain?.location || 'Remote',
+        hourlyRate,
+        utilizationRate: Math.floor(Math.random() * 30) + 70,
+        joiningDate: new Date(2020, Math.floor(Math.random() * 5), 1), // Random date between 2020-2024
+        primarySkill,
+        secondarySkills,
+        isActive: true,
+      });
+      resources.push(resource);
+      empId++;
+    }
+
+    console.log(`   ✅ Created ${resources.length} employee resources (linked to users)`);
+
+    // Then create additional resources without user accounts (contractors/external resources)
+    console.log('   Creating additional contractor resources (no user accounts)...');
+    let contractorCount = 0;
+
     for (const domain of domains) {
       const domainSegmentFunctions = segmentFunctions.filter(sf => sf.domainId === domain.id);
-      const resourceCount = Math.floor(Math.random() * 6) + 15; // 15-20 resources
+      const resourceCount = Math.floor(Math.random() * 4) + 2; // 2-5 contractors per domain
 
       for (let i = 0; i < resourceCount; i++) {
         const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -434,13 +500,14 @@ const seedDatabase = async (dropTables: boolean = true) => {
         const secondarySkills = secondarySkillSets[Math.floor(Math.random() * secondarySkillSets.length)];
 
         const resource = await Resource.create({
+          // userId is undefined (not set) - contractor/external resource without user account
           domainId: domain.id,
           segmentFunctionId: segmentFunction.id,
-          employeeId: `EMP${String(empId).padStart(4, '0')}`,
+          employeeId: `CTR${String(empId).padStart(4, '0')}`, // CTR prefix for contractors
           firstName,
           lastName,
-          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${empId}@ialign.com`,
-          role: `Developer`,
+          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${empId}@contractor.com`,
+          role: `Contractor`,
           location: domain.location,
           hourlyRate,
           utilizationRate: Math.floor(Math.random() * 30) + 70,
@@ -451,10 +518,12 @@ const seedDatabase = async (dropTables: boolean = true) => {
         });
         resources.push(resource);
         empId++;
+        contractorCount++;
       }
     }
 
-    console.log(`   ✅ Created ${resources.length} resources\n`);
+    console.log(`   ✅ Created ${contractorCount} contractor resources (no user accounts)`);
+    console.log(`   ✅ Total resources: ${resources.length}\n`);
 
     // 7. Create Resource Capabilities (Using Realistic Capability Mappings)
     console.log('7️⃣  Creating resource capabilities...');

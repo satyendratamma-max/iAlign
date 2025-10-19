@@ -54,6 +54,12 @@ Project.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });
 
 Domain.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
 
+// User-Resource Associations
+// A user can have one employee profile (Resource)
+// A resource can be linked to one user account (for login)
+User.hasOne(Resource, { foreignKey: 'userId', as: 'employeeProfile' });
+Resource.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 // Resource Associations
 Domain.hasMany(Resource, { foreignKey: 'domainId', as: 'resources' });
 Resource.belongsTo(Domain, { foreignKey: 'domainId', as: 'domain' });

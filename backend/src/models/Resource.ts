@@ -3,6 +3,7 @@ import sequelize from '../config/database';
 
 export interface ResourceAttributes {
   id?: number;
+  userId?: number;
   domainId?: number;
   segmentFunctionId?: number;
   employeeId: string;
@@ -28,6 +29,7 @@ export interface ResourceAttributes {
 
 class Resource extends Model<ResourceAttributes> implements ResourceAttributes {
   declare id: number;
+  declare userId?: number;
   declare domainId?: number;
   declare segmentFunctionId?: number;
   declare employeeId: string;
@@ -57,6 +59,14 @@ Resource.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+    },
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
     },
     domainId: {
       type: DataTypes.INTEGER,
