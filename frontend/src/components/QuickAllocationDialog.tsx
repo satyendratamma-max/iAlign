@@ -14,6 +14,7 @@ import {
   Chip,
   FormControlLabel,
   Checkbox,
+  Autocomplete,
 } from '@mui/material';
 import axios from 'axios';
 
@@ -321,51 +322,69 @@ const QuickAllocationDialog = ({
 
           {/* Resource Capability */}
           <Grid item xs={12}>
-            <TextField
-              select
+            <Autocomplete
               fullWidth
-              label="Resource Capability"
-              value={selectedCapabilityId || ''}
-              onChange={(e) => setSelectedCapabilityId(Number(e.target.value))}
+              options={capabilities}
+              getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
+              value={capabilities.find(c => c.id === selectedCapabilityId) || null}
+              onChange={(_, newValue) => setSelectedCapabilityId(newValue?.id)}
               disabled={loading || capabilities.length === 0}
-              helperText={capabilities.length === 0 ? 'No capabilities available' : ''}
-            >
-              {capabilities.map((cap) => (
-                <MenuItem key={cap.id} value={cap.id}>
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Resource Capability"
+                  placeholder="Search capabilities..."
+                  helperText={capabilities.length === 0 ? 'No capabilities available' : ''}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
                   <Box>
-                    {cap.app.code}/{cap.technology.code}/{cap.role.code}
-                    <Typography variant="caption" display="block" color="text.secondary">
-                      {cap.proficiencyLevel}
-                      {cap.isPrimary && ' • Primary'}
+                    <Typography variant="body2" fontWeight="medium">
+                      {option.app.code}/{option.technology.code}/{option.role.code}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.proficiencyLevel}
+                      {option.isPrimary && ' • Primary'}
                     </Typography>
                   </Box>
-                </MenuItem>
-              ))}
-            </TextField>
+                </li>
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
           </Grid>
 
           {/* Project Requirement */}
           <Grid item xs={12}>
-            <TextField
-              select
+            <Autocomplete
               fullWidth
-              label="Project Requirement"
-              value={selectedRequirementId || ''}
-              onChange={(e) => setSelectedRequirementId(Number(e.target.value))}
+              options={requirements}
+              getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
+              value={requirements.find(r => r.id === selectedRequirementId) || null}
+              onChange={(_, newValue) => setSelectedRequirementId(newValue?.id)}
               disabled={loading || requirements.length === 0}
-              helperText={requirements.length === 0 ? 'No requirements available' : ''}
-            >
-              {requirements.map((req) => (
-                <MenuItem key={req.id} value={req.id}>
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Project Requirement"
+                  placeholder="Search requirements..."
+                  helperText={requirements.length === 0 ? 'No requirements available' : ''}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
                   <Box>
-                    {req.app.code}/{req.technology.code}/{req.role.code}
-                    <Typography variant="caption" display="block" color="text.secondary">
-                      Need: {req.proficiencyLevel} ({req.fulfilledCount}/{req.requiredCount})
+                    <Typography variant="body2" fontWeight="medium">
+                      {option.app.code}/{option.technology.code}/{option.role.code}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Need: {option.proficiencyLevel} ({option.fulfilledCount}/{option.requiredCount})
                     </Typography>
                   </Box>
-                </MenuItem>
-              ))}
-            </TextField>
+                </li>
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
           </Grid>
 
           {/* Match Indicator */}

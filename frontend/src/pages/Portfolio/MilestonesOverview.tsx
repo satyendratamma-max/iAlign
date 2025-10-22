@@ -21,6 +21,7 @@ import {
   MenuItem,
   IconButton,
   Alert,
+  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -498,6 +499,7 @@ const MilestonesOverview = () => {
         <Table sx={{ minWidth: { xs: 700, md: 900 } }}>
           <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
+              <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
               <TableCell sx={{ minWidth: 180 }}>Milestone Name</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Project</TableCell>
               <TableCell sx={{ minWidth: 130 }}>Domain</TableCell>
@@ -506,7 +508,6 @@ const MilestonesOverview = () => {
               <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Due Date</TableCell>
               <TableCell sx={{ minWidth: 130 }}>Owner</TableCell>
-              <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
               <TableCell></TableCell>
@@ -589,12 +590,27 @@ const MilestonesOverview = () => {
                   fullWidth
                 />
               </TableCell>
-              <TableCell></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredMilestones.map((milestone) => (
               <TableRow key={milestone.id} hover>
+                <TableCell align="right">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleOpenDialog(milestone)}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(milestone.id)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">
                     {milestone.name}
@@ -676,22 +692,6 @@ const MilestonesOverview = () => {
                     '-'
                   )}
                 </TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleOpenDialog(milestone)}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(milestone.id)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -715,25 +715,39 @@ const MilestonesOverview = () => {
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Project"
-                required
-                value={currentMilestone.projectId || ''}
-                onChange={(e) =>
+                options={projects}
+                getOptionLabel={(option) => `${option.name} (${option.fiscalYear || 'N/A'})`}
+                value={projects.find(p => p.id === currentMilestone.projectId) || null}
+                onChange={(_, newValue) => {
                   setCurrentMilestone({
                     ...currentMilestone,
-                    projectId: e.target.value ? Number(e.target.value) : undefined,
-                  })
-                }
-              >
-                {projects.map((project) => (
-                  <MenuItem key={project.id} value={project.id}>
-                    {project.name} ({project.fiscalYear})
-                  </MenuItem>
-                ))}
-              </TextField>
+                    projectId: newValue?.id,
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Project"
+                    required
+                    placeholder="Search projects..."
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.fiscalYear} • {option.domain?.name || 'No domain'}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -810,22 +824,38 @@ const MilestonesOverview = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Owner"
-                value={currentMilestone.ownerId || ''}
-                onChange={(e) =>
-                  setCurrentMilestone({ ...currentMilestone, ownerId: e.target.value ? Number(e.target.value) : undefined })
-                }
-              >
-                <MenuItem value="">None</MenuItem>
-                {users.map((user) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName} ({user.role})
-                  </MenuItem>
-                ))}
-              </TextField>
+                options={users}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                value={users.find(u => u.id === currentMilestone.ownerId) || null}
+                onChange={(_, newValue) => {
+                  setCurrentMilestone({
+                    ...currentMilestone,
+                    ownerId: newValue?.id,
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Owner"
+                    placeholder="Search users..."
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.firstName} {option.lastName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.role} • {option.email}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
             <Grid item xs={12}>
               <TextField

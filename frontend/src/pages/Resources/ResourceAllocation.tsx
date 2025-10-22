@@ -27,6 +27,7 @@ import {
   IconButton,
   Tabs,
   Tab,
+  Autocomplete,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -812,6 +813,7 @@ const ResourceAllocation = () => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
                   <TableCell>Resource</TableCell>
                   <TableCell>Resource Domain</TableCell>
                   <TableCell>Project</TableCell>
@@ -823,10 +825,10 @@ const ResourceAllocation = () => {
                   <TableCell>Allocation %</TableCell>
                   <TableCell>Type</TableCell>
                   <TableCell>Timeline</TableCell>
-                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
                 {/* Filter Row */}
                 <TableRow>
+                  <TableCell />
                   <TableCell>
                     <TextField
                       size="small"
@@ -960,6 +962,22 @@ const ResourceAllocation = () => {
                             : 'inherit',
                       }}
                     >
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(allocation)}
+                          color="primary"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(allocation.id)}
+                          color="error"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
                           {allocation.resource?.firstName} {allocation.resource?.lastName}
@@ -1084,22 +1102,6 @@ const ResourceAllocation = () => {
                           '-'
                         )}
                       </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenDialog(allocation)}
-                          color="primary"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(allocation.id)}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
                     </TableRow>
                     );
                   })
@@ -1148,93 +1150,147 @@ const ResourceAllocation = () => {
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Resource"
-                value={currentAllocation.resourceId || ''}
-                onChange={(e) => handleResourceChange(parseInt(e.target.value))}
-                required
-              >
-                {resources.map((resource) => (
-                  <MenuItem key={resource.id} value={resource.id}>
-                    {resource.firstName} {resource.lastName} ({resource.employeeId})
-                  </MenuItem>
-                ))}
-              </TextField>
+                options={resources}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeId})`}
+                value={resources.find(r => r.id === currentAllocation.resourceId) || null}
+                onChange={(_, newValue) => {
+                  if (newValue) {
+                    handleResourceChange(newValue.id);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Resource"
+                    required
+                    placeholder="Search resources..."
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.firstName} {option.lastName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.employeeId} • {option.domain?.name || 'No domain'}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Project"
-                value={currentAllocation.projectId || ''}
-                onChange={(e) => handleProjectChange(parseInt(e.target.value))}
-                required
-              >
-                {projects.map((project) => (
-                  <MenuItem key={project.id} value={project.id}>
-                    {project.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                options={projects}
+                getOptionLabel={(option) => option.name}
+                value={projects.find(p => p.id === currentAllocation.projectId) || null}
+                onChange={(_, newValue) => {
+                  if (newValue) {
+                    handleProjectChange(newValue.id);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Project"
+                    required
+                    placeholder="Search projects..."
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.status} • {option.domain?.name || 'No domain'}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Resource Capability"
-                value={
-                  currentAllocation.resourceCapabilityId &&
-                  selectedResourceCapabilities.some(c => c.id === currentAllocation.resourceCapabilityId)
-                    ? currentAllocation.resourceCapabilityId
-                    : ''
-                }
-                onChange={(e) =>
+                options={selectedResourceCapabilities}
+                getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
+                value={selectedResourceCapabilities.find(c => c.id === currentAllocation.resourceCapabilityId) || null}
+                onChange={(_, newValue) => {
                   setCurrentAllocation({
                     ...currentAllocation,
-                    resourceCapabilityId: parseInt(e.target.value),
-                  })
-                }
+                    resourceCapabilityId: newValue?.id,
+                  });
+                }}
                 disabled={!currentAllocation.resourceId}
-                helperText={!currentAllocation.resourceId ? 'Select a resource first' : ''}
-              >
-                {selectedResourceCapabilities.map((capability) => (
-                  <MenuItem key={capability.id} value={capability.id}>
-                    {capability.app.code}/{capability.technology.code}/{capability.role.code} - {capability.proficiencyLevel}
-                  </MenuItem>
-                ))}
-              </TextField>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Resource Capability"
+                    placeholder="Search capabilities..."
+                    helperText={!currentAllocation.resourceId ? 'Select a resource first' : ''}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.app.code}/{option.technology.code}/{option.role.code}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.proficiencyLevel} {option.isPrimary && '• Primary'}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Project Requirement"
-                value={
-                  currentAllocation.projectRequirementId &&
-                  selectedProjectRequirements.some(r => r.id === currentAllocation.projectRequirementId)
-                    ? currentAllocation.projectRequirementId
-                    : ''
-                }
-                onChange={(e) =>
+                options={selectedProjectRequirements}
+                getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
+                value={selectedProjectRequirements.find(r => r.id === currentAllocation.projectRequirementId) || null}
+                onChange={(_, newValue) => {
                   setCurrentAllocation({
                     ...currentAllocation,
-                    projectRequirementId: parseInt(e.target.value),
-                  })
-                }
+                    projectRequirementId: newValue?.id,
+                  });
+                }}
                 disabled={!currentAllocation.projectId}
-                helperText={!currentAllocation.projectId ? 'Select a project first' : ''}
-              >
-                {selectedProjectRequirements.map((requirement) => (
-                  <MenuItem key={requirement.id} value={requirement.id}>
-                    {requirement.app.code}/{requirement.technology.code}/{requirement.role.code} - {requirement.proficiencyLevel}
-                  </MenuItem>
-                ))}
-              </TextField>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Project Requirement"
+                    placeholder="Search requirements..."
+                    helperText={!currentAllocation.projectId ? 'Select a project first' : ''}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {option.app.code}/{option.technology.code}/{option.role.code}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Need: {option.proficiencyLevel} ({option.fulfilledCount}/{option.requiredCount})
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
