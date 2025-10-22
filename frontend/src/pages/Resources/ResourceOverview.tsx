@@ -470,6 +470,7 @@ const ResourceOverview = () => {
         <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>
           <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
+              <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
               <TableCell sx={{ minWidth: 110 }}>Employee ID</TableCell>
               <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Domain</TableCell>
@@ -478,9 +479,9 @@ const ResourceOverview = () => {
               <TableCell sx={{ minWidth: 100 }}>Location</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Hourly Rate</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Utilization</TableCell>
-              <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
+              <TableCell />
               <TableCell>
                 <TextField
                   size="small"
@@ -529,7 +530,6 @@ const ResourceOverview = () => {
               </TableCell>
               <TableCell />
               <TableCell />
-              <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -546,6 +546,15 @@ const ResourceOverview = () => {
               })
               .map((resource) => (
               <TableRow key={resource.id}>
+                <TableCell align="right">
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleOpenDialog(resource)}
+                  >
+                    Edit
+                  </Button>
+                </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">
                     {resource.employeeId}
@@ -593,15 +602,6 @@ const ResourceOverview = () => {
                     size="small"
                     color={getUtilizationColor(resource.utilizationRate) as any}
                   />
-                </TableCell>
-                <TableCell align="right">
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(resource)}
-                  >
-                    Edit
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}

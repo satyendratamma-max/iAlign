@@ -881,6 +881,7 @@ const ProjectManagement = () => {
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
   const [dialogTab, setDialogTab] = useState(0);
+  const [currentProjectMilestones, setCurrentProjectMilestones] = useState<Milestone[]>([]);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
@@ -1405,14 +1406,21 @@ const ProjectManagement = () => {
       setEditMode(true);
       setCurrentProject(project);
 
-      // Fetch domain impacts for this project
+      // Fetch domain impacts and milestones for this project
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/project-domain-impacts?projectId=${project.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const scenarioParam = activeScenario ? `?scenarioId=${activeScenario.id}` : '';
 
-        const impacts = response.data.data.map((impact: any) => ({
+        const [impactsResponse, milestonesResponse] = await Promise.all([
+          axios.get(`${API_URL}/project-domain-impacts?projectId=${project.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${API_URL}/milestones${scenarioParam}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        const impacts = impactsResponse.data.data.map((impact: any) => ({
           id: impact.id,
           domainId: impact.domainId,
           domainName: impact.domain?.name,
@@ -1421,15 +1429,20 @@ const ProjectManagement = () => {
           description: impact.description,
         }));
 
+        const projectMilestones = milestonesResponse.data.data.filter((m: Milestone) => m.projectId === project.id);
+
         setDomainImpacts(impacts);
+        setCurrentProjectMilestones(projectMilestones);
       } catch (error) {
-        console.error('Error fetching domain impacts:', error);
+        console.error('Error fetching project data:', error);
         setDomainImpacts([]);
+        setCurrentProjectMilestones([]);
       }
     } else {
       setEditMode(false);
       setCurrentProject({ progress: 0, status: 'Planning', priority: 'Medium' });
       setDomainImpacts([]);
+      setCurrentProjectMilestones([]);
     }
     setOpenDialog(true);
   };
@@ -1438,6 +1451,7 @@ const ProjectManagement = () => {
     setOpenDialog(false);
     setCurrentProject({});
     setDomainImpacts([]);
+    setCurrentProjectMilestones([]);
     setDialogTab(0);
   };
 
@@ -3611,11 +3625,12 @@ const ProjectManagement = () => {
       <Box ref={contentRef}>
       {viewMode === 'list' && (
         <>
-          <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2 }}>
-          <Table sx={{ minWidth: { xs: 800, md: 1200 } }}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, position: 'relative' }}>
+          <Table sx={{ minWidth: { xs: 800, md: 1200 }, tableLayout: 'auto' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 100 }}>
+              <TableCell align="right" sx={{ minWidth: 140, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 100 }}>Actions</TableCell>
+              <TableCell sx={{ minWidth: 100, position: 'sticky', left: 140, bgcolor: 'background.paper', zIndex: 100 }}>
                 <TableSortLabel
                   active={orderBy === 'projectNumber'}
                   direction={orderBy === 'projectNumber' ? order : 'asc'}
@@ -3624,7 +3639,7 @@ const ProjectManagement = () => {
                   Project #
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ minWidth: 180 }}>
+              <TableCell sx={{ minWidth: 180, position: 'sticky', left: 240, bgcolor: 'background.paper', zIndex: 100, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                 <TableSortLabel
                   active={orderBy === 'name'}
                   direction={orderBy === 'name' ? order : 'asc'}
@@ -3769,10 +3784,10 @@ const ProjectManagement = () => {
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 180 }}>Dependencies & Impact</TableCell>
-              <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell>
+              <TableCell sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 100 }} />
+              <TableCell sx={{ position: 'sticky', left: 140, bgcolor: 'background.paper', zIndex: 100 }}>
                 <TextField
                   size="small"
                   placeholder="Filter by #"
@@ -3781,7 +3796,7 @@ const ProjectManagement = () => {
                   fullWidth
                 />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ position: 'sticky', left: 240, bgcolor: 'background.paper', zIndex: 100, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                 <TextField
                   size="small"
                   placeholder="Filter by name"
@@ -4004,13 +4019,37 @@ const ProjectManagement = () => {
                   ))}
                 </TextField>
               </TableCell>
-              <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredProjects.map((project) => (
               <TableRow key={project.id}>
-                <TableCell>
+                <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleViewResources(project)}
+                    title="View Resources"
+                  >
+                    <PeopleIcon />
+                  </IconButton>
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleOpenDialog(project)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => handleDelete(project.id)}
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ position: 'sticky', left: 140, bgcolor: 'background.paper', zIndex: 10 }}>
                   <Box display="flex" alignItems="center">
                     <Typography variant="body2" fontWeight="medium">
                       {project.projectNumber || '-'}
@@ -4018,7 +4057,7 @@ const ProjectManagement = () => {
                     {getBusinessDecisionIcon(project.businessDecision)}
                   </Box>
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ position: 'sticky', left: 240, bgcolor: 'background.paper', zIndex: 10, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Box flex={1}>
                       <Box display="flex" alignItems="center" gap={0.5}>
@@ -4035,9 +4074,14 @@ const ProjectManagement = () => {
                           />
                         )}
                       </Box>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {project.description}
-                      </Typography>
+                      {project.description && (
+                        <Tooltip title={project.description} arrow>
+                          <Typography variant="body2" color="text.secondary" noWrap sx={{ cursor: 'help' }}>
+                            {project.description.split(' ').slice(0, 10).join(' ')}
+                            {project.description.split(' ').length > 10 ? '...' : ''}
+                          </Typography>
+                        </Tooltip>
+                      )}
                     </Box>
                   </Box>
                 </TableCell>
@@ -4153,31 +4197,6 @@ const ProjectManagement = () => {
                       </Box>
                     );
                   })()}
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleViewResources(project)}
-                    title="View Resources"
-                  >
-                    <PeopleIcon />
-                  </IconButton>
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(project)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(project.id)}
-                  >
-                    Delete
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -6063,6 +6082,7 @@ const ProjectManagement = () => {
           <Tab label="Business Details" />
           <Tab label="Financial" />
           <Tab label="Dates & Timeline" />
+          {editMode && currentProject.id && <Tab label="Milestones" />}
           <Tab label="Management" />
           <Tab label="Cross-Domain Impact" />
           {editMode && currentProject.id && <Tab label="Requirements" />}
@@ -6639,8 +6659,143 @@ const ProjectManagement = () => {
             </Grid>
           )}
 
-          {/* Tab 4: Management & Classification */}
-          {dialogTab === 4 && (
+          {/* Tab 4: Milestones (only in edit mode) */}
+          {editMode && dialogTab === 4 && currentProject.id && (
+            <Box sx={{ mt: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Project Milestones
+                </Typography>
+                <Button
+                  startIcon={<AddIcon />}
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    const newMilestone: Milestone = {
+                      id: -Date.now(), // Temporary negative ID for new milestones
+                      projectId: currentProject.id!,
+                      name: '',
+                      description: '',
+                      status: 'Not Started',
+                      plannedStartDate: '',
+                      plannedEndDate: '',
+                    };
+                    setCurrentProjectMilestones([...currentProjectMilestones, newMilestone]);
+                  }}
+                >
+                  Add Milestone
+                </Button>
+              </Box>
+
+              {currentProjectMilestones.length === 0 ? (
+                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'background.default' }}>
+                  <Typography color="text.secondary">
+                    No milestones yet. Click "Add Milestone" to create one.
+                  </Typography>
+                </Paper>
+              ) : (
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell width="25%">Milestone Name</TableCell>
+                        <TableCell width="15%">Status</TableCell>
+                        <TableCell width="20%">Planned Start</TableCell>
+                        <TableCell width="20%">Planned End</TableCell>
+                        <TableCell width="15%">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {currentProjectMilestones.map((milestone, index) => (
+                        <TableRow key={milestone.id}>
+                          <TableCell>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={milestone.name}
+                              onChange={(e) => {
+                                const updated = [...currentProjectMilestones];
+                                updated[index].name = e.target.value;
+                                setCurrentProjectMilestones(updated);
+                              }}
+                              placeholder="Enter milestone name"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              value={milestone.status}
+                              onChange={(e) => {
+                                const updated = [...currentProjectMilestones];
+                                updated[index].status = e.target.value;
+                                setCurrentProjectMilestones(updated);
+                              }}
+                            >
+                              <MenuItem value="Not Started">Not Started</MenuItem>
+                              <MenuItem value="In Progress">In Progress</MenuItem>
+                              <MenuItem value="Completed">Completed</MenuItem>
+                              <MenuItem value="On Hold">On Hold</MenuItem>
+                              <MenuItem value="Cancelled">Cancelled</MenuItem>
+                            </TextField>
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="date"
+                              value={milestone.plannedStartDate ? new Date(milestone.plannedStartDate).toISOString().split('T')[0] : ''}
+                              onChange={(e) => {
+                                const updated = [...currentProjectMilestones];
+                                updated[index].plannedStartDate = e.target.value;
+                                setCurrentProjectMilestones(updated);
+                              }}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="date"
+                              value={milestone.plannedEndDate ? new Date(milestone.plannedEndDate).toISOString().split('T')[0] : ''}
+                              onChange={(e) => {
+                                const updated = [...currentProjectMilestones];
+                                updated[index].plannedEndDate = e.target.value;
+                                setCurrentProjectMilestones(updated);
+                              }}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => {
+                                setCurrentProjectMilestones(
+                                  currentProjectMilestones.filter((_, i) => i !== index)
+                                );
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                Add and manage key milestones for this project. Milestones will be saved when you save the project.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Tab: Management & Classification (index depends on edit mode) */}
+          {((editMode && dialogTab === 5) || (!editMode && dialogTab === 4)) && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -6685,8 +6840,8 @@ const ProjectManagement = () => {
             </Grid>
           )}
 
-          {/* Tab 5: Cross-Domain Impact */}
-          {dialogTab === 5 && (
+          {/* Tab: Cross-Domain Impact (index depends on edit mode) */}
+          {((editMode && dialogTab === 6) || (!editMode && dialogTab === 5)) && (
             <Box sx={{ mt: 1 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -6885,8 +7040,8 @@ const ProjectManagement = () => {
             </Box>
           )}
 
-          {/* Tab 6: Requirements */}
-          {dialogTab === 6 && editMode && currentProject.id && (
+          {/* Tab 7: Requirements (only in edit mode) */}
+          {dialogTab === 7 && editMode && currentProject.id && (
             <Box sx={{ mt: 1 }}>
               <EnhancedRequirementsTab
                 projectId={currentProject.id}

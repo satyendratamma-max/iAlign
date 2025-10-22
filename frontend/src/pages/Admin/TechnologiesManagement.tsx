@@ -375,6 +375,7 @@ const TechnologiesManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Actions</TableCell>
               <TableCell>ID</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Code</TableCell>
@@ -383,12 +384,19 @@ const TechnologiesManagement = () => {
               <TableCell>Stack Type</TableCell>
               <TableCell>Vendor</TableCell>
               <TableCell>Version</TableCell>
-              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {technologies.map((tech) => (
               <TableRow key={tech.id}>
+                <TableCell>
+                  <IconButton size="small" onClick={() => handleOpenDialog(tech)} color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleDeleteTechnology(tech.id)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
                 <TableCell>{tech.id}</TableCell>
                 <TableCell>
                   <strong>{tech.name}</strong>
@@ -422,14 +430,6 @@ const TechnologiesManagement = () => {
                 </TableCell>
                 <TableCell>{tech.vendor || '-'}</TableCell>
                 <TableCell>{tech.version || '-'}</TableCell>
-                <TableCell>
-                  <IconButton size="small" onClick={() => handleOpenDialog(tech)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleDeleteTechnology(tech.id)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
               </TableRow>
             ))}
             {technologies.length === 0 && (

@@ -254,13 +254,13 @@ const ScenarioManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell align="right">Actions</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Created By</TableCell>
               <TableCell>Created Date</TableCell>
               <TableCell>Published Date</TableCell>
-              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -275,37 +275,6 @@ const ScenarioManagement = () => {
             ) : (
               scenarios.map((scenario) => (
                 <TableRow key={scenario.id}>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={500}>
-                      {scenario.name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {scenario.description || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      icon={scenario.status === 'published' ? <CheckCircle /> : <Schedule />}
-                      label={scenario.status}
-                      size="small"
-                      color={scenario.status === 'published' ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {scenario.creator
-                        ? `${scenario.creator.firstName} ${scenario.creator.lastName}`
-                        : '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{formatDate(scenario.createdDate)}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{formatDate(scenario.publishedDate)}</Typography>
-                  </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                       <Tooltip title="Clone scenario">
@@ -358,6 +327,37 @@ const ScenarioManagement = () => {
                           </Tooltip>
                         )}
                     </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={500}>
+                      {scenario.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {scenario.description || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      icon={scenario.status === 'published' ? <CheckCircle /> : <Schedule />}
+                      label={scenario.status}
+                      size="small"
+                      color={scenario.status === 'published' ? 'success' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {scenario.creator
+                        ? `${scenario.creator.firstName} ${scenario.creator.lastName}`
+                        : '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{formatDate(scenario.createdDate)}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{formatDate(scenario.publishedDate)}</Typography>
                   </TableCell>
                 </TableRow>
               ))

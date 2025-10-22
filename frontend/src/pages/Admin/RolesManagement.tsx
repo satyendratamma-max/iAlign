@@ -430,6 +430,7 @@ const RolesManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Actions</TableCell>
               <TableCell>ID</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Code</TableCell>
@@ -439,12 +440,19 @@ const RolesManagement = () => {
               <TableCell>Level</TableCell>
               <TableCell>Category</TableCell>
               <TableCell>Experience</TableCell>
-              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {roles.map((role) => (
               <TableRow key={role.id}>
+                <TableCell>
+                  <IconButton size="small" onClick={() => handleOpenDialog(role)} color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleDeleteRole(role.id)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
                 <TableCell>{role.id}</TableCell>
                 <TableCell>
                   <strong>{role.name}</strong>
@@ -498,14 +506,6 @@ const RolesManagement = () => {
                   ) : (
                     <span style={{ color: '#999' }}>-</span>
                   )}
-                </TableCell>
-                <TableCell>
-                  <IconButton size="small" onClick={() => handleOpenDialog(role)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleDeleteRole(role.id)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}

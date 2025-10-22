@@ -371,13 +371,28 @@ export const createAllocation = async (req: Request, res: Response) => {
       }
     }
 
-    // If resourceCapabilityId and projectRequirementId are provided, calculate match score
+    // If resourceCapabilityId and projectRequirementId are provided, calculate match score and set roleOnProject
     if (allocationData.resourceCapabilityId && allocationData.projectRequirementId) {
       const capability = await ResourceCapability.findByPk(allocationData.resourceCapabilityId);
-      const requirement = await ProjectRequirement.findByPk(allocationData.projectRequirementId);
+      const requirement = await ProjectRequirement.findByPk(allocationData.projectRequirementId, {
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code', 'level'],
+          },
+        ],
+      });
 
       if (capability && requirement) {
         allocationData.matchScore = calculateMatchScore(capability, requirement);
+
+        // Automatically set roleOnProject from the project requirement
+        if ((requirement as any).role) {
+          const role = (requirement as any).role;
+          const roleName = role.level ? `${role.name} (${role.level})` : role.name;
+          allocationData.roleOnProject = roleName;
+        }
       }
     }
 
@@ -503,6 +518,31 @@ export const updateAllocation = async (req: Request, res: Response) => {
     }
 
     const updateData = req.body;
+
+    // If projectRequirementId is being updated, automatically set roleOnProject from the requirement
+    if (updateData.projectRequirementId && updateData.resourceCapabilityId) {
+      const requirement = await ProjectRequirement.findByPk(updateData.projectRequirementId, {
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code', 'level'],
+          },
+        ],
+      });
+
+      if (requirement && (requirement as any).role) {
+        const role = (requirement as any).role;
+        const roleName = role.level ? `${role.name} (${role.level})` : role.name;
+        updateData.roleOnProject = roleName;
+
+        // Recalculate match score if resourceCapabilityId is also provided
+        const capability = await ResourceCapability.findByPk(updateData.resourceCapabilityId);
+        if (capability) {
+          updateData.matchScore = calculateMatchScore(capability, requirement);
+        }
+      }
+    }
 
     // Validate resource employment dates if dates are being updated
     if (updateData.startDate || updateData.endDate || updateData.resourceId) {

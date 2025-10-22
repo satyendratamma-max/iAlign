@@ -321,6 +321,7 @@ const AppsManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Actions</TableCell>
               <TableCell>ID</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Code</TableCell>
@@ -329,12 +330,19 @@ const AppsManagement = () => {
               <TableCell>Status</TableCell>
               <TableCell>Criticality</TableCell>
               <TableCell>Type</TableCell>
-              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {apps.map((app) => (
               <TableRow key={app.id}>
+                <TableCell>
+                  <IconButton size="small" onClick={() => handleOpenDialog(app)} color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleDeleteApp(app.id)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
                 <TableCell>{app.id}</TableCell>
                 <TableCell>
                   <strong>{app.name}</strong>
@@ -375,14 +383,6 @@ const AppsManagement = () => {
                     color={app.isGlobal ? 'secondary' : 'primary'}
                     size="small"
                   />
-                </TableCell>
-                <TableCell>
-                  <IconButton size="small" onClick={() => handleOpenDialog(app)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleDeleteApp(app.id)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
