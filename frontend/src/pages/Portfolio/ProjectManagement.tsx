@@ -192,7 +192,9 @@ interface Milestone {
   projectId: number;
   name: string;
   description?: string;
+  phase?: string;
   status: string;
+  progress?: number;
   plannedStartDate?: string;
   plannedEndDate?: string;
   actualStartDate?: string;
@@ -1533,7 +1535,9 @@ const ProjectManagement = () => {
             scenarioId: activeScenario?.id,
             name: milestone.name,
             description: milestone.description || '',
+            phase: milestone.phase || 'Execution',
             status: milestone.status || 'Not Started',
+            progress: milestone.progress || 0,
             plannedStartDate: milestone.plannedStartDate || null,
             plannedEndDate: milestone.plannedEndDate || null,
           };
@@ -1550,9 +1554,20 @@ const ProjectManagement = () => {
 
       fetchData();
       handleCloseDialog();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving project:', error);
-      showAlert('Error saving project: ' + ((error as any).response?.data?.message || 'An unexpected error occurred'), 'error');
+
+      // Extract detailed error message from backend
+      let errorMessage = 'An unexpected error occurred while saving the project';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      showAlert(`Failed to save project: ${errorMessage}`, 'error');
     }
   };
 
@@ -6718,7 +6733,9 @@ const ProjectManagement = () => {
                       projectId: currentProject.id!,
                       name: '',
                       description: '',
+                      phase: 'Execution',
                       status: 'Not Started',
+                      progress: 0,
                       plannedStartDate: '',
                       plannedEndDate: '',
                     };
