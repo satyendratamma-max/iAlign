@@ -15,6 +15,7 @@ import {
   FormControlLabel,
   Checkbox,
   Autocomplete,
+  LinearProgress,
 } from '@mui/material';
 import axios from 'axios';
 
@@ -27,6 +28,7 @@ interface Capability {
   roleId: number;
   proficiencyLevel: string;
   isPrimary: boolean;
+  yearsOfExperience?: number;
   app: { id: number; name: string; code: string };
   technology: { id: number; name: string; code: string };
   role: { id: number; name: string; code: string; level: string };
@@ -40,6 +42,7 @@ interface Requirement {
   proficiencyLevel: string;
   requiredCount: number;
   fulfilledCount: number;
+  minYearsExp?: number;
   app: { id: number; name: string; code: string };
   technology: { id: number; name: string; code: string };
   role: { id: number; name: string; code: string; level: string };
@@ -82,6 +85,85 @@ interface QuickAllocationDialogProps {
   scenarioId: number;
   allocation?: Allocation | null; // Optional: for edit mode
 }
+
+// Proficiency level scoring weights (matching backend logic)
+const PROFICIENCY_SCORES: Record<string, number> = {
+  Beginner: 1,
+  Intermediate: 2,
+  Advanced: 3,
+  Expert: 4,
+};
+
+// Match score calculation weights (matching backend logic)
+const WEIGHTS = {
+  EXACT_MATCH: 40, // App/Tech/Role exact match
+  PROFICIENCY: 30, // Proficiency level match
+  EXPERIENCE: 20, // Years of experience match
+  IS_PRIMARY: 10, // Whether this is a primary capability
+};
+
+/**
+ * Calculate match score between a resource capability and a project requirement
+ * Matches backend logic from resourceMatcher.ts
+ */
+const calculateMatchScore = (capability: Capability, requirement: Requirement): number => {
+  let score = 0;
+
+  // 1. Exact Match Score (40 points)
+  if (
+    capability.appId === requirement.appId &&
+    capability.technologyId === requirement.technologyId &&
+    capability.roleId === requirement.roleId
+  ) {
+    score += WEIGHTS.EXACT_MATCH;
+  } else {
+    return 0; // No match at all
+  }
+
+  // 2. Proficiency Level Score (30 points)
+  const capabilityProficiency = PROFICIENCY_SCORES[capability.proficiencyLevel];
+  const requirementProficiency = PROFICIENCY_SCORES[requirement.proficiencyLevel];
+
+  if (capabilityProficiency >= requirementProficiency) {
+    if (capabilityProficiency === requirementProficiency) {
+      score += WEIGHTS.PROFICIENCY;
+    } else {
+      const excess = capabilityProficiency - requirementProficiency;
+      score += WEIGHTS.PROFICIENCY * (1 - excess * 0.1);
+    }
+  } else {
+    const gap = requirementProficiency - capabilityProficiency;
+    score += WEIGHTS.PROFICIENCY * Math.max(0, 1 - gap * 0.3);
+  }
+
+  // 3. Years of Experience Score (20 points)
+  if (requirement.minYearsExp !== undefined && requirement.minYearsExp !== null) {
+    const resourceYears = capability.yearsOfExperience || 0;
+
+    if (resourceYears >= requirement.minYearsExp) {
+      if (resourceYears === requirement.minYearsExp) {
+        score += WEIGHTS.EXPERIENCE;
+      } else {
+        const excess = Math.min(resourceYears - requirement.minYearsExp, 5);
+        score += WEIGHTS.EXPERIENCE * (1 - excess * 0.05);
+      }
+    } else {
+      const gap = requirement.minYearsExp - resourceYears;
+      score += WEIGHTS.EXPERIENCE * Math.max(0, 1 - gap * 0.15);
+    }
+  } else {
+    score += WEIGHTS.EXPERIENCE;
+  }
+
+  // 4. Is Primary Capability Bonus (10 points)
+  if (capability.isPrimary) {
+    score += WEIGHTS.IS_PRIMARY;
+  } else {
+    score += WEIGHTS.IS_PRIMARY * 0.7;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
 
 const QuickAllocationDialog = ({
   open,
@@ -248,18 +330,42 @@ const QuickAllocationDialog = ({
 
     if (!cap || !req) return null;
 
-    const isMatch =
-      cap.appId === req.appId &&
-      cap.technologyId === req.technologyId &&
-      cap.roleId === req.roleId;
+    const matchScore = calculateMatchScore(cap, req);
+
+    // Determine color based on score
+    let color: 'error' | 'warning' | 'success' = 'error';
+    let label = 'Poor Match';
+
+    if (matchScore >= 80) {
+      color = 'success';
+      label = 'Excellent Match';
+    } else if (matchScore >= 60) {
+      color = 'success';
+      label = 'Good Match';
+    } else if (matchScore >= 40) {
+      color = 'warning';
+      label = 'Fair Match';
+    }
 
     return (
-      <Chip
-        label={isMatch ? 'Good Match' : 'Different Skill Set'}
-        color={isMatch ? 'success' : 'warning'}
-        size="small"
-        sx={{ mt: 1 }}
-      />
+      <Box sx={{ mt: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" fontWeight="medium">
+            Match Score
+          </Typography>
+          <Chip
+            label={`${matchScore}% - ${label}`}
+            color={color}
+            size="small"
+          />
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={matchScore}
+          color={color}
+          sx={{ height: 8, borderRadius: 4 }}
+        />
+      </Box>
     );
   };
 
@@ -423,12 +529,10 @@ const QuickAllocationDialog = ({
             />
           </Grid>
 
-          {/* Match Indicator */}
-          {getMatchIndicator() && (
+          {/* Match Score Indicator */}
+          {selectedCapabilityId && selectedRequirementId && (
             <Grid item xs={12}>
-              <Box display="flex" justifyContent="center">
-                {getMatchIndicator()}
-              </Box>
+              {getMatchIndicator()}
             </Grid>
           )}
         </Grid>
