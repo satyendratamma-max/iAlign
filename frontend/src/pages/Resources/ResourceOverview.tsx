@@ -876,7 +876,18 @@ const ResourceOverview = () => {
 
                 {/* Existing Capabilities */}
                 {currentCapabilities.map((cap) => (
-                  <Paper key={cap.id} sx={{ p: 2, mb: 2, backgroundColor: '#f5f5f5' }}>
+                  <Paper
+                    key={cap.id}
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      backgroundColor: (theme) =>
+                        theme.palette.mode === 'light'
+                          ? theme.palette.grey[100]
+                          : theme.palette.grey[800],
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={2}>
                         <TextField
@@ -978,7 +989,18 @@ const ResourceOverview = () => {
 
                 {/* New Capabilities */}
                 {newCapabilities.map((newCap) => (
-                  <Paper key={newCap.tempId} sx={{ p: 2, mb: 2, backgroundColor: '#e3f2fd' }}>
+                  <Paper
+                    key={newCap.tempId}
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      backgroundColor: (theme) =>
+                        theme.palette.mode === 'light'
+                          ? theme.palette.primary.light + '20'
+                          : theme.palette.primary.dark + '40',
+                      border: (theme) => `1px solid ${theme.palette.primary.main}`,
+                    }}
+                  >
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={2}>
                         <TextField
@@ -1079,7 +1101,17 @@ const ResourceOverview = () => {
                 ))}
 
                 {currentCapabilities.length === 0 && newCapabilities.length === 0 && (
-                  <Paper sx={{ p: 3, textAlign: 'center', backgroundColor: '#f9f9f9' }}>
+                  <Paper
+                    sx={{
+                      p: 3,
+                      textAlign: 'center',
+                      backgroundColor: (theme) =>
+                        theme.palette.mode === 'light'
+                          ? theme.palette.grey[50]
+                          : theme.palette.grey[900],
+                      border: (theme) => `1px dashed ${theme.palette.divider}`,
+                    }}
+                  >
                     <Typography color="text.secondary">
                       No capabilities added yet. Click "Add Capability" to assign App/Technology/Role combinations.
                     </Typography>
