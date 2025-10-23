@@ -4,11 +4,38 @@ A comprehensive enterprise resource planning solution for IT portfolio managemen
 
 ## 🚀 Features
 
+### Core Capabilities
 - **Portfolio Management**: Strategic IT project portfolio governance and tracking
 - **Resource Management**: Domain-based resource organization with skills management
 - **Pipeline Management**: Multi-platform infrastructure capacity management
 - **Capacity Planning**: AI-powered forecasting and scenario modeling
 - **AI Insights**: Context-aware recommendations and optimization
+
+### Scenario Planning
+- **Multiple Scenario Support**: Create and manage multiple planning scenarios
+- **Scenario Cloning**: Duplicate scenarios for what-if analysis
+- **Published vs Planned**: Separate draft and approved scenarios
+- **Scenario Limits**: User-level limits with admin overrides
+
+### Resource Allocation
+- **Smart Matching**: AI-powered resource-to-project matching with match scores
+- **Dynamic Match Score**: Real-time calculation based on skills, experience, and proficiency
+- **Capability Management**: Track resource skills, proficiency levels, and experience
+- **Requirement Matching**: Align resources with project requirements
+- **Allocation Tracking**: Monitor resource utilization and over-allocation
+
+### Project Management
+- **Multiple Views**: List, Gantt, and Kanban views
+- **Milestone Tracking**: Project phases with dependencies
+- **Requirement Management**: Define and track project skill requirements
+- **Resource Visibility**: View allocated resources per project
+- **Dependency Management**: Track project and milestone dependencies
+
+### Admin Tools
+- **User Management**: Role-based access control and provisioning
+- **Data Management**: Database operations and bulk imports
+- **Reports**: User activity, resource allocation, and analytics
+- **Data Lookup**: Reference tables for IDs and relationships
 
 ## 🏗️ Architecture
 
@@ -294,6 +321,7 @@ For support, email: support@ialign.com
 
 ## 📚 Documentation
 
+- [Frequently Asked Questions (FAQ)](./FAQ.md) - **Start here for common questions!**
 - [Requirements Documentation](./REQUIREMENTS.md)
 - [Implementation Plan](./IMPLEMENTATION_PLAN.md)
 - [API Documentation](http://localhost:5000/api-docs)
