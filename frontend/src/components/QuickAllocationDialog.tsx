@@ -54,6 +54,13 @@ interface Resource {
   firstName?: string;
   lastName?: string;
   domainId?: number;
+  capabilities?: Capability[];
+}
+
+interface ResourceWithScore extends Resource {
+  matchScore: number;
+  bestCapability?: Capability;
+  bestRequirement?: Requirement;
 }
 
 interface Project {
@@ -185,9 +192,19 @@ const QuickAllocationDialog = ({
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<number | undefined>();
   const [selectedRequirementId, setSelectedRequirementId] = useState<number | undefined>();
   const [loading, setLoading] = useState(false);
+  const [availableResources, setAvailableResources] = useState<ResourceWithScore[]>([]);
+  const [selectedResourceId, setSelectedResourceId] = useState<number | undefined>(resource?.id);
+  const [minMatchScore, setMinMatchScore] = useState<number>(0);
 
   useEffect(() => {
-    if (open && resource && project) {
+    if (open && project) {
+      // If no resource is provided, load all available resources
+      if (!resource) {
+        loadAvailableResources();
+      } else {
+        setSelectedResourceId(resource.id);
+      }
+
       // If editing, pre-populate form with allocation data
       if (isEditMode && allocation) {
         setAllocationPercentage(allocation.allocationPercentage);
@@ -212,14 +229,87 @@ const QuickAllocationDialog = ({
           setUseProjectDuration(false);
         }
       }
-
-      // Load capabilities and requirements
-      loadCapabilitiesAndRequirements();
     }
   }, [open, resource, project, allocation]);
 
+  useEffect(() => {
+    // Load capabilities and requirements when resource is selected
+    if (selectedResourceId && project) {
+      loadCapabilitiesAndRequirements();
+    }
+  }, [selectedResourceId, project]);
+
+  const loadAvailableResources = async () => {
+    if (!project) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Load resources with capabilities and project requirements in parallel
+      const [resourcesRes, reqRes] = await Promise.all([
+        axios.get(`${API_URL}/resources`, config),
+        axios.get(`${API_URL}/project-requirements/project/${project.id}`, config),
+      ]);
+
+      const resources = resourcesRes.data.data || [];
+      const projectRequirements = reqRes.data.data || [];
+
+      // Load capabilities for each resource
+      const resourcesWithCapabilities = await Promise.all(
+        resources.map(async (res: Resource) => {
+          try {
+            const capRes = await axios.get(`${API_URL}/resource-capabilities?resourceId=${res.id}`, config);
+            return { ...res, capabilities: capRes.data.data || [] };
+          } catch (error) {
+            return { ...res, capabilities: [] };
+          }
+        })
+      );
+
+      // Calculate match scores for each resource
+      const resourcesWithScores: ResourceWithScore[] = resourcesWithCapabilities.map((res) => {
+        let bestScore = 0;
+        let bestCapability: Capability | undefined;
+        let bestRequirement: Requirement | undefined;
+
+        // Find the best match between any capability and any requirement
+        if (res.capabilities && res.capabilities.length > 0 && projectRequirements.length > 0) {
+          res.capabilities.forEach((cap: Capability) => {
+            projectRequirements.forEach((req: Requirement) => {
+              const score = calculateMatchScore(cap, req);
+              if (score > bestScore) {
+                bestScore = score;
+                bestCapability = cap;
+                bestRequirement = req;
+              }
+            });
+          });
+        }
+
+        return {
+          ...res,
+          matchScore: bestScore,
+          bestCapability,
+          bestRequirement,
+        };
+      });
+
+      // Sort by match score (highest first)
+      resourcesWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+      setAvailableResources(resourcesWithScores);
+      setRequirements(projectRequirements);
+    } catch (error) {
+      console.error('Error loading resources:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadCapabilitiesAndRequirements = async () => {
-    if (!resource || !project) return;
+    if (!selectedResourceId || !project) return;
 
     setLoading(true);
     try {
@@ -227,7 +317,7 @@ const QuickAllocationDialog = ({
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       const [capRes, reqRes] = await Promise.all([
-        axios.get(`${API_URL}/resource-capabilities?resourceId=${resource.id}`, config),
+        axios.get(`${API_URL}/resource-capabilities?resourceId=${selectedResourceId}`, config),
         axios.get(`${API_URL}/project-requirements/project/${project.id}`, config),
       ]);
 
@@ -275,14 +365,14 @@ const QuickAllocationDialog = ({
   };
 
   const handleSave = async () => {
-    if (!resource || !project) return;
+    if (!selectedResourceId || !project) return;
 
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       const allocationData = {
-        resourceId: resource.id,
+        resourceId: selectedResourceId,
         projectId: project.id,
         scenarioId,
         allocationPercentage,
@@ -319,6 +409,9 @@ const QuickAllocationDialog = ({
     setRequirements([]);
     setSelectedCapabilityId(undefined);
     setSelectedRequirementId(undefined);
+    setAvailableResources([]);
+    setSelectedResourceId(undefined);
+    setMinMatchScore(0);
     onClose();
   };
 
@@ -369,16 +462,119 @@ const QuickAllocationDialog = ({
     );
   };
 
+  const selectedResourceData = resource || availableResources.find(r => r.id === selectedResourceId);
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         {isEditMode ? 'Edit Allocation' : 'Quick Allocation'}
         <Typography variant="body2" color="text.secondary">
-          {resource?.firstName} {resource?.lastName} → {project?.name}
+          {selectedResourceData ? (
+            `${selectedResourceData.firstName} ${selectedResourceData.lastName} → ${project?.name}`
+          ) : (
+            `Select a resource → ${project?.name}`
+          )}
         </Typography>
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          {/* Resource Selector (only when no resource is pre-selected) */}
+          {!resource && (
+            <>
+              <Grid item xs={12}>
+                <Typography variant="body2" gutterBottom>
+                  Minimum Match Score: {minMatchScore}%
+                </Typography>
+                <Slider
+                  value={minMatchScore}
+                  onChange={(_, value) => setMinMatchScore(value as number)}
+                  min={0}
+                  max={100}
+                  step={10}
+                  marks={[
+                    { value: 0, label: '0%' },
+                    { value: 50, label: '50%' },
+                    { value: 80, label: '80%' },
+                    { value: 100, label: '100%' },
+                  ]}
+                  valueLabelDisplay="auto"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Autocomplete
+                  fullWidth
+                  options={availableResources.filter(r => r.matchScore >= minMatchScore)}
+                  getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeId}) - ${option.matchScore}%`}
+                  value={availableResources.find(r => r.id === selectedResourceId) || null}
+                  onChange={(_, newValue) => {
+                    setSelectedResourceId(newValue?.id);
+                    // When resource changes, capabilities will be loaded by the useEffect
+                    // But we can pre-populate from the loaded data
+                    if (newValue?.capabilities) {
+                      setCapabilities(newValue.capabilities);
+                    }
+                    // Auto-select the best matching capability and requirement
+                    if (newValue?.bestCapability) {
+                      setSelectedCapabilityId(newValue.bestCapability.id);
+                    }
+                    if (newValue?.bestRequirement) {
+                      setSelectedRequirementId(newValue.bestRequirement.id);
+                    }
+                  }}
+                  loading={loading}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Resource *"
+                      placeholder="Search resources..."
+                      required
+                      helperText={
+                        availableResources.filter(r => r.matchScore >= minMatchScore).length === 0
+                          ? 'No resources match the current filter'
+                          : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} resources available`
+                      }
+                    />
+                  )}
+                  renderOption={(props, option) => {
+                    const matchColor =
+                      option.matchScore >= 80 ? 'success' :
+                      option.matchScore >= 60 ? 'primary' :
+                      option.matchScore >= 40 ? 'warning' : 'error';
+
+                    return (
+                      <li {...props} key={option.id}>
+                        <Box sx={{ width: '100%' }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {option.firstName} {option.lastName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {option.employeeId}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`${option.matchScore}%`}
+                              color={matchColor as any}
+                              size="small"
+                            />
+                          </Box>
+                          {option.bestCapability && (
+                            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                              Best match: {option.bestCapability.app.code}/{option.bestCapability.technology.code}/{option.bestCapability.role.code}
+                            </Typography>
+                          )}
+                        </Box>
+                      </li>
+                    );
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  noOptionsText={minMatchScore > 0 ? "No resources match the minimum score" : "No resources available"}
+                />
+              </Grid>
+            </>
+          )}
+
           {/* Allocation Percentage */}
           <Grid item xs={12}>
             <Typography gutterBottom>
@@ -539,7 +735,7 @@ const QuickAllocationDialog = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" disabled={loading}>
+        <Button onClick={handleSave} variant="contained" disabled={loading || !selectedResourceId}>
           {isEditMode ? 'Update' : 'Allocate'}
         </Button>
       </DialogActions>
