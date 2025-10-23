@@ -21,6 +21,7 @@ import {
   MenuItem,
   Divider,
   Autocomplete,
+  Slider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -151,6 +152,13 @@ interface Project {
     id: number;
     name: string;
   };
+  requirements?: any[];
+}
+
+interface ProjectWithScore extends Project {
+  matchScore: number;
+  bestRequirement?: any;
+  bestCapability?: Capability;
 }
 
 interface Allocation {
@@ -202,6 +210,8 @@ const ResourceOverview = () => {
   const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({});
   const [allocationEditMode, setAllocationEditMode] = useState(false);
   const [projectRequirements, setProjectRequirements] = useState<any[]>([]);
+  const [availableProjects, setAvailableProjects] = useState<ProjectWithScore[]>([]);
+  const [minMatchScore, setMinMatchScore] = useState<number>(0);
   const [filters, setFilters] = useState({
     employeeId: '',
     name: '',
@@ -418,6 +428,11 @@ const ResourceOverview = () => {
         allocationType: 'Shared',
       });
       setProjectRequirements([]);
+
+      // Load projects with match scores for new allocation
+      if (selectedResourceForAllocations) {
+        await loadAvailableProjects(selectedResourceForAllocations);
+      }
     }
     setOpenAllocationEditDialog(true);
   };
@@ -427,6 +442,8 @@ const ResourceOverview = () => {
     setCurrentAllocation({});
     setProjectRequirements([]);
     setAllocationEditMode(false);
+    setAvailableProjects([]);
+    setMinMatchScore(0);
   };
 
   const loadProjectRequirements = async (projectId: number) => {
@@ -437,6 +454,123 @@ const ResourceOverview = () => {
       setProjectRequirements(res.data.data || []);
     } catch (err) {
       console.error('Error loading project requirements:', err);
+    }
+  };
+
+  // Match score calculation
+  const PROFICIENCY_SCORES: Record<string, number> = {
+    Beginner: 1,
+    Intermediate: 2,
+    Advanced: 3,
+    Expert: 4,
+  };
+
+  const WEIGHTS = {
+    EXACT_MATCH: 40,
+    PROFICIENCY: 30,
+    EXPERIENCE: 20,
+    IS_PRIMARY: 10,
+  };
+
+  const calculateMatchScore = (capability: Capability, requirement: any): number => {
+    let score = 0;
+
+    // 1. Exact Match (40 points)
+    const appMatch = capability.appId === requirement.appId;
+    const techMatch = capability.technologyId === requirement.technologyId;
+    const roleMatch = capability.roleId === requirement.roleId;
+
+    if (appMatch && techMatch && roleMatch) {
+      score += WEIGHTS.EXACT_MATCH;
+    } else {
+      const matches = [appMatch, techMatch, roleMatch].filter(Boolean).length;
+      score += (matches / 3) * WEIGHTS.EXACT_MATCH;
+    }
+
+    // 2. Proficiency Level (30 points)
+    const capProficiency = PROFICIENCY_SCORES[capability.proficiencyLevel] || 0;
+    const reqProficiency = PROFICIENCY_SCORES[requirement.proficiencyLevel] || 0;
+
+    if (capProficiency >= reqProficiency) {
+      score += WEIGHTS.PROFICIENCY;
+    } else {
+      const proficiencyGap = reqProficiency - capProficiency;
+      score += Math.max(0, WEIGHTS.PROFICIENCY - (proficiencyGap * 10));
+    }
+
+    // 3. Years of Experience (20 points)
+    score += WEIGHTS.EXPERIENCE;
+
+    // 4. Is Primary Capability (10 points)
+    if (capability.isPrimary) {
+      score += WEIGHTS.IS_PRIMARY;
+    }
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+  };
+
+  const loadAvailableProjects = async (resource: Resource) => {
+    if (!resource.id || !activeScenario?.id) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
+
+      // Load resource capabilities and all projects in parallel
+      const [capRes, projectsRes] = await Promise.all([
+        axios.get(`${API_URL}/resource-capabilities?resourceId=${resource.id}`, config),
+        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+      ]);
+
+      const resourceCapabilities = capRes.data.data || [];
+      const allProjects = projectsRes.data.data || [];
+
+      // Load requirements for each project
+      const projectsWithRequirements = await Promise.all(
+        allProjects.map(async (proj: Project) => {
+          try {
+            const reqRes = await axios.get(`${API_URL}/project-requirements/project/${proj.id}`, config);
+            return { ...proj, requirements: reqRes.data.data || [] };
+          } catch (error) {
+            return { ...proj, requirements: [] };
+          }
+        })
+      );
+
+      // Calculate match scores
+      const projectsWithScores: ProjectWithScore[] = projectsWithRequirements.map((proj) => {
+        let bestScore = 0;
+        let bestRequirement: any = undefined;
+        let bestCapability: Capability | undefined;
+
+        if (resourceCapabilities.length > 0 && proj.requirements && proj.requirements.length > 0) {
+          resourceCapabilities.forEach((cap: Capability) => {
+            proj.requirements!.forEach((req: any) => {
+              const score = calculateMatchScore(cap, req);
+              if (score > bestScore) {
+                bestScore = score;
+                bestCapability = cap;
+                bestRequirement = req;
+              }
+            });
+          });
+        }
+
+        return {
+          ...proj,
+          matchScore: bestScore,
+          bestRequirement,
+          bestCapability,
+        };
+      });
+
+      // Sort by match score (highest first)
+      projectsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+      setAvailableProjects(projectsWithScores);
+    } catch (error) {
+      console.error('Error loading projects with match scores:', error);
     }
   };
 
@@ -1446,30 +1580,120 @@ const ResourceOverview = () => {
         <DialogTitle>{allocationEditMode ? 'Edit Allocation' : 'Add Allocation'}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Match Score Filter Slider - Only show when adding new allocation with available projects */}
+            {!allocationEditMode && availableProjects.length > 0 && (
+              <Grid item xs={12}>
+                <Typography variant="body2" gutterBottom>
+                  Minimum Match Score: {minMatchScore}%
+                </Typography>
+                <Slider
+                  value={minMatchScore}
+                  onChange={(_, value) => setMinMatchScore(value as number)}
+                  min={0}
+                  max={100}
+                  step={10}
+                  marks={[
+                    { value: 0, label: '0%' },
+                    { value: 50, label: '50%' },
+                    { value: 80, label: '80%' },
+                    { value: 100, label: '100%' },
+                  ]}
+                  valueLabelDisplay="auto"
+                />
+              </Grid>
+            )}
+
             <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label="Project"
-                required
-                value={currentAllocation.projectId || ''}
-                onChange={async (e) => {
-                  const projectId = Number(e.target.value);
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    projectId,
-                    projectRequirementId: undefined,
-                  });
-                  await loadProjectRequirements(projectId);
-                }}
-              >
-                <MenuItem value="">Select Project</MenuItem>
-                {projects.map((project) => (
-                  <MenuItem key={project.id} value={project.id}>
-                    {project.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+              {!allocationEditMode && availableProjects.length > 0 ? (
+                <Autocomplete
+                  fullWidth
+                  options={availableProjects.filter(p => p.matchScore >= minMatchScore)}
+                  getOptionLabel={(option) => `${option.name} - ${option.matchScore}%`}
+                  value={availableProjects.find(p => p.id === currentAllocation.projectId) || null}
+                  onChange={async (_, newValue) => {
+                    if (newValue) {
+                      setCurrentAllocation({
+                        ...currentAllocation,
+                        projectId: newValue.id,
+                        projectRequirementId: undefined,
+                        resourceCapabilityId: undefined,
+                      });
+                      await loadProjectRequirements(newValue.id);
+
+                      // Auto-select best matching capability and requirement
+                      if (newValue.bestCapability && newValue.bestRequirement) {
+                        setCurrentAllocation(prev => ({
+                          ...prev,
+                          projectId: newValue.id,
+                          resourceCapabilityId: newValue.bestCapability!.id,
+                          projectRequirementId: newValue.bestRequirement!.id,
+                        }));
+                      }
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Project"
+                      required
+                      placeholder="Search projects..."
+                      helperText={`${availableProjects.filter(p => p.matchScore >= minMatchScore).length} projects match your criteria`}
+                    />
+                  )}
+                  renderOption={(props, option) => {
+                    const matchColor = option.matchScore >= 80 ? 'success' :
+                                     option.matchScore >= 60 ? 'primary' :
+                                     option.matchScore >= 40 ? 'warning' : 'error';
+                    return (
+                      <li {...props} key={option.id}>
+                        <Box sx={{ width: '100%' }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {option.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {option.domain?.name || 'No domain'}
+                              </Typography>
+                            </Box>
+                            <Chip label={`${option.matchScore}%`} color={matchColor as any} size="small" />
+                          </Box>
+                          {option.bestRequirement && (
+                            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                              Best match: {option.bestRequirement.app.code}/{option.bestRequirement.technology.code}/{option.bestRequirement.role.code}
+                            </Typography>
+                          )}
+                        </Box>
+                      </li>
+                    );
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                />
+              ) : (
+                <TextField
+                  select
+                  fullWidth
+                  label="Project"
+                  required
+                  value={currentAllocation.projectId || ''}
+                  onChange={async (e) => {
+                    const projectId = Number(e.target.value);
+                    setCurrentAllocation({
+                      ...currentAllocation,
+                      projectId,
+                      projectRequirementId: undefined,
+                    });
+                    await loadProjectRequirements(projectId);
+                  }}
+                >
+                  <MenuItem value="">Select Project</MenuItem>
+                  {projects.map((project) => (
+                    <MenuItem key={project.id} value={project.id}>
+                      {project.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             </Grid>
 
             <Grid item xs={12} sm={6}>
