@@ -63,6 +63,16 @@ interface Project {
   businessDecision?: string;
 }
 
+interface Allocation {
+  id: number;
+  allocationPercentage: number;
+  allocationType: string;
+  startDate: string;
+  endDate: string;
+  resourceCapabilityId?: number;
+  projectRequirementId?: number;
+}
+
 interface QuickAllocationDialogProps {
   open: boolean;
   onClose: () => void;
@@ -70,6 +80,7 @@ interface QuickAllocationDialogProps {
   resource: Resource | null;
   project: Project | null;
   scenarioId: number;
+  allocation?: Allocation | null; // Optional: for edit mode
 }
 
 const QuickAllocationDialog = ({
@@ -79,7 +90,9 @@ const QuickAllocationDialog = ({
   resource,
   project,
   scenarioId,
+  allocation,
 }: QuickAllocationDialogProps) => {
+  const isEditMode = !!allocation;
   const [allocationPercentage, setAllocationPercentage] = useState(100);
   const [allocationType, setAllocationType] = useState('Shared');
   const [useProjectDuration, setUseProjectDuration] = useState(true);
@@ -93,19 +106,35 @@ const QuickAllocationDialog = ({
 
   useEffect(() => {
     if (open && resource && project) {
-      // Set default dates from project
-      if (project.startDate && project.endDate) {
-        setStartDate(project.startDate.split('T')[0]);
-        setEndDate(project.endDate.split('T')[0]);
-        setUseProjectDuration(true);
+      // If editing, pre-populate form with allocation data
+      if (isEditMode && allocation) {
+        setAllocationPercentage(allocation.allocationPercentage);
+        setAllocationType(allocation.allocationType);
+        setStartDate(allocation.startDate?.split('T')[0] || '');
+        setEndDate(allocation.endDate?.split('T')[0] || '');
+        setSelectedCapabilityId(allocation.resourceCapabilityId);
+        setSelectedRequirementId(allocation.projectRequirementId);
+
+        // Check if using project duration
+        const usesProjectDuration =
+          allocation.startDate === project.startDate &&
+          allocation.endDate === project.endDate;
+        setUseProjectDuration(usesProjectDuration);
       } else {
-        setUseProjectDuration(false);
+        // Set default dates from project for new allocation
+        if (project.startDate && project.endDate) {
+          setStartDate(project.startDate.split('T')[0]);
+          setEndDate(project.endDate.split('T')[0]);
+          setUseProjectDuration(true);
+        } else {
+          setUseProjectDuration(false);
+        }
       }
 
       // Load capabilities and requirements
       loadCapabilitiesAndRequirements();
     }
-  }, [open, resource, project]);
+  }, [open, resource, project, allocation]);
 
   const loadCapabilitiesAndRequirements = async () => {
     if (!resource || !project) return;
@@ -183,11 +212,18 @@ const QuickAllocationDialog = ({
         isActive: true,
       };
 
-      await axios.post(`${API_URL}/allocations`, allocationData, config);
+      if (isEditMode && allocation) {
+        // Update existing allocation
+        await axios.put(`${API_URL}/allocations/${allocation.id}`, allocationData, config);
+      } else {
+        // Create new allocation
+        await axios.post(`${API_URL}/allocations`, allocationData, config);
+      }
+
       onSave();
       handleClose();
     } catch (error) {
-      console.error('Error creating allocation:', error);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} allocation:`, error);
     }
   };
 
@@ -230,7 +266,7 @@ const QuickAllocationDialog = ({
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Quick Allocation
+        {isEditMode ? 'Edit Allocation' : 'Quick Allocation'}
         <Typography variant="body2" color="text.secondary">
           {resource?.firstName} {resource?.lastName} → {project?.name}
         </Typography>
@@ -400,7 +436,7 @@ const QuickAllocationDialog = ({
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>
         <Button onClick={handleSave} variant="contained" disabled={loading}>
-          Allocate
+          {isEditMode ? 'Update' : 'Allocate'}
         </Button>
       </DialogActions>
     </Dialog>

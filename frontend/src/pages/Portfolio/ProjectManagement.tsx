@@ -32,6 +32,7 @@ import {
   Divider,
   Menu,
   TableSortLabel,
+  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -75,6 +76,7 @@ import DependencyDialog, { DependencyFormData } from '../../components/Portfolio
 import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
 import EnhancedRequirementsTab from '../../components/Projects/EnhancedRequirementsTab';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import QuickAllocationDialog from '../../components/QuickAllocationDialog';
 import {
   getAllDependencies,
   createDependency,
@@ -887,8 +889,13 @@ const ProjectManagement = () => {
   const [originalProjectMilestones, setOriginalProjectMilestones] = useState<Milestone[]>([]);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [projectResources, setProjectResources] = useState<Resource[]>([]);
+  const [projectResources, setProjectResources] = useState<any[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
+  const [openAllocationDialog, setOpenAllocationDialog] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState<any>(null);
+  const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [openDeleteAllocationDialog, setOpenDeleteAllocationDialog] = useState(false);
+  const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'gantt' | 'kanban'>(() => {
     const saved = localStorage.getItem('projectManagementViewMode');
     return (saved as 'list' | 'gantt' | 'kanban') || 'list';
@@ -1656,50 +1663,12 @@ const ProjectManagement = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Deduplicate allocations by ID first (in case of SQL join duplicates)
-      const uniqueAllocations = Array.from(
-        new Map(response.data.data.map((a: any) => [a.id, a])).values()
-      );
-
-      // Filter allocations by project ID
-      const projectAllocations = uniqueAllocations.filter(
+      // Filter allocations by project ID and include all allocation details
+      const projectAllocations = response.data.data.filter(
         (allocation: any) => allocation.projectId === project.id
       );
 
-      // Group allocations by resource ID to avoid duplicates
-      const resourceMap = new Map();
-      projectAllocations.forEach((allocation: any) => {
-        const resourceId = allocation.resource?.id;
-        if (!resourceId) return;
-
-        if (resourceMap.has(resourceId)) {
-          // Resource already exists, sum allocation percentage
-          const existing = resourceMap.get(resourceId);
-          existing.allocationPercentage += allocation.allocationPercentage || 0;
-
-          // Collect multiple roles if different
-          if (allocation.roleOnProject && !existing.roleOnProject.includes(allocation.roleOnProject)) {
-            existing.roleOnProject += `, ${allocation.roleOnProject}`;
-          }
-        } else {
-          // First time seeing this resource
-          resourceMap.set(resourceId, {
-            allocationId: allocation.id,
-            id: allocation.resource?.id,
-            employeeId: allocation.resource?.employeeId,
-            firstName: allocation.resource?.firstName,
-            lastName: allocation.resource?.lastName,
-            email: allocation.resource?.email,
-            role: allocation.resource?.role,
-            primarySkill: allocation.resource?.primarySkill,
-            allocationPercentage: allocation.allocationPercentage || 0,
-            roleOnProject: allocation.roleOnProject || '-',
-          });
-        }
-      });
-
-      const resources = Array.from(resourceMap.values());
-      setProjectResources(resources);
+      setProjectResources(projectAllocations);
     } catch (error) {
       console.error('Error fetching project resources:', error);
     } finally {
@@ -1711,6 +1680,54 @@ const ProjectManagement = () => {
     setOpenResourcesDialog(false);
     setSelectedProject(null);
     setProjectResources([]);
+  };
+
+  const handleAddAllocation = () => {
+    setSelectedAllocation(null);
+    setSelectedResource(null);
+    setOpenAllocationDialog(true);
+  };
+
+  const handleEditAllocation = (allocation: any) => {
+    setSelectedAllocation(allocation);
+    setSelectedResource(allocation.resource);
+    setOpenAllocationDialog(true);
+  };
+
+  const handleDeleteAllocation = (allocation: any) => {
+    setAllocationToDelete(allocation);
+    setOpenDeleteAllocationDialog(true);
+  };
+
+  const confirmDeleteAllocation = async () => {
+    if (!allocationToDelete) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/allocations/${allocationToDelete.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Refresh the allocations list
+      if (selectedProject) {
+        await handleViewResources(selectedProject);
+      }
+      showAlert('Allocation deleted successfully', 'success');
+    } catch (error) {
+      console.error('Error deleting allocation:', error);
+      showAlert('Failed to delete allocation', 'error');
+    } finally {
+      setOpenDeleteAllocationDialog(false);
+      setAllocationToDelete(null);
+    }
+  };
+
+  const handleAllocationSaved = () => {
+    setOpenAllocationDialog(false);
+    // Refresh the allocations list
+    if (selectedProject) {
+      handleViewResources(selectedProject);
+    }
   };
 
   const handleExport = () => {
@@ -3864,26 +3881,21 @@ const ProjectManagement = () => {
               </TableCell>
               <TableCell />
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={segmentFunctions.map(sf => sf.name)}
                   value={filters.segmentFunction}
-                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, segmentFunction: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.segmentFunction.length > 0 ? `${filters.segmentFunction.length} selected` : 'All Segment Functions'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  {segmentFunctions.map((segmentFunction) => (
-                    <MenuItem key={segmentFunction.id} value={segmentFunction.name}>
-                      <Checkbox checked={filters.segmentFunction.indexOf(segmentFunction.name) > -1} size="small" />
-                      {segmentFunction.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
                 <TextField
@@ -3895,122 +3907,89 @@ const ProjectManagement = () => {
                 />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={uniqueFiscalYears}
                   value={filters.fiscalYear}
-                  onChange={(e) => setFilters({ ...filters, fiscalYear: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, fiscalYear: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.fiscalYear.length > 0 ? `${filters.fiscalYear.length} selected` : 'All Fiscal Years'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  {uniqueFiscalYears.map((year) => (
-                    <MenuItem key={year} value={year}>
-                      <Checkbox checked={filters.fiscalYear.indexOf(year) > -1} size="small" />
-                      {year}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={uniqueTargetReleases}
                   value={filters.targetRelease}
-                  onChange={(e) => setFilters({ ...filters, targetRelease: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, targetRelease: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.targetRelease.length > 0 ? `${filters.targetRelease.length} selected` : 'All Releases'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  {uniqueTargetReleases.map((release) => (
-                    <MenuItem key={release} value={release}>
-                      <Checkbox checked={filters.targetRelease.indexOf(release) > -1} size="small" />
-                      {release}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={uniqueTargetSprints}
                   value={filters.targetSprint}
-                  onChange={(e) => setFilters({ ...filters, targetSprint: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, targetSprint: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.targetSprint.length > 0 ? `${filters.targetSprint.length} selected` : 'All Sprints'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  {uniqueTargetSprints.map((sprint) => (
-                    <MenuItem key={sprint} value={sprint}>
-                      <Checkbox checked={filters.targetSprint.indexOf(sprint) > -1} size="small" />
-                      {sprint}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled']}
                   value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, status: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.status.length > 0 ? `${filters.status.length} selected` : 'All Statuses'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  <MenuItem value="Planning">
-                    <Checkbox checked={filters.status.indexOf('Planning') > -1} size="small" />
-                    Planning
-                  </MenuItem>
-                  <MenuItem value="In Progress">
-                    <Checkbox checked={filters.status.indexOf('In Progress') > -1} size="small" />
-                    In Progress
-                  </MenuItem>
-                  <MenuItem value="On Hold">
-                    <Checkbox checked={filters.status.indexOf('On Hold') > -1} size="small" />
-                    On Hold
-                  </MenuItem>
-                  <MenuItem value="Completed">
-                    <Checkbox checked={filters.status.indexOf('Completed') > -1} size="small" />
-                    Completed
-                  </MenuItem>
-                  <MenuItem value="Cancelled">
-                    <Checkbox checked={filters.status.indexOf('Cancelled') > -1} size="small" />
-                    Cancelled
-                  </MenuItem>
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
-                  value={filters.priority}
-                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+                  options={['', 'Low', 'Medium', 'High', 'Critical']}
+                  value={filters.priority || ''}
+                  onChange={(_, newValue) => setFilters({ ...filters, priority: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="All Priorities"
+                      size="small"
+                    />
+                  )}
+                  getOptionLabel={(option) => option === '' ? 'All Priorities' : option}
                   fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="Low">Low</MenuItem>
-                  <MenuItem value="Medium">Medium</MenuItem>
-                  <MenuItem value="High">High</MenuItem>
-                  <MenuItem value="Critical">Critical</MenuItem>
-                </TextField>
+                />
               </TableCell>
               <TableCell>
                 <TextField
@@ -4026,55 +4005,39 @@ const ProjectManagement = () => {
               <TableCell />
               <TableCell />
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={['Green', 'Yellow', 'Red']}
                   value={filters.health}
-                  onChange={(e) => setFilters({ ...filters, health: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, health: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.health.length > 0 ? `${filters.health.length} selected` : 'All Health'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  <MenuItem value="Green">
-                    <Checkbox checked={filters.health.indexOf('Green') > -1} size="small" />
-                    Green
-                  </MenuItem>
-                  <MenuItem value="Yellow">
-                    <Checkbox checked={filters.health.indexOf('Yellow') > -1} size="small" />
-                    Yellow
-                  </MenuItem>
-                  <MenuItem value="Red">
-                    <Checkbox checked={filters.health.indexOf('Red') > -1} size="small" />
-                    Red
-                  </MenuItem>
-                </TextField>
+                />
               </TableCell>
               <TableCell />
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
+                  multiple
+                  options={domains.map(d => d.name)}
                   value={filters.impactedDomain}
-                  onChange={(e) => setFilters({ ...filters, impactedDomain: e.target.value as unknown as string[] })}
-                  SelectProps={{
-                    multiple: true,
-                    renderValue: (selected) =>
-                      (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                  }}
+                  onChange={(_, newValue) => setFilters({ ...filters, impactedDomain: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={filters.impactedDomain.length > 0 ? `${filters.impactedDomain.length} selected` : 'All Domains'}
+                      size="small"
+                    />
+                  )}
                   fullWidth
-                >
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.name}>
-                      <Checkbox checked={filters.impactedDomain.indexOf(domain.name) > -1} size="small" />
-                      {domain.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
             </TableRow>
           </TableHead>
@@ -7130,11 +7093,23 @@ const ProjectManagement = () => {
       <Dialog
         open={openResourcesDialog}
         onClose={handleCloseResourcesDialog}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
       >
         <DialogTitle>
-          {selectedProject?.name} - Allocated Resources ({projectResources.length})
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              {selectedProject?.name} - Allocated Resources ({projectResources.length})
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddAllocation}
+              size="small"
+            >
+              Add Allocation
+            </Button>
+          </Box>
         </DialogTitle>
         <DialogContent>
           {loadingResources ? (
@@ -7142,43 +7117,145 @@ const ProjectManagement = () => {
               <CircularProgress />
             </Box>
           ) : projectResources.length === 0 ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="200px" gap={2}>
               <Typography color="text.secondary">
                 No resources allocated to this project
               </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddAllocation}
+              >
+                Add First Allocation
+              </Button>
             </Box>
           ) : (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
                     <TableCell>Employee ID</TableCell>
                     <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Primary Skill</TableCell>
-                    <TableCell>Role on Project</TableCell>
+                    <TableCell>Resource Capability</TableCell>
+                    <TableCell>Project Requirement</TableCell>
+                    <TableCell>Match Score</TableCell>
                     <TableCell>Allocation %</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Timeline</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {projectResources.map((resource) => (
-                    <TableRow key={resource.allocationId}>
-                      <TableCell>{resource.employeeId}</TableCell>
-                      <TableCell>
-                        {resource.firstName} {resource.lastName}
+                  {projectResources.map((allocation) => (
+                    <TableRow key={allocation.id}>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditAllocation(allocation)}
+                          color="primary"
+                          title="Edit Allocation"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteAllocation(allocation)}
+                          color="error"
+                          title="Delete Allocation"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
                       </TableCell>
-                      <TableCell>{resource.email || '-'}</TableCell>
+                      <TableCell>{allocation.resource?.employeeId || '-'}</TableCell>
                       <TableCell>
-                        <Chip label={resource.primarySkill || 'N/A'} size="small" />
+                        <Typography variant="body2" fontWeight="medium">
+                          {allocation.resource?.firstName} {allocation.resource?.lastName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {allocation.resource?.email || '-'}
+                        </Typography>
                       </TableCell>
-                      <TableCell>{resource.roleOnProject || '-'}</TableCell>
+                      <TableCell>
+                        {allocation.resourceCapability ? (
+                          <Box>
+                            <Chip
+                              label={`${allocation.resourceCapability.app.code}/${allocation.resourceCapability.technology.code}/${allocation.resourceCapability.role.code}`}
+                              size="small"
+                              color={allocation.resourceCapability.isPrimary ? 'primary' : 'default'}
+                            />
+                            <Typography variant="caption" display="block" mt={0.5}>
+                              {allocation.resourceCapability.proficiencyLevel}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            No capability linked
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {allocation.projectRequirement ? (
+                          <Box>
+                            <Chip
+                              label={`${allocation.projectRequirement.app.code}/${allocation.projectRequirement.technology.code}/${allocation.projectRequirement.role.code}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                            <Typography variant="caption" display="block" mt={0.5}>
+                              Need: {allocation.projectRequirement.proficiencyLevel} ({allocation.projectRequirement.fulfilledCount}/{allocation.projectRequirement.requiredCount})
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            No requirement linked
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {allocation.matchScore ? (
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={allocation.matchScore}
+                              color={
+                                allocation.matchScore >= 80
+                                  ? 'success'
+                                  : allocation.matchScore >= 60
+                                  ? 'warning'
+                                  : 'error'
+                              }
+                              sx={{ width: 60, height: 8, borderRadius: 1 }}
+                            />
+                            <Typography variant="caption" fontWeight="medium">
+                              {allocation.matchScore}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Chip
-                          label={`${resource.allocationPercentage || 0}%`}
+                          label={`${allocation.allocationPercentage || 0}%`}
                           size="small"
                           color="primary"
                           variant="outlined"
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={allocation.allocationType} size="small" />
+                      </TableCell>
+                      <TableCell>
+                        {allocation.startDate && allocation.endDate ? (
+                          <Typography variant="caption">
+                            {new Date(allocation.startDate).toLocaleDateString()} -{' '}
+                            {new Date(allocation.endDate).toLocaleDateString()}
+                          </Typography>
+                        ) : (
+                          '-'
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -7189,6 +7266,40 @@ const ProjectManagement = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseResourcesDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Quick Allocation Dialog */}
+      <QuickAllocationDialog
+        open={openAllocationDialog}
+        onClose={() => setOpenAllocationDialog(false)}
+        onSave={handleAllocationSaved}
+        resource={selectedResource}
+        project={selectedProject}
+        scenarioId={activeScenario?.id || 0}
+        allocation={selectedAllocation}
+      />
+
+      {/* Delete Allocation Confirmation Dialog */}
+      <Dialog
+        open={openDeleteAllocationDialog}
+        onClose={() => setOpenDeleteAllocationDialog(false)}
+      >
+        <DialogTitle>Delete Allocation</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the allocation for{' '}
+            <strong>
+              {allocationToDelete?.resource?.firstName} {allocationToDelete?.resource?.lastName}
+            </strong>{' '}
+            ({allocationToDelete?.resource?.employeeId})? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteAllocationDialog(false)}>Cancel</Button>
+          <Button onClick={confirmDeleteAllocation} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
 
