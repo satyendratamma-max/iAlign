@@ -1580,6 +1580,17 @@ const ResourceOverview = () => {
         <DialogTitle>{allocationEditMode ? 'Edit Allocation' : 'Add Allocation'}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Resource Name - Non-editable */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Resource"
+                value={selectedResourceForAllocations ? `${selectedResourceForAllocations.firstName} ${selectedResourceForAllocations.lastName} (${selectedResourceForAllocations.employeeId})` : ''}
+                disabled
+                helperText="Resource is pre-selected and cannot be changed"
+              />
+            </Grid>
+
             {/* Match Score Filter Slider - Only show when adding new allocation with available projects */}
             {!allocationEditMode && availableProjects.length > 0 && (
               <Grid item xs={12}>
