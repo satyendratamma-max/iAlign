@@ -882,6 +882,7 @@ const ProjectManagement = () => {
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
   const [dialogTab, setDialogTab] = useState(0);
   const [currentProjectMilestones, setCurrentProjectMilestones] = useState<Milestone[]>([]);
+  const [originalProjectMilestones, setOriginalProjectMilestones] = useState<Milestone[]>([]);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectResources, setProjectResources] = useState<Resource[]>([]);
@@ -1433,16 +1434,19 @@ const ProjectManagement = () => {
 
         setDomainImpacts(impacts);
         setCurrentProjectMilestones(projectMilestones);
+        setOriginalProjectMilestones(projectMilestones);
       } catch (error) {
         console.error('Error fetching project data:', error);
         setDomainImpacts([]);
         setCurrentProjectMilestones([]);
+        setOriginalProjectMilestones([]);
       }
     } else {
       setEditMode(false);
       setCurrentProject({ progress: 0, status: 'Planning', priority: 'Medium' });
       setDomainImpacts([]);
       setCurrentProjectMilestones([]);
+      setOriginalProjectMilestones([]);
     }
     setOpenDialog(true);
   };
@@ -1452,6 +1456,7 @@ const ProjectManagement = () => {
     setCurrentProject({});
     setDomainImpacts([]);
     setCurrentProjectMilestones([]);
+    setOriginalProjectMilestones([]);
     setDialogTab(0);
   };
 
@@ -1503,6 +1508,43 @@ const ProjectManagement = () => {
             },
             config
           );
+        }
+      }
+
+      // Save/update/delete milestones if project ID exists and in edit mode
+      if (projectId && editMode) {
+        // Find deleted milestones (in original but not in current)
+        const deletedMilestones = originalProjectMilestones.filter(
+          original => original.id > 0 && !currentProjectMilestones.some(current => current.id === original.id)
+        );
+
+        // Delete removed milestones
+        for (const milestone of deletedMilestones) {
+          await axios.delete(`${API_URL}/milestones/${milestone.id}`, config);
+        }
+
+        // Create or update milestones
+        for (const milestone of currentProjectMilestones) {
+          // Skip if milestone has no name
+          if (!milestone.name || milestone.name.trim() === '') continue;
+
+          const milestoneData = {
+            projectId,
+            scenarioId: activeScenario?.id,
+            name: milestone.name,
+            description: milestone.description || '',
+            status: milestone.status || 'Not Started',
+            plannedStartDate: milestone.plannedStartDate || null,
+            plannedEndDate: milestone.plannedEndDate || null,
+          };
+
+          if (milestone.id < 0) {
+            // Create new milestone (negative ID means it's new)
+            await axios.post(`${API_URL}/milestones`, milestoneData, config);
+          } else {
+            // Update existing milestone
+            await axios.put(`${API_URL}/milestones/${milestone.id}`, milestoneData, config);
+          }
         }
       }
 
