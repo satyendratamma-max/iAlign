@@ -32,8 +32,11 @@ import {
   Refresh as RefreshIcon,
   CheckCircle,
   Schedule,
+  Download as DownloadIcon,
+  Description as TemplateIcon,
 } from '@mui/icons-material';
 import scenarioApi, { Scenario, CreateScenarioRequest, CloneScenarioRequest } from '../../services/scenarioApi';
+import { exportToExcel, generateScenarioTemplate } from '../../utils/excelUtils';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector } from '../../hooks/redux';
 
@@ -160,6 +163,18 @@ const ScenarioManagement = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const handleExportScenarios = () => {
+    const exportData = scenarios.map((s) => ({
+      name: s.name,
+      description: s.description || '',
+      status: s.status,
+      createdBy: s.creator ? `${s.creator.firstName} ${s.creator.lastName}` : '',
+      createdDate: formatDate(s.createdDate),
+      publishedDate: formatDate(s.publishedDate),
+    }));
+    exportToExcel(exportData, 'scenarios_export');
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -179,6 +194,16 @@ const ScenarioManagement = () => {
           Scenario Management
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Tooltip title="Download template">
+            <IconButton onClick={generateScenarioTemplate} color="primary">
+              <TemplateIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Export scenarios">
+            <IconButton onClick={handleExportScenarios} color="primary">
+              <DownloadIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Refresh scenarios">
             <IconButton onClick={fetchScenarios} color="primary">
               <RefreshIcon />

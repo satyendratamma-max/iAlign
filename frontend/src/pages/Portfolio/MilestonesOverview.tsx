@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { generateMilestoneTemplate } from '../../utils/excelUtils';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
@@ -244,37 +245,6 @@ const MilestonesOverview = () => {
     XLSX.writeFile(wb, `milestones_export_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const generateTemplate = () => {
-    const templateData = [
-      {
-        'Milestone Name': 'Example Milestone',
-        'Project Name': 'Enter project name',
-        'Description': 'Milestone description',
-        'Status': 'Not Started',
-        'Progress (%)': 0,
-        'Due Date': '2025-12-31',
-        'Owner': 'John Doe',
-        'Dependencies': 'Previous milestone name',
-      },
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Milestones Template');
-
-    ws['!cols'] = [
-      { wch: 30 },
-      { wch: 25 },
-      { wch: 40 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 20 },
-      { wch: 30 },
-    ];
-
-    XLSX.writeFile(wb, 'milestones_template.xlsx');
-  };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -440,7 +410,7 @@ const MilestonesOverview = () => {
         <Button
           variant="outlined"
           startIcon={<TemplateIcon />}
-          onClick={generateTemplate}
+          onClick={generateMilestoneTemplate}
           size="small"
         >
           Template
