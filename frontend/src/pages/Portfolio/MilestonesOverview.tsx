@@ -715,39 +715,49 @@ const MilestonesOverview = () => {
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                options={projects}
-                getOptionLabel={(option) => `${option.name} (${option.fiscalYear || 'N/A'})`}
-                value={projects.find(p => p.id === currentMilestone.projectId) || null}
-                onChange={(_, newValue) => {
-                  setCurrentMilestone({
-                    ...currentMilestone,
-                    projectId: newValue?.id,
-                  });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Project"
-                    required
-                    placeholder="Search projects..."
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {option.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.fiscalYear} • {option.domain?.name || 'No domain'}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-              />
+              {editMode ? (
+                <TextField
+                  fullWidth
+                  label="Project"
+                  value={projects.find(p => p.id === currentMilestone.projectId)?.name || ''}
+                  disabled
+                  helperText="Project cannot be changed when editing"
+                />
+              ) : (
+                <Autocomplete
+                  fullWidth
+                  options={projects}
+                  getOptionLabel={(option) => `${option.name} (${option.fiscalYear || 'N/A'})`}
+                  value={projects.find(p => p.id === currentMilestone.projectId) || null}
+                  onChange={(_, newValue) => {
+                    setCurrentMilestone({
+                      ...currentMilestone,
+                      projectId: newValue?.id,
+                    });
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Project"
+                      required
+                      placeholder="Search projects..."
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {option.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.fiscalYear} • {option.domain?.name || 'No domain'}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                />
+              )}
             </Grid>
 
             <Grid item xs={12} sm={6}>
