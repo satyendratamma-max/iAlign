@@ -714,7 +714,7 @@ const MilestonesOverview = () => {
         <DialogTitle>{editMode ? 'Edit Milestone' : 'Add Milestone'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <Autocomplete
                 fullWidth
                 options={projects}
@@ -749,7 +749,8 @@ const MilestonesOverview = () => {
                 isOptionEqualToValue={(option, value) => option.id === value.id}
               />
             </Grid>
-            <Grid item xs={12}>
+
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Milestone Name"
@@ -760,18 +761,20 @@ const MilestonesOverview = () => {
                 }
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Description"
                 multiline
-                rows={3}
+                rows={2}
                 value={currentMilestone.description || ''}
                 onChange={(e) =>
                   setCurrentMilestone({ ...currentMilestone, description: e.target.value })
                 }
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -789,6 +792,7 @@ const MilestonesOverview = () => {
                 <MenuItem value="Delayed">Delayed</MenuItem>
               </TextField>
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -804,6 +808,7 @@ const MilestonesOverview = () => {
                 inputProps={{ min: 0, max: 100 }}
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -823,6 +828,7 @@ const MilestonesOverview = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <Autocomplete
                 fullWidth
@@ -857,6 +863,7 @@ const MilestonesOverview = () => {
                 isOptionEqualToValue={(option, value) => option.id === value.id}
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
