@@ -483,18 +483,35 @@ const PortfolioOverview = () => {
         <Table>
           <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
             <TableRow>
+              <TableCell align="right" sx={{ minWidth: 150 }}>Actions</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Domain</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Total Value</TableCell>
               <TableCell>ROI Index</TableCell>
               <TableCell>Risk Score</TableCell>
-              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredSegmentFunctions.map((segmentFunction) => (
               <TableRow key={segmentFunction.id}>
+                <TableCell align="right">
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleOpenDialog(segmentFunction)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => handleDelete(segmentFunction.id)}
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
                 <TableCell>
                   <Typography variant="body1" fontWeight="medium">
                     {segmentFunction.name}
@@ -563,23 +580,6 @@ const PortfolioOverview = () => {
                       }
                     />
                   )}
-                </TableCell>
-                <TableCell align="right">
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(segmentFunction)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(segmentFunction.id)}
-                  >
-                    Delete
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
