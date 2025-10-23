@@ -7,7 +7,6 @@ import Role from '../models/Role';
 import ResourceAllocation from '../models/ResourceAllocation';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
-import { Sequelize } from 'sequelize';
 
 export const getAllProjectRequirements = async (req: Request, res: Response, next: NextFunction) => {
   try {
