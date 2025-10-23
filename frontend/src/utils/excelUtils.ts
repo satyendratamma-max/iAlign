@@ -138,6 +138,7 @@ export const importFromExcel = (
 export const generateProjectTemplate = () => {
   const template = [
     {
+      scenarioId: 1,
       projectNumber: 'DMND0000001',
       name: 'Sample Project',
       description: 'Project description',
@@ -188,6 +189,7 @@ export const generateProjectTemplate = () => {
       sponsorId: 1,
       rank: 0,
       sortOrder: 0,
+      isActive: true,
     },
   ];
   exportToExcel(template, 'project_template');
@@ -220,4 +222,91 @@ export const generateResourceTemplate = () => {
     },
   ];
   exportToExcel(template, 'resource_template');
+};
+
+export const generateResourceCapabilityTemplate = () => {
+  const template = [
+    {
+      resourceId: 1,
+      appId: 1,
+      technologyId: 1,
+      roleId: 1,
+      proficiencyLevel: 'Advanced',
+      yearsOfExperience: 5,
+      isPrimary: true,
+      isActive: true,
+    },
+  ];
+  exportToExcel(template, 'resource_capability_template');
+};
+
+export const generateProjectRequirementTemplate = () => {
+  const template = [
+    {
+      projectId: 1,
+      appId: 1,
+      technologyId: 1,
+      roleId: 1,
+      proficiencyLevel: 'Intermediate',
+      requiredCount: 2,
+      minYearsExp: 3,
+      isActive: true,
+    },
+  ];
+  exportToExcel(template, 'project_requirement_template');
+};
+
+export const generateResourceAllocationTemplate = () => {
+  const template = [
+    {
+      resourceId: 1,
+      projectId: 1,
+      scenarioId: 1,
+      resourceCapabilityId: 1,
+      projectRequirementId: 1,
+      allocationPercentage: 100,
+      allocationType: 'Shared',
+      startDate: '2025-01-01',
+      endDate: '2025-12-31',
+      isActive: true,
+    },
+  ];
+  exportToExcel(template, 'resource_allocation_template');
+};
+
+export const generateMilestoneTemplate = () => {
+  const template = [
+    {
+      scenarioId: 1,
+      projectId: 1,
+      ownerId: 1,
+      phase: 'Requirements',
+      name: 'Milestone Name',
+      description: 'Milestone description',
+      plannedStartDate: '2025-01-01',
+      plannedEndDate: '2025-03-31',
+      actualStartDate: '',
+      actualEndDate: '',
+      status: 'Not Started',
+      progress: 0,
+      dependencies: '',
+      deliverables: 'List of deliverables',
+      healthStatus: 'Green',
+      isActive: true,
+    },
+  ];
+  exportToExcel(template, 'milestone_template');
+};
+
+export const generateScenarioTemplate = () => {
+  const template = [
+    {
+      name: 'Scenario Name',
+      description: 'Scenario description',
+      status: 'planned',
+      createdBy: 1,
+      isActive: true,
+    },
+  ];
+  exportToExcel(template, 'scenario_template');
 };
