@@ -148,6 +148,8 @@ interface Project {
   id: number;
   name: string;
   businessDecision?: string;
+  startDate?: string;
+  endDate?: string;
   domain?: {
     id: number;
     name: string;
@@ -1628,6 +1630,8 @@ const ResourceOverview = () => {
                         projectId: newValue.id,
                         projectRequirementId: undefined,
                         resourceCapabilityId: undefined,
+                        startDate: newValue.startDate,
+                        endDate: newValue.endDate,
                       });
                       await loadProjectRequirements(newValue.id);
 
@@ -1638,6 +1642,8 @@ const ResourceOverview = () => {
                           projectId: newValue.id,
                           resourceCapabilityId: newValue.bestCapability!.id,
                           projectRequirementId: newValue.bestRequirement!.id,
+                          startDate: newValue.startDate,
+                          endDate: newValue.endDate,
                         }));
                       }
                     }
@@ -1689,10 +1695,13 @@ const ResourceOverview = () => {
                   value={currentAllocation.projectId || ''}
                   onChange={async (e) => {
                     const projectId = Number(e.target.value);
+                    const selectedProject = projects.find(p => p.id === projectId);
                     setCurrentAllocation({
                       ...currentAllocation,
                       projectId,
                       projectRequirementId: undefined,
+                      startDate: selectedProject?.startDate,
+                      endDate: selectedProject?.endDate,
                     });
                     await loadProjectRequirements(projectId);
                   }}

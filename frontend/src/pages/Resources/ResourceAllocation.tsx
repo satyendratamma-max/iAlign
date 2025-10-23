@@ -98,6 +98,8 @@ interface Project {
   id: number;
   name: string;
   status: string;
+  startDate?: string;
+  endDate?: string;
   domainId?: number;
   businessDecision?: string;
   domain?: {
@@ -427,7 +429,14 @@ const ResourceAllocation = () => {
   };
 
   const handleProjectChange = (projectId: number) => {
-    setCurrentAllocation({ ...currentAllocation, projectId, projectRequirementId: undefined });
+    const selectedProject = projects.find(p => p.id === projectId) || availableProjects.find(p => p.id === projectId);
+    setCurrentAllocation({
+      ...currentAllocation,
+      projectId,
+      projectRequirementId: undefined,
+      startDate: selectedProject?.startDate,
+      endDate: selectedProject?.endDate,
+    });
     setSelectedProjectRequirements([]); // Clear previous requirements
     loadProjectRequirements(projectId);
   };
@@ -1380,6 +1389,8 @@ const ResourceAllocation = () => {
                         projectId: newValue.id,
                         resourceCapabilityId: newValue.bestCapability!.id,
                         projectRequirementId: newValue.bestRequirement!.id,
+                        startDate: newValue.startDate,
+                        endDate: newValue.endDate,
                       }));
                     }
                   }
