@@ -54,6 +54,7 @@ interface Milestone {
   name: string;
   description?: string;
   status: string;
+  plannedStartDate?: string;
   plannedEndDate?: string;
   dueDate?: string;
   completedDate?: string;
@@ -506,7 +507,7 @@ const MilestonesOverview = () => {
               <TableCell sx={{ minWidth: 140 }}>Business Decision</TableCell>
               <TableCell sx={{ minWidth: 120 }}>Status</TableCell>
               <TableCell sx={{ minWidth: 100 }}>Progress</TableCell>
-              <TableCell sx={{ minWidth: 110 }}>Due Date</TableCell>
+              <TableCell sx={{ minWidth: 130 }}>Planned End Date</TableCell>
               <TableCell sx={{ minWidth: 130 }}>Owner</TableCell>
             </TableRow>
             <TableRow>
@@ -822,7 +823,27 @@ const MilestonesOverview = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Due Date"
+                label="Planned Start Date"
+                type="date"
+                value={
+                  currentMilestone.plannedStartDate
+                    ? new Date(currentMilestone.plannedStartDate).toISOString().split('T')[0]
+                    : ''
+                }
+                onChange={(e) =>
+                  setCurrentMilestone({
+                    ...currentMilestone,
+                    plannedStartDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+                  })
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Planned End Date"
                 type="date"
                 value={
                   currentMilestone.plannedEndDate
