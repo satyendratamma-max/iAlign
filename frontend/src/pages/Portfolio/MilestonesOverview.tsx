@@ -513,55 +513,59 @@ const MilestonesOverview = () => {
             <TableRow>
               <TableCell></TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
-                  value={filters.project}
-                  onChange={(e) => setFilters({ ...filters, project: e.target.value })}
+                  options={['', ...projects.map(p => p.name)]}
+                  value={filters.project || ''}
+                  onChange={(_, newValue) => setFilters({ ...filters, project: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="All Projects"
+                      size="small"
+                    />
+                  )}
+                  getOptionLabel={(option) => option === '' ? 'All Projects' : option}
                   fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {projects.map((project) => (
-                    <MenuItem key={project.id} value={project.name}>
-                      {project.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
-                  value={filters.domainId}
-                  onChange={(e) => setFilters({ ...filters, domainId: e.target.value })}
+                  options={['', ...domains.map(d => d.id.toString())]}
+                  value={filters.domainId || ''}
+                  onChange={(_, newValue) => setFilters({ ...filters, domainId: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="All Domains"
+                      size="small"
+                    />
+                  )}
+                  getOptionLabel={(option) => {
+                    if (option === '') return 'All Domains';
+                    const domain = domains.find(d => d.id.toString() === option);
+                    return domain?.name || option;
+                  }}
                   fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {domains.map((domain) => (
-                    <MenuItem key={domain.id} value={domain.id.toString()}>
-                      {domain.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
-                  value={filters.businessDecision}
-                  onChange={(e) => setFilters({ ...filters, businessDecision: e.target.value })}
+                  options={['', ...Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))) as string[]]}
+                  value={filters.businessDecision || ''}
+                  onChange={(_, newValue) => setFilters({ ...filters, businessDecision: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="All Decisions"
+                      size="small"
+                    />
+                  )}
+                  getOptionLabel={(option) => option === '' ? 'All Decisions' : option}
                   fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                    <MenuItem key={decision} value={decision!}>
-                      {decision}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell>
                 <TextField
