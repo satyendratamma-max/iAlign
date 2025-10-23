@@ -31,6 +31,7 @@ import {
   Delete as DeleteIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
@@ -144,7 +145,37 @@ interface NewCapability {
 
 interface Project {
   id: number;
+  name: string;
   businessDecision?: string;
+  domain?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface Allocation {
+  id: number;
+  resourceId: number;
+  projectId: number;
+  resourceCapabilityId?: number;
+  projectRequirementId?: number;
+  allocationPercentage: number;
+  allocationType: string;
+  startDate?: string;
+  endDate?: string;
+  matchScore?: number;
+  project?: Project;
+  resourceCapability?: Capability;
+  projectRequirement?: {
+    id: number;
+    appId: number;
+    technologyId: number;
+    roleId: number;
+    proficiencyLevel: string;
+    app: { id: number; name: string; code: string };
+    technology: { id: number; name: string; code: string };
+    role: { id: number; name: string; code: string };
+  };
 }
 
 const ResourceOverview = () => {
@@ -164,6 +195,13 @@ const ResourceOverview = () => {
   const [currentCapabilities, setCurrentCapabilities] = useState<Capability[]>([]);
   const [newCapabilities, setNewCapabilities] = useState<NewCapability[]>([]);
   const [capabilitiesToDelete, setCapabilitiesToDelete] = useState<number[]>([]);
+  const [openAllocationsDialog, setOpenAllocationsDialog] = useState(false);
+  const [selectedResourceForAllocations, setSelectedResourceForAllocations] = useState<Resource | null>(null);
+  const [resourceAllocations, setResourceAllocations] = useState<Allocation[]>([]);
+  const [openAllocationEditDialog, setOpenAllocationEditDialog] = useState(false);
+  const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({});
+  const [allocationEditMode, setAllocationEditMode] = useState(false);
+  const [projectRequirements, setProjectRequirements] = useState<any[]>([]);
   const [filters, setFilters] = useState({
     employeeId: '',
     name: '',
@@ -328,6 +366,116 @@ const ResourceOverview = () => {
     } catch (error) {
       console.error('Error saving resource:', error);
       alert('Error saving resource. Please check the console for details.');
+    }
+  };
+
+  // Allocation Management Functions
+  const handleOpenAllocationsDialog = async (resource: Resource) => {
+    setSelectedResourceForAllocations(resource);
+    setOpenAllocationsDialog(true);
+    await fetchResourceAllocations(resource.id);
+  };
+
+  const handleCloseAllocationsDialog = () => {
+    setOpenAllocationsDialog(false);
+    setSelectedResourceForAllocations(null);
+    setResourceAllocations([]);
+  };
+
+  const fetchResourceAllocations = async (resourceId: number) => {
+    if (!activeScenario?.id) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
+
+      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, config);
+      const allAllocations = response.data.data || [];
+
+      // Filter allocations for this specific resource
+      const filtered = allAllocations.filter((alloc: Allocation) => alloc.resourceId === resourceId);
+      setResourceAllocations(filtered);
+    } catch (error) {
+      console.error('Error fetching resource allocations:', error);
+    }
+  };
+
+  const handleOpenAllocationEditDialog = async (allocation?: Allocation) => {
+    if (allocation) {
+      setAllocationEditMode(true);
+      setCurrentAllocation(allocation);
+
+      // Load project requirements for the allocated project
+      if (allocation.projectId) {
+        await loadProjectRequirements(allocation.projectId);
+      }
+    } else {
+      setAllocationEditMode(false);
+      setCurrentAllocation({
+        resourceId: selectedResourceForAllocations?.id,
+        allocationPercentage: 50,
+        allocationType: 'Shared',
+      });
+      setProjectRequirements([]);
+    }
+    setOpenAllocationEditDialog(true);
+  };
+
+  const handleCloseAllocationEditDialog = () => {
+    setOpenAllocationEditDialog(false);
+    setCurrentAllocation({});
+    setProjectRequirements([]);
+    setAllocationEditMode(false);
+  };
+
+  const loadProjectRequirements = async (projectId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_URL}/project-requirements/project/${projectId}`, config);
+      setProjectRequirements(res.data.data || []);
+    } catch (err) {
+      console.error('Error loading project requirements:', err);
+    }
+  };
+
+  const handleSaveAllocation = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const allocationData = {
+        ...currentAllocation,
+        scenarioId: activeScenario?.id,
+      };
+
+      if (allocationEditMode && currentAllocation.id) {
+        await axios.put(`${API_URL}/allocations/${currentAllocation.id}`, allocationData, config);
+      } else {
+        await axios.post(`${API_URL}/allocations`, allocationData, config);
+      }
+
+      await fetchResourceAllocations(selectedResourceForAllocations!.id);
+      handleCloseAllocationEditDialog();
+    } catch (error) {
+      console.error('Error saving allocation:', error);
+      alert('Error saving allocation. Please check the console for details.');
+    }
+  };
+
+  const handleDeleteAllocation = async (allocationId: number) => {
+    if (!confirm('Are you sure you want to delete this allocation?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/allocations/${allocationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchResourceAllocations(selectedResourceForAllocations!.id);
+    } catch (error) {
+      console.error('Error deleting allocation:', error);
+      alert('Error deleting allocation. Please check the console for details.');
     }
   };
 
@@ -548,13 +696,23 @@ const ResourceOverview = () => {
               .map((resource) => (
               <TableRow key={resource.id}>
                 <TableCell align="right">
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(resource)}
-                  >
-                    Edit
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={() => handleOpenDialog(resource)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="small"
+                      startIcon={<AssignmentIcon />}
+                      onClick={() => handleOpenAllocationsDialog(resource)}
+                      color="primary"
+                    >
+                      Allocations
+                    </Button>
+                  </Box>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">
@@ -1124,6 +1282,318 @@ const ResourceOverview = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button onClick={handleSave} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Allocations Management Dialog */}
+      <Dialog
+        open={openAllocationsDialog}
+        onClose={handleCloseAllocationsDialog}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          Manage Allocations - {selectedResourceForAllocations?.firstName} {selectedResourceForAllocations?.lastName}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenAllocationEditDialog()}
+              size="small"
+            >
+              Add Allocation
+            </Button>
+          </Box>
+
+          {resourceAllocations.length === 0 ? (
+            <Paper
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                backgroundColor: (theme) =>
+                  theme.palette.mode === 'light'
+                    ? theme.palette.grey[50]
+                    : theme.palette.grey[900],
+                border: (theme) => `1px dashed ${theme.palette.divider}`,
+              }}
+            >
+              <Typography color="text.secondary">
+                No allocations found for this resource. Click "Add Allocation" to assign to a project.
+              </Typography>
+            </Paper>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Project</TableCell>
+                    <TableCell>Capability</TableCell>
+                    <TableCell>Requirement</TableCell>
+                    <TableCell>Match Score</TableCell>
+                    <TableCell>Allocation %</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Timeline</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {resourceAllocations.map((allocation) => (
+                    <TableRow key={allocation.id}>
+                      <TableCell>
+                        <Typography variant="body2">{allocation.project?.name}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        {allocation.resourceCapability ? (
+                          <Chip
+                            label={`${allocation.resourceCapability.app.code}/${allocation.resourceCapability.technology.code}/${allocation.resourceCapability.role.code}`}
+                            size="small"
+                            color={allocation.resourceCapability.isPrimary ? 'primary' : 'default'}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {allocation.projectRequirement ? (
+                          <Chip
+                            label={`${allocation.projectRequirement.app.code}/${allocation.projectRequirement.technology.code}/${allocation.projectRequirement.role.code}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {allocation.matchScore ? (
+                          <Chip
+                            label={`${allocation.matchScore}%`}
+                            size="small"
+                            color={
+                              allocation.matchScore >= 80
+                                ? 'success'
+                                : allocation.matchScore >= 60
+                                ? 'primary'
+                                : allocation.matchScore >= 40
+                                ? 'warning'
+                                : 'error'
+                            }
+                          />
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={`${allocation.allocationPercentage}%`} size="small" />
+                      </TableCell>
+                      <TableCell>{allocation.allocationType}</TableCell>
+                      <TableCell>
+                        {allocation.startDate && allocation.endDate ? (
+                          <Typography variant="caption">
+                            {new Date(allocation.startDate).toLocaleDateString()} -{' '}
+                            {new Date(allocation.endDate).toLocaleDateString()}
+                          </Typography>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                          <Button
+                            size="small"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleOpenAllocationEditDialog(allocation)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDeleteAllocation(allocation.id)}
+                            color="error"
+                          >
+                            Delete
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAllocationsDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Allocation Dialog */}
+      <Dialog
+        open={openAllocationEditDialog}
+        onClose={handleCloseAllocationEditDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>{allocationEditMode ? 'Edit Allocation' : 'Add Allocation'}</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Project"
+                required
+                value={currentAllocation.projectId || ''}
+                onChange={async (e) => {
+                  const projectId = Number(e.target.value);
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    projectId,
+                    projectRequirementId: undefined,
+                  });
+                  await loadProjectRequirements(projectId);
+                }}
+              >
+                <MenuItem value="">Select Project</MenuItem>
+                {projects.map((project) => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Resource Capability"
+                value={currentAllocation.resourceCapabilityId || ''}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    resourceCapabilityId: Number(e.target.value) || undefined,
+                  })
+                }
+              >
+                <MenuItem value="">None</MenuItem>
+                {(selectedResourceForAllocations?.capabilities || []).map((cap) => (
+                  <MenuItem key={cap.id} value={cap.id}>
+                    {cap.app.code}/{cap.technology.code}/{cap.role.code} ({cap.proficiencyLevel})
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Project Requirement"
+                value={currentAllocation.projectRequirementId || ''}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    projectRequirementId: Number(e.target.value) || undefined,
+                  })
+                }
+                disabled={!currentAllocation.projectId}
+              >
+                <MenuItem value="">None</MenuItem>
+                {projectRequirements.map((req: any) => (
+                  <MenuItem key={req.id} value={req.id}>
+                    {req.app.code}/{req.technology.code}/{req.role.code} ({req.proficiencyLevel})
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Allocation %"
+                required
+                value={currentAllocation.allocationPercentage || 50}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    allocationPercentage: parseInt(e.target.value),
+                  })
+                }
+                inputProps={{ min: 1, max: 100 }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Allocation Type"
+                required
+                value={currentAllocation.allocationType || 'Shared'}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    allocationType: e.target.value,
+                  })
+                }
+              >
+                <MenuItem value="Shared">Shared</MenuItem>
+                <MenuItem value="Dedicated">Dedicated</MenuItem>
+                <MenuItem value="On-Demand">On-Demand</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Start Date"
+                value={currentAllocation.startDate?.split('T')[0] || ''}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    startDate: e.target.value,
+                  })
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="End Date"
+                value={currentAllocation.endDate?.split('T')[0] || ''}
+                onChange={(e) =>
+                  setCurrentAllocation({
+                    ...currentAllocation,
+                    endDate: e.target.value,
+                  })
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAllocationEditDialog}>Cancel</Button>
+          <Button
+            onClick={handleSaveAllocation}
+            variant="contained"
+            disabled={!currentAllocation.projectId}
+          >
             Save
           </Button>
         </DialogActions>
