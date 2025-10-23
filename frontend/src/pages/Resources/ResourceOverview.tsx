@@ -20,6 +20,7 @@ import {
   Grid,
   MenuItem,
   Divider,
+  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -502,21 +503,21 @@ const ResourceOverview = () => {
               </TableCell>
               <TableCell />
               <TableCell>
-                <TextField
+                <Autocomplete
                   size="small"
-                  select
-                  placeholder="All"
-                  value={filters.segmentFunction}
-                  onChange={(e) => setFilters({ ...filters, segmentFunction: e.target.value })}
+                  options={['', ...segmentFunctions.map(sf => sf.name)]}
+                  value={filters.segmentFunction || ''}
+                  onChange={(_, newValue) => setFilters({ ...filters, segmentFunction: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="All Segment Functions"
+                      size="small"
+                    />
+                  )}
+                  getOptionLabel={(option) => option === '' ? 'All Segment Functions' : option}
                   fullWidth
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {segmentFunctions.map((segmentFunction) => (
-                    <MenuItem key={segmentFunction.id} value={segmentFunction.name}>
-                      {segmentFunction.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </TableCell>
               <TableCell />
               <TableCell>

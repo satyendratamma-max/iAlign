@@ -839,97 +839,104 @@ const ResourceAllocation = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      select
+                    <Autocomplete
                       size="small"
-                      placeholder="All"
-                      value={filters.domainId}
-                      onChange={(e) => setFilters({ ...filters, domainId: e.target.value })}
+                      options={['', ...domains.map(d => d.id.toString())]}
+                      value={filters.domainId || ''}
+                      onChange={(_, newValue) => setFilters({ ...filters, domainId: newValue || '' })}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="All Domains"
+                          size="small"
+                        />
+                      )}
+                      getOptionLabel={(option) => {
+                        if (option === '') return 'All Domains';
+                        const domain = domains.find(d => d.id.toString() === option);
+                        return domain?.name || option;
+                      }}
                       fullWidth
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      {domains.map((domain) => (
-                        <MenuItem key={domain.id} value={domain.id.toString()}>
-                          {domain.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                    />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      select
+                    <Autocomplete
                       size="small"
-                      placeholder="All"
+                      multiple
+                      options={projects.map(p => p.name)}
                       value={filters.project}
-                      onChange={(e) => setFilters({ ...filters, project: e.target.value as unknown as string[] })}
-                      SelectProps={{
-                        multiple: true,
-                        renderValue: (selected) =>
-                          (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
+                      onChange={(_, newValue) => setFilters({ ...filters, project: newValue })}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={filters.project.length > 0 ? `${filters.project.length} selected` : 'All Projects'}
+                          size="small"
+                        />
+                      )}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell />
+                  <TableCell>
+                    <Autocomplete
+                      size="small"
+                      options={['', ...Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))) as string[]]}
+                      value={filters.businessDecision || ''}
+                      onChange={(_, newValue) => setFilters({ ...filters, businessDecision: newValue || '' })}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="All Decisions"
+                          size="small"
+                        />
+                      )}
+                      getOptionLabel={(option) => option === '' ? 'All Decisions' : option}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell>
+                    <Autocomplete
+                      size="small"
+                      options={['', 'excellent', 'good', 'fair', 'poor']}
+                      value={filters.matchScore || ''}
+                      onChange={(_, newValue) => setFilters({ ...filters, matchScore: newValue || '' })}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="All Match Scores"
+                          size="small"
+                        />
+                      )}
+                      getOptionLabel={(option) => {
+                        if (option === '') return 'All Match Scores';
+                        if (option === 'excellent') return 'Excellent (80+)';
+                        if (option === 'good') return 'Good (60-79)';
+                        if (option === 'fair') return 'Fair (40-59)';
+                        if (option === 'poor') return 'Poor (<40)';
+                        return option;
                       }}
                       fullWidth
-                    >
-                      {projects.map((project) => (
-                        <MenuItem key={project.id} value={project.name}>
-                          {project.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                    />
                   </TableCell>
                   <TableCell />
                   <TableCell>
-                    <TextField
-                      select
+                    <Autocomplete
                       size="small"
-                      placeholder="All"
-                      value={filters.businessDecision}
-                      onChange={(e) => setFilters({ ...filters, businessDecision: e.target.value })}
-                      fullWidth
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      {Array.from(new Set(projects.map(p => p.businessDecision).filter(Boolean))).map((decision) => (
-                        <MenuItem key={decision} value={decision!}>
-                          {decision}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </TableCell>
-                  <TableCell />
-                  <TableCell />
-                  <TableCell>
-                    <TextField
-                      select
-                      size="small"
-                      value={filters.matchScore}
-                      onChange={(e) => setFilters({ ...filters, matchScore: e.target.value })}
-                      fullWidth
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      <MenuItem value="excellent">Excellent (80+)</MenuItem>
-                      <MenuItem value="good">Good (60-79)</MenuItem>
-                      <MenuItem value="fair">Fair (40-59)</MenuItem>
-                      <MenuItem value="poor">Poor (&lt;40)</MenuItem>
-                    </TextField>
-                  </TableCell>
-                  <TableCell />
-                  <TableCell>
-                    <TextField
-                      select
-                      size="small"
-                      placeholder="All"
+                      multiple
+                      options={['Shared', 'Dedicated', 'On-Demand']}
                       value={filters.allocationType}
-                      onChange={(e) => setFilters({ ...filters, allocationType: e.target.value as unknown as string[] })}
-                      SelectProps={{
-                        multiple: true,
-                        renderValue: (selected) =>
-                          (selected as string[]).length > 0 ? `${(selected as string[]).length} selected` : 'All'
-                      }}
+                      onChange={(_, newValue) => setFilters({ ...filters, allocationType: newValue })}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={filters.allocationType.length > 0 ? `${filters.allocationType.length} selected` : 'All Types'}
+                          size="small"
+                        />
+                      )}
                       fullWidth
-                    >
-                      <MenuItem value="Shared">Shared</MenuItem>
-                      <MenuItem value="Dedicated">Dedicated</MenuItem>
-                      <MenuItem value="On-Demand">On-Demand</MenuItem>
-                    </TextField>
+                    />
                   </TableCell>
                   <TableCell />
                   <TableCell />
