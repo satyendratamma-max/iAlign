@@ -4,8 +4,10 @@ import Project from '../models/Project';
 import App from '../models/App';
 import Technology from '../models/Technology';
 import Role from '../models/Role';
+import ResourceAllocation from '../models/ResourceAllocation';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
+import { Sequelize } from 'sequelize';
 
 export const getAllProjectRequirements = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -47,9 +49,33 @@ export const getAllProjectRequirements = async (req: Request, res: Response, nex
       ],
     });
 
+    // Calculate fulfilled count dynamically based on allocations
+    const requirementsWithFulfillment = await Promise.all(
+      requirements.map(async (req) => {
+        const reqData = req.toJSON();
+
+        // Count distinct resources allocated to this requirement
+        const allocatedResources = await ResourceAllocation.count({
+          where: {
+            projectId: req.projectId,
+            projectRequirementId: req.id,
+            isActive: true,
+          },
+          distinct: true,
+          col: 'resourceId',
+        });
+
+        // Update the fulfilled count and status
+        reqData.fulfilledCount = allocatedResources;
+        reqData.isFulfilled = allocatedResources >= req.requiredCount;
+
+        return reqData;
+      })
+    );
+
     res.json({
       success: true,
-      data: requirements,
+      data: requirementsWithFulfillment,
     });
   } catch (error) {
     next(error);
@@ -267,9 +293,34 @@ export const getProjectRequirementsByProjectId = async (req: Request, res: Respo
       ],
     });
 
+    // Calculate fulfilled count dynamically based on allocations
+    // Count unique resources allocated to each requirement
+    const requirementsWithFulfillment = await Promise.all(
+      requirements.map(async (req) => {
+        const reqData = req.toJSON();
+
+        // Count distinct resources allocated to this requirement
+        const allocatedResources = await ResourceAllocation.count({
+          where: {
+            projectId: parseInt(projectId),
+            projectRequirementId: req.id,
+            isActive: true,
+          },
+          distinct: true,
+          col: 'resourceId',
+        });
+
+        // Update the fulfilled count and status
+        reqData.fulfilledCount = allocatedResources;
+        reqData.isFulfilled = allocatedResources >= req.requiredCount;
+
+        return reqData;
+      })
+    );
+
     res.json({
       success: true,
-      data: requirements,
+      data: requirementsWithFulfillment,
     });
   } catch (error) {
     next(error);
