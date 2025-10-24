@@ -196,7 +196,8 @@ const QuickAllocationDialog = ({
   useEffect(() => {
     if (open && project) {
       const initializeDialog = async () => {
-        await loadProjectRequirements();
+        // Load requirements first
+        const loadedRequirements = await loadProjectRequirements();
 
         // If editing, pre-populate form with allocation data
         if (isEditMode && allocation) {
@@ -215,11 +216,12 @@ const QuickAllocationDialog = ({
           setUseProjectDuration(usesProjectDuration);
 
           // Load matching resources for the selected requirement in edit mode
-          if (allocation.projectRequirementId) {
-            // Wait for requirements to be loaded, then load matching resources
-            setTimeout(() => {
-              loadMatchingResourcesForEdit(allocation.projectRequirementId!);
-            }, 100);
+          if (allocation.projectRequirementId && loadedRequirements) {
+            // Find the requirement from the loaded data
+            const selectedRequirement = loadedRequirements.find(r => r.id === allocation.projectRequirementId);
+            if (selectedRequirement) {
+              await loadMatchingResourcesForEdit(selectedRequirement);
+            }
           }
         } else {
           // Set default dates from project for new allocation
@@ -237,8 +239,8 @@ const QuickAllocationDialog = ({
     }
   }, [open, resource, project, allocation]);
 
-  const loadProjectRequirements = async () => {
-    if (!project) return;
+  const loadProjectRequirements = async (): Promise<Requirement[] | undefined> => {
+    if (!project) return undefined;
 
     try {
       setLoading(true);
@@ -246,9 +248,12 @@ const QuickAllocationDialog = ({
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       const reqRes = await axios.get(`${API_URL}/project-requirements/project/${project.id}`, config);
-      setRequirements(reqRes.data.data || []);
+      const loadedRequirements = reqRes.data.data || [];
+      setRequirements(loadedRequirements);
+      return loadedRequirements;
     } catch (error) {
       console.error('Error loading requirements:', error);
+      return undefined;
     } finally {
       setLoading(false);
     }
@@ -315,17 +320,8 @@ const QuickAllocationDialog = ({
   };
 
   // Similar to loadMatchingResources but for edit mode - doesn't clear selections
-  const loadMatchingResourcesForEdit = async (requirementId: number) => {
+  const loadMatchingResourcesForEdit = async (selectedRequirement: Requirement) => {
     if (!project) return;
-
-    // Need to wait for requirements to be populated
-    let selectedRequirement = requirements.find(r => r.id === requirementId);
-
-    // If requirements aren't loaded yet, we can't proceed
-    if (!selectedRequirement) {
-      console.error('Requirement not found for edit mode');
-      return;
-    }
 
     try {
       setLoading(true);
