@@ -603,9 +603,20 @@ const ResourceOverview = () => {
 
       await fetchResourceAllocations(selectedResourceForAllocations!.id);
       handleCloseAllocationEditDialog();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving allocation:', error);
-      alert('Error saving allocation. Please check the console for details.');
+      console.error('Error response:', error.response?.data);
+
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+
+      // Check for unique constraint violation
+      if (errorMessage.toLowerCase().includes('unique') ||
+          errorMessage.toLowerCase().includes('validation') ||
+          error.response?.data?.error?.toLowerCase().includes('unique')) {
+        alert('This resource is already allocated to this project in the current scenario.\n\nEach resource can only have ONE allocation per project per scenario.\n\nPlease edit the existing allocation or choose a different project.');
+      } else {
+        alert(`Error saving allocation: ${errorMessage}`);
+      }
     }
   };
 
