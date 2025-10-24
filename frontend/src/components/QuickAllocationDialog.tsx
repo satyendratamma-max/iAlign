@@ -195,32 +195,45 @@ const QuickAllocationDialog = ({
 
   useEffect(() => {
     if (open && project) {
-      loadProjectRequirements();
+      const initializeDialog = async () => {
+        await loadProjectRequirements();
 
-      // If editing, pre-populate form with allocation data
-      if (isEditMode && allocation) {
-        setAllocationPercentage(allocation.allocationPercentage);
-        setAllocationType(allocation.allocationType);
-        setStartDate(allocation.startDate?.split('T')[0] || '');
-        setEndDate(allocation.endDate?.split('T')[0] || '');
-        setSelectedCapabilityId(allocation.resourceCapabilityId);
-        setSelectedRequirementId(allocation.projectRequirementId);
+        // If editing, pre-populate form with allocation data
+        if (isEditMode && allocation) {
+          setAllocationPercentage(allocation.allocationPercentage);
+          setAllocationType(allocation.allocationType);
+          setStartDate(allocation.startDate?.split('T')[0] || '');
+          setEndDate(allocation.endDate?.split('T')[0] || '');
+          setSelectedCapabilityId(allocation.resourceCapabilityId);
+          setSelectedRequirementId(allocation.projectRequirementId);
+          setSelectedResourceId(resource?.id);
 
-        // Check if using project duration
-        const usesProjectDuration =
-          allocation.startDate === project.startDate &&
-          allocation.endDate === project.endDate;
-        setUseProjectDuration(usesProjectDuration);
-      } else {
-        // Set default dates from project for new allocation
-        if (project.startDate && project.endDate) {
-          setStartDate(project.startDate.split('T')[0]);
-          setEndDate(project.endDate.split('T')[0]);
-          setUseProjectDuration(true);
+          // Check if using project duration
+          const usesProjectDuration =
+            allocation.startDate === project.startDate &&
+            allocation.endDate === project.endDate;
+          setUseProjectDuration(usesProjectDuration);
+
+          // Load matching resources for the selected requirement in edit mode
+          if (allocation.projectRequirementId) {
+            // Wait for requirements to be loaded, then load matching resources
+            setTimeout(() => {
+              loadMatchingResourcesForEdit(allocation.projectRequirementId!);
+            }, 100);
+          }
         } else {
-          setUseProjectDuration(false);
+          // Set default dates from project for new allocation
+          if (project.startDate && project.endDate) {
+            setStartDate(project.startDate.split('T')[0]);
+            setEndDate(project.endDate.split('T')[0]);
+            setUseProjectDuration(true);
+          } else {
+            setUseProjectDuration(false);
+          }
         }
-      }
+      };
+
+      initializeDialog();
     }
   }, [open, resource, project, allocation]);
 
@@ -296,6 +309,73 @@ const QuickAllocationDialog = ({
       setAvailableResources(resourcesWithScores);
     } catch (error) {
       console.error('Error loading resources:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Similar to loadMatchingResources but for edit mode - doesn't clear selections
+  const loadMatchingResourcesForEdit = async (requirementId: number) => {
+    if (!project) return;
+
+    // Need to wait for requirements to be populated
+    let selectedRequirement = requirements.find(r => r.id === requirementId);
+
+    // If requirements aren't loaded yet, we can't proceed
+    if (!selectedRequirement) {
+      console.error('Requirement not found for edit mode');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Load all resources
+      const resourcesRes = await axios.get(`${API_URL}/resources`, config);
+      const resources = resourcesRes.data.data || [];
+
+      // Load capabilities for each resource
+      const resourcesWithCapabilities = await Promise.all(
+        resources.map(async (res: Resource) => {
+          try {
+            const capRes = await axios.get(`${API_URL}/resource-capabilities?resourceId=${res.id}`, config);
+            return { ...res, capabilities: capRes.data.data || [] };
+          } catch (error) {
+            return { ...res, capabilities: [] };
+          }
+        })
+      );
+
+      // Calculate match scores for the selected requirement
+      const resourcesWithScores: ResourceWithScore[] = resourcesWithCapabilities.map((res) => {
+        let bestScore = 0;
+        let bestCapability: Capability | undefined;
+
+        if (res.capabilities && res.capabilities.length > 0) {
+          res.capabilities.forEach((cap: Capability) => {
+            const score = calculateMatchScore(cap, selectedRequirement);
+            if (score > bestScore) {
+              bestScore = score;
+              bestCapability = cap;
+            }
+          });
+        }
+
+        return {
+          ...res,
+          matchScore: bestScore,
+          bestCapability,
+        };
+      });
+
+      // Sort by match score (highest first)
+      resourcesWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+      setAvailableResources(resourcesWithScores);
+    } catch (error) {
+      console.error('Error loading resources for edit mode:', error);
     } finally {
       setLoading(false);
     }
@@ -436,14 +516,15 @@ const QuickAllocationDialog = ({
               }
               value={selectedRequirement || null}
               onChange={(_, newValue) => handleRequirementChange(newValue?.id)}
-              disabled={loading}
+              disabled={loading || isEditMode}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="1. Select Project Requirement *"
-                  placeholder="Choose the skill needed..."
+                  label={isEditMode ? "Project Requirement" : "1. Select Project Requirement *"}
+                  placeholder={isEditMode ? "" : "Choose the skill needed..."}
                   required
                   helperText={
+                    isEditMode ? '' :
                     selectedRequirement
                       ? `Need ${selectedRequirement.requiredCount} resource(s) - ${selectedRequirement.fulfilledCount} fulfilled`
                       : 'Select a requirement first'
@@ -474,47 +555,51 @@ const QuickAllocationDialog = ({
             />
           </Grid>
 
-          {/* Step 2: Match Score Filter (only show when requirement is selected) */}
-          {selectedRequirementId && availableResources.length > 0 && (
+          {/* Step 2: Match Score Filter (only show when requirement is selected, or always in edit mode) */}
+          {(selectedRequirementId && availableResources.length > 0) || (isEditMode && selectedRequirementId) ? (
             <>
-              <Grid item xs={12}>
-                <Typography variant="body2" gutterBottom>
-                  2. Filter by Minimum Match Score: {minMatchScore}%
-                </Typography>
-                <Slider
-                  value={minMatchScore}
-                  onChange={(_, value) => setMinMatchScore(value as number)}
-                  min={0}
-                  max={100}
-                  step={10}
-                  marks={[
-                    { value: 0, label: '0%' },
-                    { value: 50, label: '50%' },
-                    { value: 80, label: '80%' },
-                    { value: 100, label: '100%' },
-                  ]}
-                  valueLabelDisplay="auto"
-                />
-              </Grid>
+              {!isEditMode && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" gutterBottom>
+                    2. Filter by Minimum Match Score: {minMatchScore}%
+                  </Typography>
+                  <Slider
+                    value={minMatchScore}
+                    onChange={(_, value) => setMinMatchScore(value as number)}
+                    min={0}
+                    max={100}
+                    step={10}
+                    marks={[
+                      { value: 0, label: '0%' },
+                      { value: 50, label: '50%' },
+                      { value: 80, label: '80%' },
+                      { value: 100, label: '100%' },
+                    ]}
+                    valueLabelDisplay="auto"
+                  />
+                </Grid>
+              )}
 
               {/* Step 3: Select Matching Resource */}
               <Grid item xs={12}>
                 <Autocomplete
                   fullWidth
-                  options={availableResources.filter(r => r.matchScore >= minMatchScore)}
+                  options={availableResources.filter(r => isEditMode || r.matchScore >= minMatchScore)}
                   getOptionLabel={(option) =>
-                    `${option.firstName} ${option.lastName} (${option.employeeId}) - ${option.matchScore}%`
+                    `${option.firstName} ${option.lastName} (${option.employeeId})${!isEditMode ? ` - ${option.matchScore}%` : ''}`
                   }
                   value={availableResources.find(r => r.id === selectedResourceId) || null}
                   onChange={(_, newValue) => handleResourceChange(newValue?.id, newValue?.bestCapability?.id)}
                   loading={loading}
+                  disabled={isEditMode}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="3. Select Resource *"
-                      placeholder="Choose from matching resources..."
+                      label={isEditMode ? "Resource" : "3. Select Resource *"}
+                      placeholder={isEditMode ? "" : "Choose from matching resources..."}
                       required
                       helperText={
+                        isEditMode ? '' :
                         availableResources.filter(r => r.matchScore >= minMatchScore).length === 0
                           ? 'No resources match the current filter - try lowering the match score'
                           : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching resource(s) available`
@@ -539,11 +624,13 @@ const QuickAllocationDialog = ({
                                 {option.employeeId}
                               </Typography>
                             </Box>
-                            <Chip
-                              label={`${option.matchScore}%`}
-                              color={matchColor as any}
-                              size="small"
-                            />
+                            {!isEditMode && (
+                              <Chip
+                                label={`${option.matchScore}%`}
+                                color={matchColor as any}
+                                size="small"
+                              />
+                            )}
                           </Box>
                           {option.bestCapability && (
                             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
@@ -555,11 +642,11 @@ const QuickAllocationDialog = ({
                     );
                   }}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
-                  noOptionsText={minMatchScore > 0 ? "No resources match the minimum score" : "No resources available"}
+                  noOptionsText={minMatchScore > 0 && !isEditMode ? "No resources match the minimum score" : "No resources available"}
                 />
               </Grid>
             </>
-          )}
+          ) : null}
 
           {/* Match Score Indicator */}
           {selectedCapabilityId && selectedRequirementId && (
@@ -568,8 +655,8 @@ const QuickAllocationDialog = ({
             </Grid>
           )}
 
-          {/* Allocation Details (only show when resource is selected) */}
-          {selectedResourceId && (
+          {/* Allocation Details (only show when resource is selected, or always in edit mode) */}
+          {(selectedResourceId || isEditMode) && (
             <>
               {/* Allocation Percentage */}
               <Grid item xs={12}>
