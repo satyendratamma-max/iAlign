@@ -494,6 +494,15 @@ export const createAllocation = async (req: Request, res: Response) => {
       message: 'Allocation created successfully',
     });
   } catch (error: any) {
+    // Check for unique constraint violation
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate allocation detected',
+        error: 'This resource is already allocated to this project in the current scenario. Each resource can only have one allocation per project per scenario.',
+      });
+    }
+
     return res.status(400).json({
       success: false,
       message: 'Error creating allocation',
