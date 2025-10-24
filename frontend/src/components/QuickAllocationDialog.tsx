@@ -573,23 +573,39 @@ const QuickAllocationDialog = ({
             <>
               {/* Allocation Percentage */}
               <Grid item xs={12}>
-                <Typography gutterBottom>
-                  Allocation Percentage: {allocationPercentage}%
-                </Typography>
-                <Slider
-                  value={allocationPercentage}
-                  onChange={(_, value) => setAllocationPercentage(value as number)}
-                  min={1}
-                  max={100}
-                  step={5}
-                  marks={[
-                    { value: 25, label: '25%' },
-                    { value: 50, label: '50%' },
-                    { value: 75, label: '75%' },
-                    { value: 100, label: '100%' },
-                  ]}
-                  valueLabelDisplay="auto"
-                />
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" gutterBottom>
+                      Allocation Percentage
+                    </Typography>
+                    <Slider
+                      value={allocationPercentage}
+                      onChange={(_, value) => setAllocationPercentage(value as number)}
+                      min={1}
+                      max={100}
+                      step={5}
+                      marks={[
+                        { value: 25, label: '25%' },
+                        { value: 50, label: '50%' },
+                        { value: 75, label: '75%' },
+                        { value: 100, label: '100%' },
+                      ]}
+                      valueLabelDisplay="auto"
+                    />
+                  </Box>
+                  <TextField
+                    type="number"
+                    label="Percentage"
+                    value={allocationPercentage}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      setAllocationPercentage(Math.max(1, Math.min(100, value)));
+                    }}
+                    inputProps={{ min: 1, max: 100 }}
+                    sx={{ width: 100 }}
+                    size="small"
+                  />
+                </Box>
               </Grid>
 
               {/* Allocation Type */}
