@@ -159,13 +159,12 @@ ResourceAllocation.init(
         (allocation as any).modifiedDate = new Date();
       },
     },
-    indexes: [
-      {
-        unique: true,
-        fields: ['scenarioId', 'projectId', 'resourceId'],
-        name: 'unique_scenario_project_resource',
-      },
-    ],
+    // Removed unique constraint to allow multiple allocations of same resource to same project
+    // This enables scenarios like:
+    // - Allocating 50% for React requirement + 50% for Node.js requirement
+    // - Allocating to multiple requirements on the same project
+    // - Different time periods for the same project
+    indexes: [],
   }
 );
 
