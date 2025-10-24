@@ -581,9 +581,18 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Construct allocation data with only the fields backend expects
       const allocationData = {
-        ...currentAllocation,
+        resourceId: currentAllocation.resourceId,
+        projectId: currentAllocation.projectId,
         scenarioId: activeScenario?.id,
+        resourceCapabilityId: currentAllocation.resourceCapabilityId,
+        projectRequirementId: currentAllocation.projectRequirementId,
+        allocationPercentage: currentAllocation.allocationPercentage,
+        allocationType: currentAllocation.allocationType,
+        startDate: currentAllocation.startDate,
+        endDate: currentAllocation.endDate,
+        isActive: true,
       };
 
       if (allocationEditMode && currentAllocation.id) {
