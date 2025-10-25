@@ -740,7 +740,6 @@ const DataManagement = () => {
       <Dialog
         open={resetDialogOpen}
         onClose={() => setResetDialogOpen(false)}
-        disableEnforceFocus
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
@@ -795,7 +794,6 @@ const DataManagement = () => {
       <Dialog
         open={reseedDialogOpen}
         onClose={() => setReseedDialogOpen(false)}
-        disableEnforceFocus
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>

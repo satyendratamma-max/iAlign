@@ -1985,7 +1985,7 @@ export const seedEnterpriseData = async () => {
     console.log('📱 Creating Apps...');
     const apps: any[] = [];
     for (const appData of enterpriseApps) {
-      const app = await App.create({ ...appData, isActive: true });
+      const app = await App.create({ ...appData, isActive: true } as any);
       apps.push(app);
     }
     console.log(`   ✅ Created ${apps.length} apps\n`);

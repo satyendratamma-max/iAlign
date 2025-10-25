@@ -421,11 +421,99 @@ const ResourceAllocation = () => {
   };
 
   const handleResourceChange = (resourceId: number) => {
-    setCurrentAllocation({ ...currentAllocation, resourceId, resourceCapabilityId: undefined });
+    setCurrentAllocation({
+      ...currentAllocation,
+      resourceId,
+      resourceCapabilityId: undefined,
+      projectId: undefined,
+      projectRequirementId: undefined,
+    });
     setSelectedResourceCapabilities([]); // Clear previous capabilities
+    setSelectedProjectRequirements([]); // Clear previous requirements
     setAvailableProjects([]); // Clear previous projects
     loadResourceCapabilities(resourceId);
-    loadAvailableProjects(resourceId);
+    // Don't load projects until capability is selected
+  };
+
+  const handleCapabilityChange = (capabilityId: number | undefined) => {
+    setCurrentAllocation({
+      ...currentAllocation,
+      resourceCapabilityId: capabilityId,
+      projectId: undefined,
+      projectRequirementId: undefined,
+    });
+    setSelectedProjectRequirements([]); // Clear previous requirements
+    setAvailableProjects([]); // Clear previous projects
+
+    if (capabilityId && currentAllocation.resourceId) {
+      // Load projects matching this specific capability
+      loadProjectsForCapability(capabilityId);
+    }
+  };
+
+  const loadProjectsForCapability = async (capabilityId: number) => {
+    if (!activeScenario?.id) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const scenarioParam = `?scenarioId=${activeScenario.id}`;
+
+      // Get the selected capability
+      const selectedCapability = selectedResourceCapabilities.find(c => c.id === capabilityId);
+      if (!selectedCapability) return;
+
+      // Load all projects
+      const projectsRes = await axios.get(`${API_URL}/projects${scenarioParam}`, config);
+      const allProjects = projectsRes.data.data || [];
+
+      // Load requirements for each project and calculate match scores
+      const projectsWithRequirements = await Promise.all(
+        allProjects.map(async (proj: Project) => {
+          try {
+            const reqRes = await axios.get(`${API_URL}/project-requirements/project/${proj.id}`, config);
+            return { ...proj, requirements: reqRes.data.data || [] };
+          } catch (error) {
+            return { ...proj, requirements: [] };
+          }
+        })
+      );
+
+      // Calculate match scores for the SELECTED capability against each project's requirements
+      const projectsWithScores: ProjectWithScore[] = projectsWithRequirements.map((proj) => {
+        let bestScore = 0;
+        let bestRequirement: Requirement | undefined;
+
+        if (proj.requirements && proj.requirements.length > 0) {
+          proj.requirements.forEach((req: Requirement) => {
+            const score = calculateMatchScore(selectedCapability, req);
+            if (score > bestScore) {
+              bestScore = score;
+              bestRequirement = req;
+            }
+          });
+        }
+
+        return {
+          ...proj,
+          matchScore: bestScore,
+          bestRequirement,
+          bestCapability: selectedCapability,
+        };
+      });
+
+      // Sort by match score (highest first) and filter out projects with no requirements
+      const sortedProjects = projectsWithScores
+        .filter(p => p.requirements && p.requirements.length > 0)
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      setAvailableProjects(sortedProjects);
+    } catch (error) {
+      console.error('Error loading projects for capability:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleProjectChange = (projectId: number) => {
@@ -1306,7 +1394,7 @@ const ResourceAllocation = () => {
         <DialogTitle>{editMode ? 'Edit Allocation' : 'Add Allocation'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <Autocomplete
                 fullWidth
                 options={resources}
@@ -1320,9 +1408,9 @@ const ResourceAllocation = () => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Resource"
+                    label="Step 1: Select Resource"
                     required
-                    placeholder="Search resources..."
+                    placeholder="Who are you allocating to this project?"
                   />
                 )}
                 renderOption={(props, option) => (
@@ -1341,11 +1429,59 @@ const ResourceAllocation = () => {
               />
             </Grid>
 
-            {/* Match Score Filter Slider - Only show when resource is selected and projects are loaded */}
-            {currentAllocation.resourceId && availableProjects.length > 0 && (
+            {/* Step 2: Select Capability (shows after resource is selected) */}
+            <Grid item xs={12}>
+              <Autocomplete
+                fullWidth
+                options={selectedResourceCapabilities}
+                getOptionLabel={(option) => `${option.app.name} / ${option.technology.name} / ${option.role.name}`}
+                value={selectedResourceCapabilities.find(c => c.id === currentAllocation.resourceCapabilityId) || null}
+                onChange={(_, newValue) => {
+                  handleCapabilityChange(newValue?.id);
+                }}
+                disabled={!currentAllocation.resourceId}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Step 2: Select Resource Capability"
+                    placeholder="What skill should this resource use?"
+                    helperText={
+                      !currentAllocation.resourceId
+                        ? 'Select a resource first'
+                        : selectedResourceCapabilities.length === 0
+                        ? 'This resource has no capabilities defined'
+                        : `${selectedResourceCapabilities.length} skill(s) available`
+                    }
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box sx={{ width: '100%' }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">
+                            {option.app.code} / {option.technology.code} / {option.role.code}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.proficiencyLevel}
+                          </Typography>
+                        </Box>
+                        {option.isPrimary && (
+                          <Chip label="Primary" size="small" color="primary" variant="outlined" />
+                        )}
+                      </Box>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
+            </Grid>
+
+            {/* Match Score Filter Slider - Only show when capability is selected and projects are loaded */}
+            {currentAllocation.resourceCapabilityId && availableProjects.length > 0 && (
               <Grid item xs={12}>
                 <Typography variant="body2" gutterBottom>
-                  Minimum Match Score: {minMatchScore}%
+                  Minimum Match Score: {minMatchScore}% (showing {availableProjects.filter(p => p.matchScore >= minMatchScore).length} of {availableProjects.length} projects)
                 </Typography>
                 <Slider
                   value={minMatchScore}
@@ -1364,30 +1500,21 @@ const ResourceAllocation = () => {
               </Grid>
             )}
 
-            <Grid item xs={12} sm={6}>
+            {/* Step 3: Select Project (shows after capability is selected) */}
+            <Grid item xs={12}>
               <Autocomplete
                 fullWidth
-                options={currentAllocation.resourceId && availableProjects.length > 0
-                  ? availableProjects.filter(p => p.matchScore >= minMatchScore)
-                  : projects}
-                getOptionLabel={(option) => {
-                  if ('matchScore' in option) {
-                    return `${option.name} - ${option.matchScore}%`;
-                  }
-                  return option.name;
-                }}
-                value={currentAllocation.resourceId && availableProjects.length > 0
-                  ? availableProjects.find(p => p.id === currentAllocation.projectId) || null
-                  : projects.find(p => p.id === currentAllocation.projectId) || null}
+                options={availableProjects.filter(p => p.matchScore >= minMatchScore)}
+                getOptionLabel={(option) => `${option.name} (${option.matchScore}% match)`}
+                value={availableProjects.find(p => p.id === currentAllocation.projectId) || null}
                 onChange={(_, newValue) => {
                   if (newValue) {
                     handleProjectChange(newValue.id);
-                    // Auto-select best matching capability and requirement
-                    if ('matchScore' in newValue && newValue.bestCapability && newValue.bestRequirement) {
+                    // Auto-select the best matching requirement
+                    if (newValue.bestRequirement) {
                       setCurrentAllocation(prev => ({
                         ...prev,
                         projectId: newValue.id,
-                        resourceCapabilityId: newValue.bestCapability!.id,
                         projectRequirementId: newValue.bestRequirement!.id,
                         startDate: newValue.startDate,
                         endDate: newValue.endDate,
@@ -1395,54 +1522,58 @@ const ResourceAllocation = () => {
                     }
                   }
                 }}
+                disabled={!currentAllocation.resourceCapabilityId}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Project"
+                    label="Step 3: Select Project"
                     required
-                    placeholder="Search projects..."
-                    helperText={currentAllocation.resourceId && availableProjects.length > 0
-                      ? `${availableProjects.filter(p => p.matchScore >= minMatchScore).length} projects match your criteria`
-                      : ''}
+                    placeholder="Which project needs this skill?"
+                    helperText={
+                      !currentAllocation.resourceCapabilityId
+                        ? 'Select a capability first to see matching projects'
+                        : availableProjects.length === 0
+                        ? 'Loading matching projects...'
+                        : `${availableProjects.filter(p => p.matchScore >= minMatchScore).length} project(s) match this capability`
+                    }
                   />
                 )}
                 renderOption={(props, option) => {
-                  if ('matchScore' in option) {
-                    const matchColor = option.matchScore >= 80 ? 'success' :
-                                     option.matchScore >= 60 ? 'primary' :
-                                     option.matchScore >= 40 ? 'warning' : 'error';
-                    return (
-                      <li {...props} key={option.id}>
-                        <Box sx={{ width: '100%' }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Box>
-                              <Typography variant="body2" fontWeight="medium">
-                                {option.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {option.status} • {option.domain?.name || 'No domain'}
-                              </Typography>
-                            </Box>
-                            <Chip label={`${option.matchScore}%`} color={matchColor as any} size="small" />
-                          </Box>
-                          {option.bestRequirement && (
-                            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                              Best match: {option.bestRequirement.app.code}/{option.bestRequirement.technology.code}/{option.bestRequirement.role.code}
-                            </Typography>
-                          )}
-                        </Box>
-                      </li>
-                    );
-                  }
+                  const matchIcon = option.matchScore >= 80 ? '✓' :
+                                   option.matchScore >= 60 ? '⚠' :
+                                   option.matchScore >= 40 ? '△' : '✗';
+                  const matchColor = option.matchScore >= 80 ? 'success' :
+                                   option.matchScore >= 60 ? 'primary' :
+                                   option.matchScore >= 40 ? 'warning' : 'error';
+                  const matchLabel = option.matchScore >= 80 ? 'Excellent Match' :
+                                    option.matchScore >= 60 ? 'Good Match' :
+                                    option.matchScore >= 40 ? 'Fair Match' : 'Poor Match';
                   return (
                     <li {...props} key={option.id}>
-                      <Box>
-                        <Typography variant="body2" fontWeight="medium">
-                          {option.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.status} • {option.domain?.name || 'No domain'}
-                        </Typography>
+                      <Box sx={{ width: '100%' }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                          <Box flex={1}>
+                            <Typography variant="body2" fontWeight="medium">
+                              {matchIcon} {option.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {option.status} • {option.domain?.name || 'No domain'}
+                            </Typography>
+                          </Box>
+                          <Tooltip title={matchLabel}>
+                            <Chip label={`${option.matchScore}%`} color={matchColor as any} size="small" />
+                          </Tooltip>
+                        </Box>
+                        {option.bestRequirement && (
+                          <Box sx={{ bgcolor: 'action.hover', p: 0.5, borderRadius: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Requires: {option.bestRequirement.app.code}/{option.bestRequirement.technology.code}/{option.bestRequirement.role.code} - {option.bestRequirement.proficiencyLevel}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Staffed: {option.bestRequirement.fulfilledCount}/{option.bestRequirement.requiredCount}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </li>
                   );
@@ -1451,79 +1582,33 @@ const ResourceAllocation = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                options={selectedResourceCapabilities}
-                getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
-                value={selectedResourceCapabilities.find(c => c.id === currentAllocation.resourceCapabilityId) || null}
-                onChange={(_, newValue) => {
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    resourceCapabilityId: newValue?.id,
-                  });
-                }}
-                disabled={!currentAllocation.resourceId}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Resource Capability"
-                    placeholder="Search capabilities..."
-                    helperText={!currentAllocation.resourceId ? 'Select a resource first' : ''}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {option.app.code}/{option.technology.code}/{option.role.code}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.proficiencyLevel} {option.isPrimary && '• Primary'}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                options={selectedProjectRequirements}
-                getOptionLabel={(option) => `${option.app.code}/${option.technology.code}/${option.role.code}`}
-                value={selectedProjectRequirements.find(r => r.id === currentAllocation.projectRequirementId) || null}
-                onChange={(_, newValue) => {
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    projectRequirementId: newValue?.id,
-                  });
-                }}
-                disabled={!currentAllocation.projectId}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Project Requirement"
-                    placeholder="Search requirements..."
-                    helperText={!currentAllocation.projectId ? 'Select a project first' : ''}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {option.app.code}/{option.technology.code}/{option.role.code}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Need: {option.proficiencyLevel} ({option.fulfilledCount}/{option.requiredCount})
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-              />
-            </Grid>
+            {/* Show auto-matched requirement info */}
+            {currentAllocation.projectRequirementId && (
+              <Grid item xs={12}>
+                <Box sx={{ bgcolor: 'success.lighter', p: 2, borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="medium" color="success.dark" gutterBottom>
+                    ✓ Best Matching Project Requirement (Auto-selected)
+                  </Typography>
+                  {(() => {
+                    const selectedReq = selectedProjectRequirements.find(r => r.id === currentAllocation.projectRequirementId) ||
+                      availableProjects.find(p => p.id === currentAllocation.projectId)?.bestRequirement;
+                    if (selectedReq) {
+                      return (
+                        <Box>
+                          <Typography variant="body2">
+                            {selectedReq.app.code} / {selectedReq.technology.code} / {selectedReq.role.code}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Required Proficiency: {selectedReq.proficiencyLevel} • Staffed: {selectedReq.fulfilledCount}/{selectedReq.requiredCount}
+                          </Typography>
+                        </Box>
+                      );
+                    }
+                    return null;
+                  })()}
+                </Box>
+              </Grid>
+            )}
 
             <Grid item xs={12} sm={6}>
               <TextField

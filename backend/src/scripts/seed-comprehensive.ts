@@ -236,7 +236,7 @@ const seedDatabase = async (dropTables: boolean = true) => {
     // Seed Apps from enterprise data
     const apps: any[] = [];
     for (const appData of enterpriseApps) {
-      const app = await App.create({ ...appData, isActive: true });
+      const app = await App.create({ ...appData, isActive: true } as any);
       apps.push(app);
     }
     console.log(`   ✅ Created ${apps.length} apps`);
