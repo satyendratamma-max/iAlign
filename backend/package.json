@@ -4,9 +4,9 @@
   "description": "iAlign Enterprise Resource Planning - Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon --exec node --max-old-space-size=8192 -r ts-node/register src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node --max-old-space-size=8192 dist/server.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "lint": "eslint . --ext .ts",
@@ -15,7 +15,10 @@
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "seed": "sequelize-cli db:seed:all",
     "seed:dev": "ts-node src/scripts/seed-comprehensive.ts",
+    "seed:large": "ts-node src/scripts/seed-large-scale.ts",
     "seed:export": "ts-node src/scripts/export-seed-data.ts",
+    "perf:test": "ts-node src/scripts/performance-test.ts",
+    "db:indexes": "ts-node src/scripts/add-performance-indexes.ts",
     "migration:create": "sequelize-cli migration:generate",
     "type-check": "tsc --noEmit"
   },
@@ -29,6 +32,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/nodemailer": "^7.0.2",
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { calculateResourceAllocations } from '../../utils/allocationCalculations';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -85,19 +86,15 @@ const CapacityDashboard = () => {
       try {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-        const [resourcesRes, allocationsRes, domainsRes, projectsRes] = await Promise.all([
-          axios.get(`${API_URL}/resources`, config),
-          axios.get(`${API_URL}/allocations`, config),
+        const [allResources, allAllocations, domainsRes, allProjects] = await Promise.all([
+          fetchAllPages(`${API_URL}/resources`, config),
+          fetchAllPages(`${API_URL}/allocations`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/domains`, config),
-          axios.get(`${API_URL}/projects${scenarioParam}`, config),
+          fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
         ]);
 
-        const allResources = resourcesRes.data.data || [];
-        const allAllocations = allocationsRes.data.data || [];
         const allDomains = domainsRes.data.data || [];
-        const allProjects = projectsRes.data.data || [];
 
         setDomains(allDomains);
         setProjects(allProjects);

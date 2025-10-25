@@ -47,6 +47,7 @@ import {
   Business,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { fetchAllPages } from '../../services/api';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { calculateMaxConcurrentAllocation } from '../../utils/allocationCalculations';
@@ -152,20 +153,15 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         };
 
-        // Build query parameters with scenarioId
-        const scenarioParam = `?scenarioId=${activeScenario.id}`;
-
-        const [projectsRes, resourcesRes, allocationsRes, domainsRes, segmentFunctionsRes] = await Promise.all([
-          axios.get(`${API_URL}/projects${scenarioParam}`, config),
-          axios.get(`${API_URL}/resources${scenarioParam}`, config),
-          axios.get(`${API_URL}/allocations`, config),
+        // Use fetchAllPages for paginated endpoints (projects, resources, allocations)
+        const [fetchedProjects, resources, allocations, domainsRes, segmentFunctionsRes] = await Promise.all([
+          fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+          fetchAllPages(`${API_URL}/resources`, config),
+          fetchAllPages(`${API_URL}/allocations`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/domains`, config),
           axios.get(`${API_URL}/segment-functions`, config),
         ]);
 
-        const fetchedProjects: Project[] = projectsRes.data.data;
-        const resources = resourcesRes.data.data;
-        const allocations: Allocation[] = allocationsRes.data.data;
         const allDomains = domainsRes.data.data;
 
         setAllProjects(fetchedProjects);

@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -131,16 +132,15 @@ const DomainsList = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [domainsResponse, projectsResponse, impactsResponse] = await Promise.all([
+      const [domainsResponse, fetchedProjects, impactsResponse] = await Promise.all([
         axios.get(`${API_URL}/domains`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setDomains(domainsResponse.data.data);
-      setProjects(projectsResponse.data.data);
+      setProjects(fetchedProjects);
       setDomainImpacts(impactsResponse.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);

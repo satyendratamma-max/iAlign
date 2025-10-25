@@ -31,6 +31,7 @@ import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import axios from 'axios';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -124,18 +125,17 @@ const PortfolioOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [segmentFunctionsRes, domainsRes, projectsRes] = await Promise.all([
+      const [segmentFunctionsRes, domainsRes, allProjects] = await Promise.all([
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/domains`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
       ]);
 
       const segmentFunctionsData = segmentFunctionsRes.data.data;
       setSegmentFunctions(segmentFunctionsData);
       setDomains(domainsRes.data.data);
-      setProjects(projectsRes.data.data);
+      setProjects(allProjects);
 
       // Fetch risk breakdowns for all segment functions
       fetchRiskBreakdowns(segmentFunctionsData, activeScenario.id, token, config);

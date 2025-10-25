@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -118,15 +119,13 @@ const DomainPortfolioOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [domainRes, projectsRes, teamsRes] = await Promise.all([
+      const [domainRes, fetchedProjects, teamsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}&domainId=${domainId}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, domainId } }),
         axios.get(`${API_URL}/teams?domainId=${domainId}`, config),
       ]);
 
-      const fetchedProjects = projectsRes.data.data;
       setDomain(domainRes.data.data);
       setProjects(fetchedProjects);
       setTeams(teamsRes.data.data);

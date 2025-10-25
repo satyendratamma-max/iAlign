@@ -9,13 +9,31 @@ import Role from '../models/Role';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 
-export const getAllResources = async (_req: Request, res: Response, next: NextFunction) => {
+export const getAllResources = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // PAGINATION SUPPORT - CRITICAL for 10K+ resources
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const offset = (page - 1) * limit;
+
     // Resources are shared across all scenarios, so we don't filter by scenarioId
     const where: any = { isActive: true };
 
-    const resources = await Resource.findAll({
+    // Add filtering support
+    if (req.query.role) {
+      where.role = req.query.role;
+    }
+    if (req.query.location) {
+      where.location = req.query.location;
+    }
+    if (req.query.domainId) {
+      where.domainId = req.query.domainId;
+    }
+
+    const { count, rows: resources } = await Resource.findAndCountAll({
       where,
+      limit,
+      offset,
       order: [['createdDate', 'DESC']],
       include: [
         {
@@ -28,35 +46,21 @@ export const getAllResources = async (_req: Request, res: Response, next: NextFu
           as: 'segmentFunction',
           attributes: ['id', 'name'],
         },
-        {
-          model: ResourceCapability,
-          as: 'capabilities',
-          where: { isActive: true },
-          required: false,
-          include: [
-            {
-              model: App,
-              as: 'app',
-              attributes: ['id', 'name', 'code'],
-            },
-            {
-              model: Technology,
-              as: 'technology',
-              attributes: ['id', 'name', 'code'],
-            },
-            {
-              model: Role,
-              as: 'role',
-              attributes: ['id', 'name', 'code', 'level'],
-            },
-          ],
-        },
+        // IMPORTANT: Don't include capabilities in list view - only in detail view
+        // This prevents loading 50,000 capability records at once
       ],
     });
 
     res.json({
       success: true,
       data: resources,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+        hasMore: page * limit < count,
+      },
     });
   } catch (error) {
     next(error);

@@ -35,6 +35,7 @@ import {
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { fetchAllPages } from '../../services/api';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
@@ -232,26 +233,26 @@ const ResourceOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       // Resources are shared across scenarios, but projects are scenario-specific
-      const [resourcesRes, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes, projectsRes] = await Promise.all([
-        axios.get(`${API_URL}/resources`, config),
+      // Use fetchAllPages for paginated endpoints (resources, projects)
+      const [resourcesData, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes, projectsData] = await Promise.all([
+        fetchAllPages(`${API_URL}/resources`, config),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/apps`, config),
         axios.get(`${API_URL}/technologies`, config),
         axios.get(`${API_URL}/roles`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
       ]);
 
-      setResources(resourcesRes.data.data);
+      setResources(resourcesData);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setApps(appsRes.data.data);
       setTechnologies(techsRes.data.data);
       setRoles(rolesRes.data.data);
-      setProjects(projectsRes.data.data);
+      setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
@@ -404,10 +405,12 @@ const ResourceOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, config);
-      const allAllocations = response.data.data || [];
+      // Use fetchAllPages for paginated allocations endpoint
+      const allAllocations = await fetchAllPages(`${API_URL}/allocations`, {
+        ...config,
+        params: { scenarioId: activeScenario.id }
+      });
 
       // Filter allocations for this specific resource
       const filtered = allAllocations.filter((alloc: Allocation) => alloc.resourceId === resourceId);
@@ -521,16 +524,15 @@ const ResourceOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       // Load resource capabilities and all projects in parallel
-      const [capRes, projectsRes] = await Promise.all([
+      // Use fetchAllPages for paginated projects endpoint
+      const [capRes, allProjects] = await Promise.all([
         axios.get(`${API_URL}/resource-capabilities?resourceId=${resource.id}`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
       ]);
 
       const resourceCapabilities = capRes.data.data || [];
-      const allProjects = projectsRes.data.data || [];
 
       // Load requirements for each project
       const projectsWithRequirements = await Promise.all(

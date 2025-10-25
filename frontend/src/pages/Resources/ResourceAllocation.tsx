@@ -43,6 +43,7 @@ import {
   InfoOutlined,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { fetchAllPages } from '../../services/api';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
@@ -146,6 +147,7 @@ const ResourceAllocation = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0, label: '' });
   const [error, setError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -180,26 +182,45 @@ const ResourceAllocation = () => {
     }
 
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/allocations${scenarioParam}`, config),
-        axios.get(`${API_URL}/resources`, config), // Resources are shared, no scenarioId filter
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
-        axios.get(`${API_URL}/domains`, config),
-      ]);
+      // Fetch allocations with progress tracking (usually the largest dataset)
+      setLoadingProgress({ current: 0, total: 0, label: 'Loading allocations...' });
+      const allocationsData = await fetchAllPages(
+        `${API_URL}/allocations`,
+        { ...config, params: { scenarioId: activeScenario.id } },
+        (current, total) => setLoadingProgress({ current, total, label: 'Loading allocations...' })
+      );
+      setAllocations(allocationsData);
 
-      const allocationData = allocationsRes.data.data || [];
-      setAllocations(allocationData);
-      setResources(resourcesRes.data.data || []);
-      setProjects(projectsRes.data.data || []);
+      // Fetch resources with progress tracking
+      setLoadingProgress({ current: 0, total: 0, label: 'Loading resources...' });
+      const resourcesData = await fetchAllPages(
+        `${API_URL}/resources`,
+        config,
+        (current, total) => setLoadingProgress({ current, total, label: 'Loading resources...' })
+      );
+      setResources(resourcesData);
+
+      // Fetch projects with progress tracking
+      setLoadingProgress({ current: 0, total: 0, label: 'Loading projects...' });
+      const projectsData = await fetchAllPages(
+        `${API_URL}/projects`,
+        { ...config, params: { scenarioId: activeScenario.id } },
+        (current, total) => setLoadingProgress({ current, total, label: 'Loading projects...' })
+      );
+      setProjects(projectsData);
+
+      // Fetch domains (non-paginated)
+      const domainsRes = await axios.get(`${API_URL}/domains`, config);
       setDomains(domainsRes.data.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
+      setLoadingProgress({ current: 0, total: 0, label: '' });
     }
   };
 
@@ -358,16 +379,15 @@ const ResourceAllocation = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       // Load resource capabilities and all projects in parallel
-      const [capRes, projectsRes] = await Promise.all([
+      // Use fetchAllPages for paginated projects endpoint
+      const [capRes, allProjects] = await Promise.all([
         axios.get(`${API_URL}/resource-capabilities?resourceId=${resourceId}`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
       ]);
 
       const resourceCapabilities = capRes.data.data || [];
-      const allProjects = projectsRes.data.data || [];
 
       // Load requirements for each project
       const projectsWithRequirements = await Promise.all(
@@ -458,15 +478,13 @@ const ResourceAllocation = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
       // Get the selected capability
       const selectedCapability = selectedResourceCapabilities.find(c => c.id === capabilityId);
       if (!selectedCapability) return;
 
-      // Load all projects
-      const projectsRes = await axios.get(`${API_URL}/projects${scenarioParam}`, config);
-      const allProjects = projectsRes.data.data || [];
+      // Load all projects using fetchAllPages
+      const allProjects = await fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } });
 
       // Load requirements for each project and calculate match scores
       const projectsWithRequirements = await Promise.all(
@@ -794,8 +812,27 @@ const ResourceAllocation = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="400px" gap={2}>
+        <CircularProgress size={60} />
+        {loadingProgress.label && (
+          <Box textAlign="center" width="100%" maxWidth={400}>
+            <Typography variant="body1" gutterBottom>
+              {loadingProgress.label}
+            </Typography>
+            {loadingProgress.total > 0 && (
+              <>
+                <LinearProgress
+                  variant="determinate"
+                  value={(loadingProgress.current / loadingProgress.total) * 100}
+                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Page {loadingProgress.current} of {loadingProgress.total}
+                </Typography>
+              </>
+            )}
+          </Box>
+        )}
       </Box>
     );
   }

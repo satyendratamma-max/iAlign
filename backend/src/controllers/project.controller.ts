@@ -10,7 +10,12 @@ import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/no
 
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { segmentFunctionId, status, scenarioId } = req.query;
+    // PAGINATION SUPPORT - CRITICAL for 2K+ projects
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const offset = (page - 1) * limit;
+
+    const { segmentFunctionId, status, scenarioId, fiscalYear, priority } = req.query;
     const where: any = { isActive: true };
 
     if (segmentFunctionId) {
@@ -25,8 +30,18 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       where.scenarioId = scenarioId;
     }
 
-    const projects = await Project.findAll({
+    if (fiscalYear) {
+      where.fiscalYear = fiscalYear;
+    }
+
+    if (priority) {
+      where.priority = priority;
+    }
+
+    const { count, rows: projects } = await Project.findAndCountAll({
       where,
+      limit,
+      offset,
       order: [[literal('COALESCE(sortOrder, 999999)'), 'ASC'], ['createdDate', 'DESC']],
       include: [
         {
@@ -45,6 +60,13 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
     res.json({
       success: true,
       data: projects,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+        hasMore: page * limit < count,
+      },
     });
   } catch (error) {
     next(error);

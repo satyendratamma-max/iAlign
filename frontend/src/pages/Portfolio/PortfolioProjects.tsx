@@ -36,6 +36,7 @@ import axios from 'axios';
 import Paper from '@mui/material/Paper';
 import PageHeader from '../../components/common/PageHeader';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -128,17 +129,16 @@ const PortfolioProjects = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [segmentFunctionRes, projectsRes, impactsRes] = await Promise.all([
+      const [segmentFunctionRes, allProjects, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions/${segmentFunctionId}`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setSegmentFunction(segmentFunctionRes.data.data);
       // Filter projects by segmentFunctionId
-      const segmentFunctionProjects = projectsRes.data.data.filter(
+      const segmentFunctionProjects = allProjects.filter(
         (p: Project) => p.segmentFunctionId === parseInt(segmentFunctionId!)
       );
       setProjects(segmentFunctionProjects);
@@ -189,13 +189,15 @@ const PortfolioProjects = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
-      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const allAllocations = await fetchAllPages(`${API_URL}/allocations`, {
+        ...config,
+        params: { scenarioId: activeScenario.id }
       });
 
       // Filter allocations by project ID and map to resources
-      const projectAllocations = response.data.data.filter(
+      const projectAllocations = allAllocations.filter(
         (allocation: any) => allocation.projectId === project.id
       );
 

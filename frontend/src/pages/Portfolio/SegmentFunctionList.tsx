@@ -27,6 +27,7 @@ import axios from 'axios';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -98,17 +99,16 @@ const SegmentFunctionList = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
-      const [domainRes, segmentFunctionsRes, projectsRes, impactsRes] = await Promise.all([
+      const [domainRes, segmentFunctionsRes, allProjects, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
         axios.get(`${API_URL}/project-domain-impacts?domainId=${domainId}`, config),
       ]);
 
       setDomain(domainRes.data.data);
-      setProjects(projectsRes.data.data);
+      setProjects(allProjects);
       setDomainImpacts(impactsRes.data.data || []);
 
       // Filter segment functions by domainId and sort

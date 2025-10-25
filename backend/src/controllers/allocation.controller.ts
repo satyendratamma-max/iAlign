@@ -77,56 +77,82 @@ const checkResourceOverAllocation = async (resourceId: number, allocationId?: nu
 
 export const getAllAllocations = async (req: Request, res: Response) => {
   try {
-    const { projectId, resourceId, domainId, fiscalYear, scenarioId } = req.query;
+    // PAGINATION SUPPORT - CRITICAL for 40K+ allocations
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const offset = (page - 1) * limit;
+
+    const {
+      projectId,
+      resourceId,
+      domainId,
+      fiscalYear,
+      scenarioId,
+      allocationType,
+      matchScore,
+      resourceName,
+      businessDecision,
+    } = req.query;
 
     const where: any = { isActive: true };
 
     if (projectId) where.projectId = projectId;
     if (resourceId) where.resourceId = resourceId;
     if (scenarioId) where.scenarioId = scenarioId;
+    if (allocationType) where.allocationType = allocationType;
+
+    // Server-side match score filtering
+    if (matchScore) {
+      if (matchScore === 'excellent') {
+        where.matchScore = { [Op.gte]: 80 };
+      } else if (matchScore === 'good') {
+        where.matchScore = { [Op.between]: [60, 79] };
+      } else if (matchScore === 'fair') {
+        where.matchScore = { [Op.between]: [40, 59] };
+      } else if (matchScore === 'poor') {
+        where.matchScore = { [Op.lt]: 40 };
+      }
+    }
 
     // Build Resource include - Resources are shared across scenarios, no scenarioId filter needed
+    // IMPORTANT: Removed capabilities from list view to prevent loading 200K+ capability records
     const resourceInclude: any = {
       model: Resource,
       as: 'resource',
       attributes: ['id', 'employeeId', 'firstName', 'lastName', 'email', 'primarySkill', 'domainId', 'utilizationRate'],
+      where: {},
       include: [
         {
           model: Domain,
           as: 'domain',
           attributes: ['id', 'name'],
         },
-        {
-          model: ResourceCapability,
-          as: 'capabilities',
-          where: { isActive: true },
-          required: false,
-          include: [
-            {
-              model: App,
-              as: 'app',
-              attributes: ['id', 'name', 'code'],
-            },
-            {
-              model: Technology,
-              as: 'technology',
-              attributes: ['id', 'name', 'code'],
-            },
-            {
-              model: Role,
-              as: 'role',
-              attributes: ['id', 'name', 'code', 'level'],
-            },
-          ],
-        },
+        // Capabilities removed from list view - only available in detail view (getAllocationById)
+        // This prevents loading ~200K records (40K allocations × 5 capabilities each)
       ],
     };
+
+    // Server-side resource name filtering
+    if (resourceName) {
+      resourceInclude.where[Op.or] = [
+        { firstName: { [Op.like]: `%${resourceName}%` } },
+        { lastName: { [Op.like]: `%${resourceName}%` } },
+        { employeeId: { [Op.like]: `%${resourceName}%` } },
+      ];
+    }
+
+    // Server-side resource domain filtering (for cross-domain allocation support)
+    if (domainId && !fiscalYear && !businessDecision) {
+      // If only domainId is specified, filter resources by domain
+      resourceInclude.where.domainId = parseInt(domainId as string);
+    }
 
     // Build Project include - Projects are scenario-specific, filter by scenarioId
     const projectInclude: any = {
       model: Project,
       as: 'project',
       attributes: ['id', 'name', 'status', 'fiscalYear', 'domainId', 'businessDecision'],
+      where: {},
       include: [
         {
           model: Domain,
@@ -138,7 +164,22 @@ export const getAllAllocations = async (req: Request, res: Response) => {
 
     // Add scenarioId filter to Project where clause if provided
     if (scenarioId) {
-      projectInclude.where = { scenarioId: parseInt(scenarioId as string) };
+      projectInclude.where.scenarioId = parseInt(scenarioId as string);
+    }
+
+    // Server-side project domain filtering
+    if (domainId) {
+      projectInclude.where.domainId = parseInt(domainId as string);
+    }
+
+    // Server-side fiscal year filtering
+    if (fiscalYear) {
+      projectInclude.where.fiscalYear = fiscalYear;
+    }
+
+    // Server-side business decision filtering
+    if (businessDecision) {
+      projectInclude.where.businessDecision = businessDecision;
     }
 
     const include: any[] = [
@@ -148,66 +189,36 @@ export const getAllAllocations = async (req: Request, res: Response) => {
         model: ResourceCapability,
         as: 'resourceCapability',
         required: false,
-        include: [
-          {
-            model: App,
-            as: 'app',
-            attributes: ['id', 'name', 'code'],
-          },
-          {
-            model: Technology,
-            as: 'technology',
-            attributes: ['id', 'name', 'code'],
-          },
-          {
-            model: Role,
-            as: 'role',
-            attributes: ['id', 'name', 'code', 'level'],
-          },
-        ],
+        attributes: ['id'],
+        // Removed nested includes for App, Technology, Role from list view
       },
       {
         model: ProjectRequirement,
         as: 'projectRequirement',
         required: false,
-        include: [
-          {
-            model: App,
-            as: 'app',
-            attributes: ['id', 'name', 'code'],
-          },
-          {
-            model: Technology,
-            as: 'technology',
-            attributes: ['id', 'name', 'code'],
-          },
-          {
-            model: Role,
-            as: 'role',
-            attributes: ['id', 'name', 'code', 'level'],
-          },
-        ],
+        attributes: ['id'],
+        // Removed nested includes for App, Technology, Role from list view
       },
     ];
 
-    let allocations = await ResourceAllocation.findAll({
+    const { count, rows: allocations } = await ResourceAllocation.findAndCountAll({
       where,
       include,
+      limit,
+      offset,
       order: [['startDate', 'DESC']],
     });
-
-    // Filter by domainId or fiscalYear if provided
-    if (domainId) {
-      allocations = allocations.filter((a: any) => a.project?.domainId === parseInt(domainId as string));
-    }
-
-    if (fiscalYear) {
-      allocations = allocations.filter((a: any) => a.project?.fiscalYear === fiscalYear);
-    }
 
     res.json({
       success: true,
       data: allocations,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+        hasMore: page * limit < count,
+      },
     });
   } catch (error: any) {
     res.status(500).json({

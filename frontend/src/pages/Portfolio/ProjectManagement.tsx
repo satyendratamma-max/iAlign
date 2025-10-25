@@ -63,6 +63,7 @@ import {
   PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { fetchAllPages } from '../../services/api';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
@@ -1067,20 +1068,18 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Build query parameters with scenarioId
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
-
-      const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+      // Use fetchAllPages for paginated projects endpoint
+      const [projectsData, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
+        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/milestones${scenarioParam}`, config),
+        axios.get(`${API_URL}/milestones`, { ...config, params: { scenarioId: activeScenario.id } }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       // Deduplicate data by id
       const uniqueProjects = Array.from(
-        new Map(projectsRes.data.data.map((p: any) => [p.id, p])).values()
+        new Map(projectsData.map((p: any) => [p.id, p])).values()
       );
       const uniqueMilestones = Array.from(
         new Map((milestonesRes.data.data || []).map((m: any) => [m.id, m])).values()
