@@ -204,8 +204,8 @@ export const getDashboardMetrics = async (_req: Request, res: Response, next: Ne
         where,
         attributes: [
           [literal('COUNT(*)'), 'totalResources'],
-          [literal('SUM(CASE WHEN status = "Available" THEN 1 ELSE 0 END)'), 'availableResources'],
-          [literal('SUM(CASE WHEN status = "Allocated" THEN 1 ELSE 0 END)'), 'allocatedResources'],
+          [literal("SUM(CASE WHEN status = 'Available' THEN 1 ELSE 0 END)"), 'availableResources'],
+          [literal("SUM(CASE WHEN status = 'Allocated' THEN 1 ELSE 0 END)"), 'allocatedResources'],
           [literal('SUM(COALESCE(fte, 0))'), 'totalFte'],
           [literal('AVG(COALESCE(fte, 0))'), 'averageFte'],
         ],
