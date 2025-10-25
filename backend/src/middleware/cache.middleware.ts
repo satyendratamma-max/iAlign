@@ -128,7 +128,7 @@ export const invalidateCacheMiddleware = (
   cache: SimpleCache,
   pattern?: string
 ) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     // Only invalidate on POST, PUT, DELETE
     if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
       cache.invalidate(pattern);

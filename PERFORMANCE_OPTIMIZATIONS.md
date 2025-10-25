@@ -273,7 +273,10 @@ const config = {
 
 ### For Developers
 
-#### 1. Run Database Indexing (One-Time Setup)
+#### 1. Database Indexing
+Performance indexes are **automatically created** during the seeding process. Both `npm run seed:dev` and `npm run seed:large` will create all necessary indexes.
+
+If you need to manually add indexes to an existing database:
 ```bash
 cd backend
 npm run db:indexes
