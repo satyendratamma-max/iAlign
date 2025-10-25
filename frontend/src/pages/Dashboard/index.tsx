@@ -190,12 +190,18 @@ const Dashboard = () => {
         });
 
         // Set resource metrics (using ResourceMetrics interface)
+        // Note: Without loading all records, we estimate available resources
+        // based on average utilization (e.g., 85% utilized = ~15% available)
+        const estimatedAvailable = Math.round(
+          resourceData.totalResources * (1 - (resourceData.averageUtilization / 100))
+        );
+
         setResourceMetrics({
           totalResources: resourceData.totalResources,
           totalAllocations: allocationData.totalAllocations,
-          averageUtilization: Math.round(allocationData.averageAllocationPercentage),
+          averageUtilization: Math.round(resourceData.averageUtilization || allocationData.averageAllocationPercentage),
           overAllocatedResources: allocationData.highUtilization || 0,
-          availableResources: resourceData.availableResources,
+          availableResources: estimatedAvailable,
         });
 
         // Portfolio stats

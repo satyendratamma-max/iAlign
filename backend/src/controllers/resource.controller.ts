@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { literal } from 'sequelize';
+import { QueryTypes } from 'sequelize';
+import sequelize from '../config/database';
 import Resource from '../models/Resource';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
@@ -195,37 +196,34 @@ export const deleteResource = async (req: Request, res: Response, next: NextFunc
 // MEMORY OPTIMIZATION: Server-side aggregation for dashboard metrics
 export const getDashboardMetrics = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const where: any = { isActive: true };
+    // Use raw SQL query for SQL Server aggregations
+    const [results] = await sequelize.query(`
+      SELECT
+        COUNT(*) AS totalResources,
+        SUM(COALESCE(totalCapacityHours, 0)) AS totalCapacityHours,
+        AVG(COALESCE(utilizationRate, 0)) AS averageUtilization,
+        SUM(COALESCE(monthlyCost, 0)) AS totalMonthlyCost,
+        COUNT(CASE WHEN isRemote = 1 THEN 1 END) AS remoteResources,
+        COUNT(CASE WHEN isRemote = 0 THEN 1 END) AS onsiteResources
+      FROM Resources
+      WHERE isActive = 1
+    `, { type: QueryTypes.SELECT });
 
-    // Get counts and aggregations
-    const [resourceCount, resourceStats] = await Promise.all([
-      Resource.count({ where }),
-      Resource.findAll({
-        where,
-        attributes: [
-          [literal('COUNT(*)'), 'totalResources'],
-          [literal("SUM(CASE WHEN status = 'Available' THEN 1 ELSE 0 END)"), 'availableResources'],
-          [literal("SUM(CASE WHEN status = 'Allocated' THEN 1 ELSE 0 END)"), 'allocatedResources'],
-          [literal('SUM(COALESCE(fte, 0))'), 'totalFte'],
-          [literal('AVG(COALESCE(fte, 0))'), 'averageFte'],
-        ],
-        raw: true,
-      }),
-    ]);
-
-    const stats = resourceStats[0] as any;
+    const stats = results as any;
 
     res.json({
       success: true,
       data: {
-        totalResources: resourceCount,
-        availableResources: parseInt(stats.availableResources || 0),
-        allocatedResources: parseInt(stats.allocatedResources || 0),
-        totalFte: parseFloat(stats.totalFte || 0),
-        averageFte: parseFloat(stats.averageFte || 0),
+        totalResources: parseInt(stats.totalResources || 0),
+        totalCapacityHours: parseInt(stats.totalCapacityHours || 0),
+        averageUtilization: parseFloat(stats.averageUtilization || 0),
+        totalMonthlyCost: parseFloat(stats.totalMonthlyCost || 0),
+        remoteResources: parseInt(stats.remoteResources || 0),
+        onsiteResources: parseInt(stats.onsiteResources || 0),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error in getDashboardMetrics:', error);
     next(error);
   }
 };
