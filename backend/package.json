@@ -15,6 +15,7 @@
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "seed": "sequelize-cli db:seed:all",
     "seed:dev": "ts-node src/scripts/seed-comprehensive.ts",
+    "seed:export": "ts-node src/scripts/export-seed-data.ts",
     "migration:create": "sequelize-cli migration:generate",
     "type-check": "tsc --noEmit"
   },
