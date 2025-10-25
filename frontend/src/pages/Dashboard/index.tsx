@@ -42,12 +42,10 @@ import {
   TrendingDown,
   CheckCircle,
   Warning,
-  Error as ErrorIcon,
   People,
   Business,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { fetchAllPages } from '../../services/api';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { calculateMaxConcurrentAllocation } from '../../utils/allocationCalculations';
@@ -153,39 +151,65 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         };
 
-        // Use fetchAllPages for paginated endpoints (projects, resources, allocations)
-        const [fetchedProjects, resources, allocations, domainsRes, segmentFunctionsRes] = await Promise.all([
-          fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
-          fetchAllPages(`${API_URL}/resources`, config),
-          fetchAllPages(`${API_URL}/allocations`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // MEMORY OPTIMIZATION: Use aggregation endpoints instead of loading all records
+        // These endpoints return only aggregated statistics (counts, sums, averages)
+        // NO individual records are loaded into memory
+        const [projectMetrics, resourceMetrics, allocationMetrics, domainsRes, segmentFunctionsRes] = await Promise.all([
+          axios.get(`${API_URL}/projects/dashboard/metrics`, { ...config, params: { scenarioId: activeScenario.id } }),
+          axios.get(`${API_URL}/resources/dashboard/metrics`, config),
+          axios.get(`${API_URL}/allocations/dashboard/metrics`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/domains`, config),
           axios.get(`${API_URL}/segment-functions`, config),
         ]);
 
         const allDomains = domainsRes.data.data;
+        const segmentFunctions = segmentFunctionsRes.data.data;
 
-        setAllProjects(fetchedProjects);
-        setAllResources(resources);
-        setAllAllocations(allocations);
+        // Store aggregated metrics (not individual records)
+        setAllProjects([]); // Dashboard doesn't need individual project records
+        setAllResources([]); // Dashboard doesn't need individual resource records
+        setAllAllocations([]); // Dashboard doesn't need individual allocation records
         setDomains(allDomains);
 
-        // Portfolio stats (will be updated by filter effect)
+        // Update dashboard metrics from aggregation endpoints
+        const projectData = projectMetrics.data.data;
+        const resourceData = resourceMetrics.data.data;
+        const allocationData = allocationMetrics.data.data;
+
+        // Set project metrics (using DashboardMetrics interface)
+        setMetrics({
+          totalProjects: projectData.totalProjects,
+          activeProjects: projectData.activeProjects,
+          totalBudget: projectData.totalBudget,
+          totalActualCost: projectData.totalActualCost,
+          budgetVariance: projectData.budgetVariance,
+          averageProgress: projectData.averageProgress,
+          statusBreakdown: projectData.statusBreakdown || {},
+          healthBreakdown: projectData.healthBreakdown || {},
+          priorityBreakdown: projectData.priorityBreakdown || {},
+        });
+
+        // Set resource metrics (using ResourceMetrics interface)
+        setResourceMetrics({
+          totalResources: resourceData.totalResources,
+          totalAllocations: allocationData.totalAllocations,
+          averageUtilization: Math.round(allocationData.averageAllocationPercentage),
+          overAllocatedResources: allocationData.highUtilization || 0,
+          availableResources: resourceData.availableResources,
+        });
+
+        // Portfolio stats
         setSegmentFunctionStats({
-          totalSegmentFunctions: segmentFunctionsRes.data.data.length,
-          totalValue: fetchedProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
+          totalSegmentFunctions: segmentFunctions.length,
+          totalValue: projectData.totalBudget,
           averageROI: 15.5,
           averageRisk: 3.2,
         });
 
-        // Fetch risk data for all segment functions
-        const uniqueSegmentFunctionIds = [...new Set(
-          fetchedProjects
-            .filter((p: Project) => p.segmentFunctionId)
-            .map((p: Project) => p.segmentFunctionId)
-        )].filter((id): id is number => id !== undefined);
-
-        if (uniqueSegmentFunctionIds.length > 0) {
-          fetchRiskData(uniqueSegmentFunctionIds, activeScenario.id, token, config);
+        // For risk data, we need to fetch segment function IDs - fetch only IDs, not full projects
+        const segmentFunctionIds = segmentFunctions.map((sf: any) => sf.id);
+        if (segmentFunctionIds.length > 0) {
+          fetchRiskData(segmentFunctionIds, activeScenario.id, token, config);
         }
 
       } catch (error) {
@@ -201,7 +225,7 @@ const Dashboard = () => {
   const fetchRiskData = async (
     segmentFunctionIds: number[],
     scenarioId: number,
-    token: string | null,
+    _token: string | null,
     config: { headers: { Authorization: string } }
   ) => {
     try {
