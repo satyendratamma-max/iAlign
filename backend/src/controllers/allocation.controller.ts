@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, literal } from 'sequelize';
 import ResourceAllocation from '../models/ResourceAllocation';
 import Resource from '../models/Resource';
 import Project from '../models/Project';
@@ -891,6 +891,51 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching project allocations',
+      error: error.message,
+    });
+  }
+};
+
+// MEMORY OPTIMIZATION: Server-side aggregation for dashboard metrics
+export const getDashboardMetrics = async (req: Request, res: Response) => {
+  try {
+    const { scenarioId } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
+    // Get counts and aggregations
+    const [allocationCount, allocationStats] = await Promise.all([
+      ResourceAllocation.count({ where }),
+      ResourceAllocation.findAll({
+        where,
+        attributes: [
+          [literal('COUNT(*)'), 'totalAllocations'],
+          [literal('SUM(COALESCE(allocationPercentage, 0))'), 'totalAllocationPercentage'],
+          [literal('AVG(COALESCE(allocationPercentage, 0))'), 'averageAllocationPercentage'],
+          [literal('SUM(CASE WHEN allocationPercentage >= 80 THEN 1 ELSE 0 END)'), 'highUtilization'],
+        ],
+        raw: true,
+      }),
+    ]);
+
+    const stats = allocationStats[0] as any;
+
+    res.json({
+      success: true,
+      data: {
+        totalAllocations: allocationCount,
+        totalAllocationPercentage: parseFloat(stats.totalAllocationPercentage || 0),
+        averageAllocationPercentage: parseFloat(stats.averageAllocationPercentage || 0),
+        highUtilization: parseInt(stats.highUtilization || 0),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching allocation metrics',
       error: error.message,
     });
   }

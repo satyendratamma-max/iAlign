@@ -43,7 +43,6 @@ import {
   InfoOutlined,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { fetchAllPages } from '../../services/api';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
@@ -147,8 +146,11 @@ const ResourceAllocation = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0, label: '' });
   const [error, setError] = useState('');
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // Show 50 records per page
+  const [totalCount, setTotalCount] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({
@@ -173,7 +175,7 @@ const ResourceAllocation = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario]);
+  }, [activeScenario, page]); // Refetch when page changes
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -186,41 +188,36 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Fetch allocations with progress tracking (usually the largest dataset)
-      setLoadingProgress({ current: 0, total: 0, label: 'Loading allocations...' });
-      const allocationsData = await fetchAllPages(
-        `${API_URL}/allocations`,
-        { ...config, params: { scenarioId: activeScenario.id } },
-        (current, total) => setLoadingProgress({ current, total, label: 'Loading allocations...' })
-      );
-      setAllocations(allocationsData);
+      // MEMORY OPTIMIZATION: Fetch only current page of allocations (not all 40K+ records)
+      // Parallel fetch: allocations (paginated), resources (for dropdown), projects (for dropdown), domains
+      const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
+        axios.get(`${API_URL}/allocations`, {
+          ...config,
+          params: {
+            scenarioId: activeScenario.id,
+            page,
+            limit: pageSize
+          }
+        }),
+        // For dropdowns, fetch only first 100 records (not all 10K resources)
+        axios.get(`${API_URL}/resources`, { ...config, params: { limit: 100 } }),
+        // For dropdowns, fetch only first 100 projects (not all 2K projects)
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, limit: 100 }
+        }),
+        axios.get(`${API_URL}/domains`, config),
+      ]);
 
-      // Fetch resources with progress tracking
-      setLoadingProgress({ current: 0, total: 0, label: 'Loading resources...' });
-      const resourcesData = await fetchAllPages(
-        `${API_URL}/resources`,
-        config,
-        (current, total) => setLoadingProgress({ current, total, label: 'Loading resources...' })
-      );
-      setResources(resourcesData);
-
-      // Fetch projects with progress tracking
-      setLoadingProgress({ current: 0, total: 0, label: 'Loading projects...' });
-      const projectsData = await fetchAllPages(
-        `${API_URL}/projects`,
-        { ...config, params: { scenarioId: activeScenario.id } },
-        (current, total) => setLoadingProgress({ current, total, label: 'Loading projects...' })
-      );
-      setProjects(projectsData);
-
-      // Fetch domains (non-paginated)
-      const domainsRes = await axios.get(`${API_URL}/domains`, config);
+      setAllocations(allocationsRes.data.data || []);
+      setTotalCount(allocationsRes.data.pagination?.total || 0);
+      setResources(resourcesRes.data.data || []);
+      setProjects(projectsRes.data.data || []);
       setDomains(domainsRes.data.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
-      setLoadingProgress({ current: 0, total: 0, label: '' });
     }
   };
 
@@ -380,14 +377,15 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Load resource capabilities and all projects in parallel
-      // Use fetchAllPages for paginated projects endpoint
-      const [capRes, allProjects] = await Promise.all([
+      // Load resource capabilities and projects in parallel
+      // MEMORY OPTIMIZATION: For dialogs, load first 500 projects (not all 2K+)
+      const [capRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/resource-capabilities?resourceId=${resourceId}`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        axios.get(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, limit: 500 } }),
       ]);
 
       const resourceCapabilities = capRes.data.data || [];
+      const allProjects = projectsRes.data.data || [];
 
       // Load requirements for each project
       const projectsWithRequirements = await Promise.all(
@@ -483,8 +481,12 @@ const ResourceAllocation = () => {
       const selectedCapability = selectedResourceCapabilities.find(c => c.id === capabilityId);
       if (!selectedCapability) return;
 
-      // Load all projects using fetchAllPages
-      const allProjects = await fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } });
+      // MEMORY OPTIMIZATION: For dialogs, load first 500 projects (not all 2K+)
+      const projectsRes = await axios.get(`${API_URL}/projects`, {
+        ...config,
+        params: { scenarioId: activeScenario.id, limit: 500 }
+      });
+      const allProjects = projectsRes.data.data || [];
 
       // Load requirements for each project and calculate match scores
       const projectsWithRequirements = await Promise.all(
@@ -814,25 +816,7 @@ const ResourceAllocation = () => {
     return (
       <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="400px" gap={2}>
         <CircularProgress size={60} />
-        {loadingProgress.label && (
-          <Box textAlign="center" width="100%" maxWidth={400}>
-            <Typography variant="body1" gutterBottom>
-              {loadingProgress.label}
-            </Typography>
-            {loadingProgress.total > 0 && (
-              <>
-                <LinearProgress
-                  variant="determinate"
-                  value={(loadingProgress.current / loadingProgress.total) * 100}
-                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
-                />
-                <Typography variant="caption" color="text.secondary">
-                  Page {loadingProgress.current} of {loadingProgress.total}
-                </Typography>
-              </>
-            )}
-          </Box>
-        )}
+        <Typography variant="body1">Loading allocations...</Typography>
       </Box>
     );
   }
@@ -1391,6 +1375,34 @@ const ResourceAllocation = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Pagination Controls */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {allocations.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} allocations
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
+                Page {page} of {Math.ceil(totalCount / pageSize)}
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={page >= Math.ceil(totalCount / pageSize)}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </Button>
+            </Box>
+          </Box>
         </CardContent>
       </Card>
 

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { literal } from 'sequelize';
 import Resource from '../models/Resource';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
@@ -185,6 +186,44 @@ export const deleteResource = async (req: Request, res: Response, next: NextFunc
     res.json({
       success: true,
       message: 'Resource deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// MEMORY OPTIMIZATION: Server-side aggregation for dashboard metrics
+export const getDashboardMetrics = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const where: any = { isActive: true };
+
+    // Get counts and aggregations
+    const [resourceCount, resourceStats] = await Promise.all([
+      Resource.count({ where }),
+      Resource.findAll({
+        where,
+        attributes: [
+          [literal('COUNT(*)'), 'totalResources'],
+          [literal('SUM(CASE WHEN status = "Available" THEN 1 ELSE 0 END)'), 'availableResources'],
+          [literal('SUM(CASE WHEN status = "Allocated" THEN 1 ELSE 0 END)'), 'allocatedResources'],
+          [literal('SUM(COALESCE(fte, 0))'), 'totalFte'],
+          [literal('AVG(COALESCE(fte, 0))'), 'averageFte'],
+        ],
+        raw: true,
+      }),
+    ]);
+
+    const stats = resourceStats[0] as any;
+
+    res.json({
+      success: true,
+      data: {
+        totalResources: resourceCount,
+        availableResources: parseInt(stats.availableResources || 0),
+        allocatedResources: parseInt(stats.allocatedResources || 0),
+        totalFte: parseFloat(stats.totalFte || 0),
+        averageFte: parseFloat(stats.averageFte || 0),
+      },
     });
   } catch (error) {
     next(error);

@@ -284,6 +284,7 @@ export const getProjectStats = async (req: Request, res: Response, next: NextFun
   }
 };
 
+// MEMORY OPTIMIZATION: Use SQL aggregations instead of loading all projects into memory
 export const getDashboardMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { scenarioId } = req.query;
@@ -293,41 +294,63 @@ export const getDashboardMetrics = async (req: Request, res: Response, next: Nex
       where.scenarioId = scenarioId;
     }
 
-    const projects = await Project.findAll({ where });
+    // Use SQL aggregations - NO records loaded into memory
+    const [projectStats] = await Project.findAll({
+      where,
+      attributes: [
+        [literal('COUNT(*)'), 'totalProjects'],
+        [literal('SUM(CASE WHEN status IN ("In Progress", "Planning") THEN 1 ELSE 0 END)'), 'activeProjects'],
+        [literal('SUM(COALESCE(budget, 0))'), 'totalBudget'],
+        [literal('SUM(COALESCE(actualCost, 0))'), 'totalActualCost'],
+        [literal('AVG(COALESCE(progress, 0))'), 'avgProgress'],
+        // Status breakdown
+        [literal('SUM(CASE WHEN status = "Planning" THEN 1 ELSE 0 END)'), 'statusPlanning'],
+        [literal('SUM(CASE WHEN status = "In Progress" THEN 1 ELSE 0 END)'), 'statusInProgress'],
+        [literal('SUM(CASE WHEN status = "On Hold" THEN 1 ELSE 0 END)'), 'statusOnHold'],
+        [literal('SUM(CASE WHEN status = "Completed" THEN 1 ELSE 0 END)'), 'statusCompleted'],
+        [literal('SUM(CASE WHEN status = "Cancelled" THEN 1 ELSE 0 END)'), 'statusCancelled'],
+        // Health breakdown
+        [literal('SUM(CASE WHEN healthStatus = "On Track" THEN 1 ELSE 0 END)'), 'healthOnTrack'],
+        [literal('SUM(CASE WHEN healthStatus = "At Risk" THEN 1 ELSE 0 END)'), 'healthAtRisk'],
+        [literal('SUM(CASE WHEN healthStatus = "Off Track" THEN 1 ELSE 0 END)'), 'healthOffTrack'],
+        // Priority breakdown
+        [literal('SUM(CASE WHEN priority = "High" THEN 1 ELSE 0 END)'), 'priorityHigh'],
+        [literal('SUM(CASE WHEN priority = "Medium" THEN 1 ELSE 0 END)'), 'priorityMedium'],
+        [literal('SUM(CASE WHEN priority = "Low" THEN 1 ELSE 0 END)'), 'priorityLow'],
+      ],
+      raw: true,
+    }) as any[];
 
-    const activeProjects = projects.filter(p =>
-      p.status === 'In Progress' || p.status === 'Planning'
-    );
+    const stats = projectStats as any;
+    const totalBudget = parseFloat(stats.totalBudget || 0);
+    const totalActual = parseFloat(stats.totalActualCost || 0);
 
-    const totalBudget = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
-    const totalActual = projects.reduce((sum, p) => sum + (Number(p.actualCost) || 0), 0);
-    const avgProgress = projects.reduce((sum, p) => sum + (Number(p.progress) || 0), 0) / projects.length || 0;
+    const statusBreakdown: any = {};
+    if (stats.statusPlanning > 0) statusBreakdown['Planning'] = parseInt(stats.statusPlanning);
+    if (stats.statusInProgress > 0) statusBreakdown['In Progress'] = parseInt(stats.statusInProgress);
+    if (stats.statusOnHold > 0) statusBreakdown['On Hold'] = parseInt(stats.statusOnHold);
+    if (stats.statusCompleted > 0) statusBreakdown['Completed'] = parseInt(stats.statusCompleted);
+    if (stats.statusCancelled > 0) statusBreakdown['Cancelled'] = parseInt(stats.statusCancelled);
 
-    const statusBreakdown = projects.reduce((acc: any, p) => {
-      acc[p.status] = (acc[p.status] || 0) + 1;
-      return acc;
-    }, {});
+    const healthBreakdown: any = {};
+    if (stats.healthOnTrack > 0) healthBreakdown['On Track'] = parseInt(stats.healthOnTrack);
+    if (stats.healthAtRisk > 0) healthBreakdown['At Risk'] = parseInt(stats.healthAtRisk);
+    if (stats.healthOffTrack > 0) healthBreakdown['Off Track'] = parseInt(stats.healthOffTrack);
 
-    const healthBreakdown = projects.reduce((acc: any, p) => {
-      const health = p.healthStatus || 'Unknown';
-      acc[health] = (acc[health] || 0) + 1;
-      return acc;
-    }, {});
-
-    const priorityBreakdown = projects.reduce((acc: any, p) => {
-      acc[p.priority] = (acc[p.priority] || 0) + 1;
-      return acc;
-    }, {});
+    const priorityBreakdown: any = {};
+    if (stats.priorityHigh > 0) priorityBreakdown['High'] = parseInt(stats.priorityHigh);
+    if (stats.priorityMedium > 0) priorityBreakdown['Medium'] = parseInt(stats.priorityMedium);
+    if (stats.priorityLow > 0) priorityBreakdown['Low'] = parseInt(stats.priorityLow);
 
     res.json({
       success: true,
       data: {
-        totalProjects: projects.length,
-        activeProjects: activeProjects.length,
+        totalProjects: parseInt(stats.totalProjects || 0),
+        activeProjects: parseInt(stats.activeProjects || 0),
         totalBudget,
         totalActualCost: totalActual,
         budgetVariance: totalBudget - totalActual,
-        averageProgress: Math.round(avgProgress),
+        averageProgress: Math.round(parseFloat(stats.avgProgress || 0)),
         statusBreakdown,
         healthBreakdown,
         priorityBreakdown,
