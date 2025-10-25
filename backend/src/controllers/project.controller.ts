@@ -416,3 +416,138 @@ export const bulkUpdateProjectSortOrders = async (req: Request, res: Response, n
     next(error);
   }
 };
+
+// MEMORY OPTIMIZATION: Return only top 8 projects by budget (not all 2K+ projects)
+export const getTopProjectsByBudget = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { scenarioId, limit = 8 } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
+    const topProjects = await Project.findAll({
+      where,
+      order: [['budget', 'DESC']],
+      limit: parseInt(limit as string),
+      include: [
+        {
+          model: Domain,
+          as: 'domain',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: SegmentFunction,
+          as: 'segmentFunctionData',
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      data: topProjects,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// MEMORY OPTIMIZATION: Return only at-risk projects (not all projects)
+export const getAtRiskProjects = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { scenarioId, limit = 8 } = req.query;
+    const where: any = {
+      isActive: true,
+      healthStatus: ['Red', 'Yellow'], // Red or Yellow health status
+    };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
+    const atRiskProjects = await Project.findAll({
+      where,
+      order: [['progress', 'ASC']], // Lowest progress first (highest risk)
+      limit: parseInt(limit as string),
+      include: [
+        {
+          model: Domain,
+          as: 'domain',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: SegmentFunction,
+          as: 'segmentFunctionData',
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      data: atRiskProjects,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// MEMORY OPTIMIZATION: Return domain performance stats using SQL aggregation
+export const getDomainPerformance = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { scenarioId } = req.query;
+    const where: any = { isActive: true };
+
+    if (scenarioId) {
+      where.scenarioId = scenarioId;
+    }
+
+    // Get all domains
+    const domains = await Domain.findAll({
+      where: { isActive: true },
+      attributes: ['id', 'name'],
+    });
+
+    // For each domain, calculate aggregated stats
+    const domainPerformance = await Promise.all(
+      domains.map(async (domain) => {
+        const [stats] = await Project.findAll({
+          where: { ...where, domainId: domain.id },
+          attributes: [
+            [literal('COUNT(*)'), 'projectCount'],
+            [literal('SUM(COALESCE(budget, 0))'), 'totalBudget'],
+            [literal('AVG(COALESCE(progress, 0))'), 'avgProgress'],
+            [literal("SUM(CASE WHEN healthStatus = 'Green' THEN 1 ELSE 0 END)"), 'healthyProjects'],
+          ],
+          raw: true,
+        }) as any[];
+
+        const projectCount = parseInt(stats.projectCount || 0);
+        const healthScore = projectCount > 0
+          ? Math.round((parseInt(stats.healthyProjects || 0) / projectCount) * 100)
+          : 0;
+
+        return {
+          domainId: domain.id,
+          domainName: domain.name,
+          projectCount,
+          totalBudget: parseFloat(stats.totalBudget || 0),
+          avgProgress: Math.round(parseFloat(stats.avgProgress || 0)),
+          healthScore,
+        };
+      })
+    );
+
+    // Filter out domains with no projects
+    const filteredPerformance = domainPerformance.filter(d => d.projectCount > 0);
+
+    res.json({
+      success: true,
+      data: filteredPerformance,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

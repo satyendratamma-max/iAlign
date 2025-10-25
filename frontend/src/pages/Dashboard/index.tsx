@@ -151,25 +151,39 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         };
 
-        // MEMORY OPTIMIZATION: Use aggregation endpoints instead of loading all records
-        // These endpoints return only aggregated statistics (counts, sums, averages)
-        // NO individual records are loaded into memory
-        const [projectMetrics, resourceMetrics, allocationMetrics, domainsRes, segmentFunctionsRes] = await Promise.all([
+        // MEMORY OPTIMIZATION: Use aggregation and targeted endpoints
+        // Instead of loading all 2K+ projects, fetch only what's needed for display
+        const [
+          projectMetrics,
+          resourceMetrics,
+          allocationMetrics,
+          domainsRes,
+          segmentFunctionsRes,
+          topProjectsRes,
+          atRiskProjectsRes,
+          domainPerfRes,
+        ] = await Promise.all([
           axios.get(`${API_URL}/projects/dashboard/metrics`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/resources/dashboard/metrics`, config),
           axios.get(`${API_URL}/allocations/dashboard/metrics`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/domains`, config),
           axios.get(`${API_URL}/segment-functions`, config),
+          axios.get(`${API_URL}/projects/dashboard/top-by-budget`, { ...config, params: { scenarioId: activeScenario.id, limit: 8 } }),
+          axios.get(`${API_URL}/projects/dashboard/at-risk`, { ...config, params: { scenarioId: activeScenario.id, limit: 8 } }),
+          axios.get(`${API_URL}/projects/dashboard/domain-performance`, { ...config, params: { scenarioId: activeScenario.id } }),
         ]);
 
         const allDomains = domainsRes.data.data;
         const segmentFunctions = segmentFunctionsRes.data.data;
 
-        // Store aggregated metrics (not individual records)
-        setAllProjects([]); // Dashboard doesn't need individual project records
-        setAllResources([]); // Dashboard doesn't need individual resource records
-        setAllAllocations([]); // Dashboard doesn't need individual allocation records
+        // Set data for dashboard sections (only what's needed, not all records)
+        setAllProjects([]); // We don't need all projects in memory
+        setAllResources([]); // We don't need all resources in memory
+        setAllAllocations([]); // We don't need all allocations in memory
         setDomains(allDomains);
+        setTopProjects(topProjectsRes.data.data);
+        setAtRiskProjects(atRiskProjectsRes.data.data);
+        setDomainPerformance(domainPerfRes.data.data);
 
         // Update dashboard metrics from aggregation endpoints
         const projectData = projectMetrics.data.data;
@@ -264,6 +278,9 @@ const Dashboard = () => {
 
   // Calculate filtered metrics when domain filter changes
   useEffect(() => {
+    // MEMORY OPTIMIZATION: Skip this recalculation since we now fetch data from backend
+    // The backend endpoints already provide filtered/aggregated data
+    // This useEffect is kept for potential future client-side filtering needs
     if (allProjects.length === 0) return;
 
     // Filter projects by domain if selected
