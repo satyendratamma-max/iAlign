@@ -54,6 +54,7 @@ interface Resource {
   firstName?: string;
   lastName?: string;
   domainId?: number;
+  utilizationRate?: number;
   capabilities?: Capability[];
 }
 
@@ -608,6 +609,10 @@ const QuickAllocationDialog = ({
                       option.matchScore >= 60 ? 'primary' :
                       option.matchScore >= 40 ? 'warning' : 'error';
 
+                    const utilizationColor =
+                      (option.utilizationRate || 0) >= 90 ? 'error' :
+                      (option.utilizationRate || 0) >= 70 ? 'warning' : 'success';
+
                     return (
                       <li {...props} key={option.id}>
                         <Box sx={{ width: '100%' }}>
@@ -620,13 +625,28 @@ const QuickAllocationDialog = ({
                                 {option.employeeId}
                               </Typography>
                             </Box>
-                            {!isEditMode && (
-                              <Chip
-                                label={`${option.matchScore}%`}
-                                color={matchColor as any}
-                                size="small"
-                              />
-                            )}
+                            <Box display="flex" gap={1} alignItems="center">
+                              {option.utilizationRate !== undefined && option.utilizationRate !== null && (
+                                <Box display="flex" alignItems="center" gap={0.5}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={option.utilizationRate}
+                                    color={utilizationColor}
+                                    sx={{ width: 40, height: 6, borderRadius: 1 }}
+                                  />
+                                  <Typography variant="caption" fontWeight="medium" sx={{ minWidth: 30 }}>
+                                    {option.utilizationRate.toFixed(0)}%
+                                  </Typography>
+                                </Box>
+                              )}
+                              {!isEditMode && (
+                                <Chip
+                                  label={`${option.matchScore}%`}
+                                  color={matchColor as any}
+                                  size="small"
+                                />
+                              )}
+                            </Box>
                           </Box>
                           {option.bestCapability && (
                             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>

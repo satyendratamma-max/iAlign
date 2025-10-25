@@ -89,7 +89,7 @@ export const getAllAllocations = async (req: Request, res: Response) => {
     const resourceInclude: any = {
       model: Resource,
       as: 'resource',
-      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'email', 'primarySkill', 'domainId'],
+      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'email', 'primarySkill', 'domainId', 'utilizationRate'],
       include: [
         {
           model: Domain,
@@ -792,6 +792,7 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
         {
           model: Resource,
           as: 'resource',
+          attributes: ['id', 'employeeId', 'firstName', 'lastName', 'email', 'primarySkill', 'domainId', 'utilizationRate'],
           include: [
             {
               model: Domain,
@@ -849,6 +850,23 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
           model: ProjectRequirement,
           as: 'projectRequirement',
           required: false,
+          include: [
+            {
+              model: App,
+              as: 'app',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Technology,
+              as: 'technology',
+              attributes: ['id', 'name', 'code'],
+            },
+            {
+              model: Role,
+              as: 'role',
+              attributes: ['id', 'name', 'code', 'level'],
+            },
+          ],
         },
       ],
       order: [['startDate', 'ASC']],

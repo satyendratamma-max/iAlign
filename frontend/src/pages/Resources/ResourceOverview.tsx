@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Box,
@@ -40,9 +40,13 @@ import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
 import FilterPresets from '../../components/common/FilterPresets';
+import Pagination from '../../components/common/Pagination';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
+import { useDebounce } from '../../hooks/useDebounce';
+import { usePagination } from '../../hooks/usePagination';
 import { People as PeopleIcon } from '@mui/icons-material';
+import TableSkeleton from '../../components/common/TableSkeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -685,13 +689,25 @@ const ResourceOverview = () => {
     return 'error';
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // PERFORMANCE: Debounce filter inputs to reduce re-renders
+  const debouncedFilters = useDebounce(filters, 300);
+
+  // PERFORMANCE: Memoize filtered resources to avoid recalculating on every render
+  const filteredResources = useMemo(() => {
+    return resources.filter((resource) => {
+      const fullName = `${resource.firstName || ''} ${resource.lastName || ''}`.toLowerCase();
+      return (
+        resource.employeeId.toLowerCase().includes(debouncedFilters.employeeId.toLowerCase()) &&
+        fullName.includes(debouncedFilters.name.toLowerCase()) &&
+        (selectedDomainIds.length === 0 || selectedDomainIds.includes(resource.domainId || 0)) &&
+        (debouncedFilters.segmentFunction === '' || resource.segmentFunction?.name === debouncedFilters.segmentFunction) &&
+        (resource.location || '').toLowerCase().includes(debouncedFilters.location.toLowerCase())
+      );
+    });
+  }, [resources, debouncedFilters, selectedDomainIds]);
+
+  // PERFORMANCE: Pagination - only render 50 resources at a time
+  const pagination = usePagination(filteredResources, { initialPageSize: 50 });
 
   // Get unique business decisions from projects
   const uniqueBusinessDecisions = Array.from(
@@ -767,6 +783,10 @@ const ResourceOverview = () => {
         extraActions={<FilterPresets />}
       />
 
+      {loading ? (
+        <TableSkeleton rows={10} columns={9} showHeader={true} />
+      ) : (
+        <>
       <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, borderRadius: 1.5 }}>
         <Table sx={{ minWidth: { xs: 800, md: 1000 } }}>
           <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[900] }}>
@@ -834,18 +854,7 @@ const ResourceOverview = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {resources
-              .filter((resource) => {
-                const fullName = `${resource.firstName || ''} ${resource.lastName || ''}`.toLowerCase();
-                return (
-                  resource.employeeId.toLowerCase().includes(filters.employeeId.toLowerCase()) &&
-                  fullName.includes(filters.name.toLowerCase()) &&
-                  (selectedDomainIds.length === 0 || selectedDomainIds.includes(resource.domainId || 0)) &&
-                  (filters.segmentFunction === '' || resource.segmentFunction?.name === filters.segmentFunction) &&
-                  (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
-                );
-              })
-              .map((resource) => (
+            {pagination.paginatedData.map((resource) => (
               <TableRow key={resource.id}>
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -919,6 +928,25 @@ const ResourceOverview = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Pagination
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalItems={pagination.totalItems}
+        totalPages={pagination.totalPages}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.changePageSize}
+        onFirstPage={pagination.goToFirstPage}
+        onLastPage={pagination.goToLastPage}
+        onNextPage={pagination.nextPage}
+        onPreviousPage={pagination.previousPage}
+        hasNextPage={pagination.hasNextPage}
+        hasPreviousPage={pagination.hasPreviousPage}
+      />
+        </>
+      )}
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Resource' : 'Add Resource'}</DialogTitle>

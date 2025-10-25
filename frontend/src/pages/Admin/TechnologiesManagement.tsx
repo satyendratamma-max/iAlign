@@ -35,6 +35,7 @@ import {
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import TableSkeleton from '../../components/common/TableSkeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -299,14 +300,6 @@ const TechnologiesManagement = () => {
     event.target.value = '';
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -371,6 +364,9 @@ const TechnologiesManagement = () => {
         </Alert>
       )}
 
+      {loading ? (
+        <TableSkeleton rows={10} columns={9} showHeader={true} />
+      ) : (
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -442,6 +438,7 @@ const TechnologiesManagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>

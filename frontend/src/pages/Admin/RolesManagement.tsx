@@ -35,6 +35,7 @@ import {
 import axios from 'axios';
 import { exportToExcel, importFromExcel } from '../../utils/excelUtils';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import TableSkeleton from '../../components/common/TableSkeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -80,7 +81,8 @@ interface Technology {
 const RolesManagement = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [apps, setApps] = useState<App[]>([]);
-  const [technologies, setTechnologies] = useState<Technology[]>([]);
+  const [technologies, setTechnologies] = useState<Technology[]>([]); // For the form dialog
+  const [filterTechnologies, setFilterTechnologies] = useState<Technology[]>([]); // For the filter dropdown
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -119,6 +121,17 @@ const RolesManagement = () => {
   }, [filterAppId, filterTechId]);
 
   useEffect(() => {
+    // Fetch technologies for the filter dropdown when App filter changes
+    if (filterAppId !== 'all') {
+      fetchFilterTechnologies(filterAppId);
+    } else {
+      setFilterTechnologies([]);
+      setFilterTechId('all');
+    }
+  }, [filterAppId]);
+
+  useEffect(() => {
+    // Fetch technologies for the form dialog when form App changes
     if (formData.appId) {
       fetchTechnologies(formData.appId);
     } else {
@@ -145,6 +158,17 @@ const RolesManagement = () => {
       setTechnologies(response.data.data || []);
     } catch (error: any) {
       console.error('Error fetching technologies:', error);
+    }
+  };
+
+  const fetchFilterTechnologies = async (appId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const response = await axios.get(`${API_URL}/technologies?appId=${appId}`, config);
+      setFilterTechnologies(response.data.data || []);
+    } catch (error: any) {
+      console.error('Error fetching filter technologies:', error);
     }
   };
 
@@ -351,14 +375,6 @@ const RolesManagement = () => {
     return 'Tech Specific';
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -379,6 +395,22 @@ const RolesManagement = () => {
               {apps.map((app) => (
                 <MenuItem key={app.id} value={app.id}>
                   {app.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ minWidth: 150 }} disabled={filterAppId === 'all'}>
+            <InputLabel>Filter by Tech</InputLabel>
+            <Select
+              value={filterTechId}
+              onChange={(e) => setFilterTechId(e.target.value as number | 'all')}
+              label="Filter by Tech"
+              size="small"
+            >
+              <MenuItem value="all">All Technologies</MenuItem>
+              {filterTechnologies.map((tech) => (
+                <MenuItem key={tech.id} value={tech.id}>
+                  {tech.name}
                 </MenuItem>
               ))}
             </Select>
@@ -426,6 +458,9 @@ const RolesManagement = () => {
         </Alert>
       )}
 
+      {loading ? (
+        <TableSkeleton rows={10} columns={10} showHeader={true} />
+      ) : (
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -519,6 +554,7 @@ const RolesManagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>

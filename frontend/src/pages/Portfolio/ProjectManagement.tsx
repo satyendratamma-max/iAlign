@@ -77,6 +77,9 @@ import DependencyManagerDialog from '../../components/Portfolio/DependencyManage
 import EnhancedRequirementsTab from '../../components/Projects/EnhancedRequirementsTab';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import QuickAllocationDialog from '../../components/QuickAllocationDialog';
+import Pagination from '../../components/common/Pagination';
+import { useDebounce } from '../../hooks/useDebounce';
+import { usePagination } from '../../hooks/usePagination';
 import {
   getAllDependencies,
   createDependency,
@@ -1658,19 +1661,14 @@ const ProjectManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const scenarioParam = activeScenario?.id ? `?scenarioId=${activeScenario.id}` : '';
-      const response = await axios.get(`${API_URL}/allocations${scenarioParam}`, {
+      const response = await axios.get(`${API_URL}/allocations/project/${project.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Filter allocations by project ID and include all allocation details
-      const projectAllocations = response.data.data.filter(
-        (allocation: any) => allocation.projectId === project.id
-      );
-
-      setProjectResources(projectAllocations);
+      setProjectResources(response.data.data || []);
     } catch (error) {
       console.error('Error fetching project resources:', error);
+      setProjectResources([]);
     } finally {
       setLoadingResources(false);
     }
@@ -2115,26 +2113,30 @@ const ProjectManagement = () => {
     setOrderBy(property);
   };
 
-  // Filter projects based on current filters
-  const filteredProjects = projects.filter((project) => {
+  // PERFORMANCE: Debounce filter inputs to reduce re-renders (300ms delay)
+  const debouncedFilters = useDebounce(filters, 300);
+
+  // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
     const impactedDomains = getImpactedDomains(project.id);
-    const matchesImpactedDomain = filters.impactedDomain.length === 0 ||
-      filters.impactedDomain.some(domain => impactedDomains.includes(domain));
+    const matchesImpactedDomain = debouncedFilters.impactedDomain.length === 0 ||
+      debouncedFilters.impactedDomain.some(domain => impactedDomains.includes(domain));
 
     return (
-      (project.projectNumber || '').toLowerCase().includes(filters.projectNumber.toLowerCase()) &&
-      project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
+      (project.projectNumber || '').toLowerCase().includes(debouncedFilters.projectNumber.toLowerCase()) &&
+      project.name.toLowerCase().includes(debouncedFilters.name.toLowerCase()) &&
       (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
-      (filters.segmentFunction.length === 0 || filters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
-      (filters.type === '' || (project.type || '').toLowerCase().includes(filters.type.toLowerCase())) &&
-      (filters.fiscalYear.length === 0 || filters.fiscalYear.includes(project.fiscalYear || '')) &&
-      (filters.targetRelease.length === 0 || filters.targetRelease.includes(project.targetRelease || '')) &&
-      (filters.targetSprint.length === 0 || filters.targetSprint.includes(project.targetSprint || '')) &&
-      (filters.status.length === 0 || filters.status.includes(project.status)) &&
-      (filters.priority === '' || project.priority === filters.priority) &&
+      (debouncedFilters.segmentFunction.length === 0 || debouncedFilters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
+      (debouncedFilters.type === '' || (project.type || '').toLowerCase().includes(debouncedFilters.type.toLowerCase())) &&
+      (debouncedFilters.fiscalYear.length === 0 || debouncedFilters.fiscalYear.includes(project.fiscalYear || '')) &&
+      (debouncedFilters.targetRelease.length === 0 || debouncedFilters.targetRelease.includes(project.targetRelease || '')) &&
+      (debouncedFilters.targetSprint.length === 0 || debouncedFilters.targetSprint.includes(project.targetSprint || '')) &&
+      (debouncedFilters.status.length === 0 || debouncedFilters.status.includes(project.status)) &&
+      (debouncedFilters.priority === '' || project.priority === debouncedFilters.priority) &&
       (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
-      (filters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(filters.currentPhase.toLowerCase())) &&
-      (filters.health.length === 0 || filters.health.includes(project.healthStatus || '')) &&
+      (debouncedFilters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(debouncedFilters.currentPhase.toLowerCase())) &&
+      (debouncedFilters.health.length === 0 || debouncedFilters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain
     );
   }).sort((a, b) => {
@@ -2241,6 +2243,10 @@ const ProjectManagement = () => {
     }
     return 0;
   });
+  }, [projects, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, orderBy, order, projectRisks, allDomainImpacts]);
+
+  // PERFORMANCE: Pagination - only render 50 projects at a time (applies to table view only)
+  const pagination = usePagination(filteredProjects, { initialPageSize: 50 });
 
   // Extract unique business decisions for filter options
   const uniqueBusinessDecisions = Array.from(
@@ -4042,7 +4048,7 @@ const ProjectManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProjects.map((project) => (
+            {pagination.paginatedData.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
                   <IconButton
@@ -4223,6 +4229,23 @@ const ProjectManagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Pagination
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalItems={pagination.totalItems}
+        totalPages={pagination.totalPages}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.changePageSize}
+        onFirstPage={pagination.goToFirstPage}
+        onLastPage={pagination.goToLastPage}
+        onNextPage={pagination.nextPage}
+        onPreviousPage={pagination.previousPage}
+        hasNextPage={pagination.hasNextPage}
+        hasPreviousPage={pagination.hasPreviousPage}
+      />
         </>
       )}
 
@@ -7137,6 +7160,7 @@ const ProjectManagement = () => {
                     <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
                     <TableCell>Employee ID</TableCell>
                     <TableCell>Name</TableCell>
+                    <TableCell>Utilization</TableCell>
                     <TableCell>Resource Capability</TableCell>
                     <TableCell>Project Requirement</TableCell>
                     <TableCell>Match Score</TableCell>
@@ -7174,6 +7198,31 @@ const ProjectManagement = () => {
                         <Typography variant="caption" color="text.secondary">
                           {allocation.resource?.email || '-'}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {allocation.resource?.utilizationRate !== undefined && allocation.resource?.utilizationRate !== null ? (
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={allocation.resource.utilizationRate}
+                              color={
+                                allocation.resource.utilizationRate >= 90
+                                  ? 'error'
+                                  : allocation.resource.utilizationRate >= 70
+                                  ? 'warning'
+                                  : 'success'
+                              }
+                              sx={{ width: 60, height: 8, borderRadius: 1 }}
+                            />
+                            <Typography variant="caption" fontWeight="medium">
+                              {allocation.resource.utilizationRate.toFixed(0)}%
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         {allocation.resourceCapability ? (

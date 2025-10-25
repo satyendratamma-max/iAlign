@@ -11,28 +11,30 @@ export const getAllRoles = async (req: Request, res: Response, next: NextFunctio
     const { appId, technologyId } = req.query;
 
     // Build where clause based on cascade filtering
+    // Global roles (appId=null, technologyId=null) are always included as they can be used everywhere
     const whereClause: any = { isActive: true };
 
     if (appId && technologyId) {
-      // Filter by: (app+tech specific) OR (app-specific only) OR (global)
+      // Show: (exact app+tech match) OR (app-level roles) OR (global roles)
       whereClause[Op.or] = [
         { appId: parseInt(appId as string), technologyId: parseInt(technologyId as string) },
         { appId: parseInt(appId as string), technologyId: null },
         { appId: null, technologyId: null },
       ];
     } else if (appId) {
-      // Filter by: (app-specific with any tech) OR (app-specific without tech) OR (global)
+      // Show: (app-specific roles) OR (global roles)
       whereClause[Op.or] = [
         { appId: parseInt(appId as string) },
         { appId: null, technologyId: null },
       ];
     } else if (technologyId) {
-      // Filter by: (tech-specific with any app) OR (global)
+      // Show: (tech-specific roles) OR (global roles)
       whereClause[Op.or] = [
         { technologyId: parseInt(technologyId as string) },
         { appId: null, technologyId: null },
       ];
     }
+    // If no filters: show all roles
 
     const roles = await Role.findAll({
       where: whereClause,
