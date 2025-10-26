@@ -2529,16 +2529,20 @@ const ProjectManagement = () => {
       return dependencies;
     }
 
-    // Only show dependencies where both predecessor and successor are visible
+    // Only show dependencies where predecessor is visible (for cleaner view)
+    // Successor can be off-screen - arrow will point to it
     return dependencies.filter(dep => {
-      const predId = dep.predecessorType === 'project' ? dep.predecessorId : null;
-      const succId = dep.successorType === 'project' ? dep.successorId : null;
+      // Check if predecessor is visible
+      const predVisible = dep.predecessorType === 'project'
+        ? visibleProjectIds.includes(dep.predecessorId)
+        : (() => {
+            const milestone = milestones.find(m => m.id === dep.predecessorId);
+            return milestone ? visibleProjectIds.includes(milestone.projectId) : false;
+          })();
 
-      if (!predId || !succId) return false;
-
-      return visibleProjectIds.includes(predId) && visibleProjectIds.includes(succId);
+      return predVisible;
     });
-  }, [dependencies, visibleProjectIds, useVirtualScrolling]);
+  }, [dependencies, visibleProjectIds, useVirtualScrolling, milestones]);
 
   // Memoize the row index map to ensure consistency
   const projectRowIndexMap = useMemo(() => {
@@ -6230,19 +6234,11 @@ const ProjectManagement = () => {
                         </marker>
                       ))}
                     </defs>
-                    {/* Use visibleDependencies for virtual scrolling, dependencies for normal mode */}
+                    {/* Use visibleDependencies for virtual scrolling (already filtered by predecessor visibility) */}
                     {(useVirtualScrolling ? visibleDependencies : dependencies)
                       .filter((dep) => {
-                        // For virtual scrolling: only show if predecessor is in visible range
-                        // This prevents arrows from starting off-screen for cleaner view
-                        if (useVirtualScrolling) {
-                          const predInView = dep.predecessorType === 'project'
-                            ? visibleProjectIds.includes(dep.predecessorId)
-                            : milestones.some(m => m.id === dep.predecessorId && visibleProjectIds.includes(m.projectId));
-
-                          // Only require predecessor to be visible (successor can be off-screen)
-                          return predInView;
-                        }
+                        // For virtual scrolling: visibleDependencies already filtered
+                        if (useVirtualScrolling) return true;
 
                         // For normal mode: show all dependencies between filtered projects
                         const predInView = dep.predecessorType === 'project'
