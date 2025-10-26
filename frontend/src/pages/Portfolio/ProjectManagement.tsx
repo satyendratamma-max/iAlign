@@ -12,6 +12,7 @@ import {
   Chip,
   CircularProgress,
   Button,
+  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -1054,6 +1055,10 @@ const ProjectManagement = () => {
   });
   const [visibleProjectIds, setVisibleProjectIds] = useState<number[]>([]);
   const [visibleRangeStart, setVisibleRangeStart] = useState(0); // Track visible range start for virtual scrolling
+  const [dependencyLineStyle, setDependencyLineStyle] = useState<'solid' | 'dashed' | 'dotted'>(() => {
+    const saved = localStorage.getItem('ganttDependencyLineStyle');
+    return (saved as 'solid' | 'dashed' | 'dotted') || 'solid';
+  });
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [swimlanesExpanded, setSwimlanesExpanded] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
@@ -3044,8 +3049,13 @@ const ProjectManagement = () => {
 
       if (!projectStart || !projectEnd) return null;
 
-      const date = point === 'start' ? new Date(projectStart) : new Date(projectEnd);
-      const x = calculatePosition(date, dateRange.start, dateRange.end);
+      // Calculate the bar's left edge and width
+      const barLeftPos = calculatePosition(new Date(projectStart), dateRange.start, dateRange.end);
+      const barWidth = calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end);
+
+      // For 'start' point: use left edge of bar
+      // For 'end' point: use right edge of bar (left + width)
+      const x = point === 'start' ? barLeftPos : barLeftPos + barWidth;
       const rowIndex = projectRowIndexMap.get(id) ?? 0;
 
       // In flat list mode: each row has height:28 + marginBottom:4 + paddingBottom:4 + border:1 = 37px total
@@ -4581,6 +4591,50 @@ const ProjectManagement = () => {
                   <InfoIcon fontSize="small" color="warning" sx={{ ml: 0.5 }} />
                 </Tooltip>
               )}
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              <Typography variant="caption" color="text.secondary">
+                Dependency Line:
+              </Typography>
+              <ButtonGroup size="small" sx={{ ml: 0.5 }}>
+                <Tooltip title="Solid line">
+                  <Button
+                    variant={dependencyLineStyle === 'solid' ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setDependencyLineStyle('solid');
+                      localStorage.setItem('ganttDependencyLineStyle', 'solid');
+                    }}
+                    sx={{ minWidth: 45, px: 1, py: 0.5, fontSize: '0.7rem' }}
+                  >
+                    ━
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Dashed line">
+                  <Button
+                    variant={dependencyLineStyle === 'dashed' ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setDependencyLineStyle('dashed');
+                      localStorage.setItem('ganttDependencyLineStyle', 'dashed');
+                    }}
+                    sx={{ minWidth: 45, px: 1, py: 0.5, fontSize: '0.7rem' }}
+                  >
+                    ┅
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Dotted line">
+                  <Button
+                    variant={dependencyLineStyle === 'dotted' ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setDependencyLineStyle('dotted');
+                      localStorage.setItem('ganttDependencyLineStyle', 'dotted');
+                    }}
+                    sx={{ minWidth: 45, px: 1, py: 0.5, fontSize: '0.7rem' }}
+                  >
+                    ···
+                  </Button>
+                </Tooltip>
+              </ButtonGroup>
             </Box>
           </Box>
 
@@ -6290,6 +6344,9 @@ const ProjectManagement = () => {
                           }
                         }
 
+                        // Determine stroke-dasharray based on line style
+                        const strokeDasharray = dependencyLineStyle === 'dashed' ? '8, 4' : dependencyLineStyle === 'dotted' ? '2, 4' : undefined;
+
                         return (
                           <g key={dep.id}>
                             <path
@@ -6302,6 +6359,7 @@ const ProjectManagement = () => {
                               vectorEffect="non-scaling-stroke"
                               strokeLinejoin="miter"
                               strokeLinecap="square"
+                              strokeDasharray={strokeDasharray}
                             />
                             <title>
                               {`${getEntityName(dep.predecessorType, dep.predecessorId)} (${dep.predecessorPoint}) → ${getEntityName(dep.successorType, dep.successorId)} (${dep.successorPoint})\nType: ${dep.dependencyType}${dep.lagDays !== 0 ? `\nLag: ${dep.lagDays} days` : ''}${isViolated ? '\n⚠️ CONSTRAINT VIOLATED' : ''}`}
