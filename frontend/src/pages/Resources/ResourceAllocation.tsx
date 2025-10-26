@@ -860,8 +860,8 @@ const ResourceAllocation = () => {
       {currentView === 'timeline' && (
         <>
           <TimelineView
-            resources={filteredResources}
-            projects={filteredProjects}
+            resources={resources}
+            projects={projects}
             allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
@@ -874,8 +874,8 @@ const ResourceAllocation = () => {
       {currentView === 'kanban' && (
         <>
           <KanbanView
-            resources={filteredResources}
-            projects={filteredProjects}
+            resources={resources}
+            projects={projects}
             allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
