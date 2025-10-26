@@ -4543,19 +4543,23 @@ const ProjectManagement = () => {
               <Typography variant="caption" color="text.secondary">
                 Virtual Scrolling:
               </Typography>
-              <Tooltip title={swimlaneConfig.enabled ? 'Disable swimlanes to enable virtual scrolling' : `${performanceMetrics.shouldUseVirtualScrolling ? 'Recommended for ' : ''}${filteredProjects.length} projects`}>
-                <span>
-                  <Button
-                    size="small"
-                    variant={useVirtualScrolling ? 'contained' : 'outlined'}
-                    color={performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling ? 'warning' : 'primary'}
-                    onClick={() => setUseVirtualScrolling(!useVirtualScrolling)}
-                    disabled={swimlaneConfig.enabled}
-                    sx={{ minWidth: 60, px: 1, py: 0.5 }}
-                  >
-                    {useVirtualScrolling ? 'ON' : 'OFF'}
-                  </Button>
-                </span>
+              <Tooltip title={swimlaneConfig.enabled ? 'Will automatically disable swimlanes' : `${performanceMetrics.shouldUseVirtualScrolling ? 'Recommended for ' : ''}${filteredProjects.length} projects`}>
+                <Button
+                  size="small"
+                  variant={useVirtualScrolling ? 'contained' : 'outlined'}
+                  color={performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling ? 'warning' : 'primary'}
+                  onClick={() => {
+                    const newValue = !useVirtualScrolling;
+                    setUseVirtualScrolling(newValue);
+                    // Automatically disable swimlanes when turning virtual scrolling ON
+                    if (newValue && swimlaneConfig.enabled) {
+                      setSwimlaneConfig({ ...swimlaneConfig, enabled: false });
+                    }
+                  }}
+                  sx={{ minWidth: 60, px: 1, py: 0.5 }}
+                >
+                  {useVirtualScrolling ? 'ON' : 'OFF'}
+                </Button>
               </Tooltip>
 
               {performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling && (
@@ -4574,10 +4578,11 @@ const ProjectManagement = () => {
             </Alert>
           )}
 
-          {/* Swimlane Compatibility Alert */}
-          {useVirtualScrolling && swimlaneConfig.enabled && (
-            <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setUseVirtualScrolling(false)}>
-              Virtual scrolling is currently only available in flat list mode. Disable swimlanes to use virtual scrolling for optimal performance.
+          {/* Info: Virtual scrolling disables swimlanes */}
+          {useVirtualScrolling && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Virtual scrolling mode enabled. Rendering only visible projects for optimal performance ({filteredProjects.length} total projects).
+              {filteredProjects.length > 500 && ' Expect 10x faster render times!'}
             </Alert>
           )}
 
