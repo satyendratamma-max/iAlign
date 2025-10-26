@@ -179,7 +179,7 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
       const project = flatProjects[index];
 
-      console.log('[VirtualGanttTimeline] Rendering row:', { index, project: project?.name });
+      console.log('[VirtualGanttTimeline] Rendering row:', { index, project: project?.name, style });
 
       if (!project) {
         console.warn('[VirtualGanttTimeline] No project at index:', index);
@@ -189,19 +189,25 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       return <div style={style}>{renderProjectRow({ project, index, style })}</div>;
     };
 
-    // Use children pattern for react-window List component
+    console.log('[VirtualGanttTimeline] Creating List with:', {
+      rowCount: flatProjects.length,
+      rowHeight,
+      height,
+      width,
+    });
+
+    // Use rowComponent pattern for react-window List component
     return (
       <List<{}>
         listRef={listRef}
         rowCount={flatProjects.length}
         rowHeight={rowHeight}
+        rowComponent={Row}
         rowProps={{}}
         onRowsRendered={handleRowsRendered}
         overscanCount={overscanCount}
         style={{ height, width }}
-      >
-        {Row}
-      </List>
+      />
     );
   }
 );
