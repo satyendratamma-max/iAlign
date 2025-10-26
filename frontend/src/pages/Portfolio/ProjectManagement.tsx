@@ -1044,7 +1044,7 @@ const ProjectManagement = () => {
     const saved = localStorage.getItem('projectManagementViewMode');
     return (saved as 'list' | 'gantt' | 'kanban') || 'list';
   });
-  const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'domain' | 'fiscalYear' | 'priority' | 'healthStatus' | 'currentPhase'>('status');
+  const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'domain' | 'fiscalYear' | 'targetRelease' | 'targetSprint' | 'priority' | 'healthStatus' | 'currentPhase'>('status');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [ganttActiveId, setGanttActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
