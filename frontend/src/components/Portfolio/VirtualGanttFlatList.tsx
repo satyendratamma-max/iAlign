@@ -133,7 +133,7 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
   });
 
   return (
-    <Box sx={{ height: 'calc(100vh - 400px)', minHeight: 400 }}>
+    <Box sx={{ height: '100%', width: '100%', position: 'relative' }}>
       <AutoSizer>
         {({ height, width }) => {
           console.log('[VirtualGanttFlatList] AutoSizer dimensions:', { height, width });

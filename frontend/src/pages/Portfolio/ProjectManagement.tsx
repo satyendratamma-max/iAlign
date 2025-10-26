@@ -6163,7 +6163,8 @@ const ProjectManagement = () => {
                         </marker>
                       ))}
                     </defs>
-                    {dependencies
+                    {/* Use visibleDependencies for virtual scrolling, dependencies for normal mode */}
+                    {(useVirtualScrolling ? visibleDependencies : dependencies)
                       .filter((dep) => {
                         // Only show dependencies between visible projects
                         const predInView = dep.predecessorType === 'project'
