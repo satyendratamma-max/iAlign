@@ -6233,7 +6233,18 @@ const ProjectManagement = () => {
                     {/* Use visibleDependencies for virtual scrolling, dependencies for normal mode */}
                     {(useVirtualScrolling ? visibleDependencies : dependencies)
                       .filter((dep) => {
-                        // Only show dependencies between visible projects
+                        // For virtual scrolling: only show if predecessor is in visible range
+                        // This prevents arrows from starting off-screen for cleaner view
+                        if (useVirtualScrolling) {
+                          const predInView = dep.predecessorType === 'project'
+                            ? visibleProjectIds.includes(dep.predecessorId)
+                            : milestones.some(m => m.id === dep.predecessorId && visibleProjectIds.includes(m.projectId));
+
+                          // Only require predecessor to be visible (successor can be off-screen)
+                          return predInView;
+                        }
+
+                        // For normal mode: show all dependencies between filtered projects
                         const predInView = dep.predecessorType === 'project'
                           ? filteredProjects.some(p => p.id === dep.predecessorId)
                           : milestones.some(m => m.id === dep.predecessorId && filteredProjects.some(p => p.id === m.projectId));
