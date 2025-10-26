@@ -104,6 +104,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import VirtualGanttTimeline, { VirtualGanttTimelineHandle } from '../../components/Portfolio/VirtualGanttTimeline';
+import { useGanttPerformance } from '../../hooks/useGanttPerformance';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -908,6 +911,12 @@ const ProjectManagement = () => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [ganttActiveId, setGanttActiveId] = useState<number | null>(null);
   const [ganttSidebarWidth, setGanttSidebarWidth] = useState(300);
+  const [useVirtualScrolling, setUseVirtualScrolling] = useState(() => {
+    const saved = localStorage.getItem('ganttUseVirtualScrolling');
+    // Auto-enable for large datasets, but respect user preference
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [visibleProjectIds, setVisibleProjectIds] = useState<number[]>([]);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [swimlanesExpanded, setSwimlanesExpanded] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
@@ -940,7 +949,7 @@ const ProjectManagement = () => {
 
   // PAGINATION STATE
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50); // Show 50 projects per page
+  const [pageSize, setPageSize] = useState(50); // Show 50 projects per page
   const [totalCount, setTotalCount] = useState(0);
 
   // Swimlane Configuration State
@@ -1042,6 +1051,15 @@ const ProjectManagement = () => {
   const [cpmData, setCpmData] = useState<{ nodes: Map<string, any>; criticalPath: string[] }>({ nodes: new Map(), criticalPath: [] });
   const [timelineWidth, setTimelineWidth] = useState<number>(1000);
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+  const virtualGanttRef = useRef<VirtualGanttTimelineHandle>(null);
+
+  // Performance monitoring for Gantt view
+  const { metrics: performanceMetrics, startMeasure, endMeasure } = useGanttPerformance(filteredProjects);
+
+  // Save virtual scrolling preference
+  useEffect(() => {
+    localStorage.setItem('ganttUseVirtualScrolling', String(useVirtualScrolling));
+  }, [useVirtualScrolling]);
 
   // Helper functions for notifications and confirmations
   const showAlert = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -1114,7 +1132,7 @@ const ProjectManagement = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page]); // Re-fetch when page changes
+  }, [activeScenario, page, pageSize]); // Re-fetch when page or pageSize changes
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -2348,6 +2366,23 @@ const ProjectManagement = () => {
   const swimlaneStructure = useMemo(() => {
     return swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
   }, [swimlaneConfig.enabled, swimlaneConfig.level1, swimlaneConfig.level2, swimlaneConfig.level2Enabled, filteredProjects]);
+
+  // Filter dependencies for visible projects only (virtual scrolling optimization)
+  const visibleDependencies = useMemo(() => {
+    if (!useVirtualScrolling || visibleProjectIds.length === 0) {
+      return dependencies;
+    }
+
+    // Only show dependencies where both predecessor and successor are visible
+    return dependencies.filter(dep => {
+      const predId = dep.predecessorType === 'project' ? dep.predecessorId : null;
+      const succId = dep.successorType === 'project' ? dep.successorId : null;
+
+      if (!predId || !succId) return false;
+
+      return visibleProjectIds.includes(predId) && visibleProjectIds.includes(succId);
+    });
+  }, [dependencies, visibleProjectIds, useVirtualScrolling]);
 
   // Memoize the row index map to ensure consistency
   const projectRowIndexMap = useMemo(() => {
@@ -4240,32 +4275,25 @@ const ProjectManagement = () => {
       </TableContainer>
 
       {/* SERVER-SIDE PAGINATION */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, mt: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Showing {projects.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} projects
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-          >
-            Previous
-          </Button>
-          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
-            Page {page} of {Math.ceil(totalCount / pageSize) || 1}
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={page >= Math.ceil(totalCount / pageSize)}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </Button>
-        </Box>
-      </Box>
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        totalItems={totalCount}
+        totalPages={Math.ceil(totalCount / pageSize) || 1}
+        startIndex={(page - 1) * pageSize}
+        endIndex={Math.min(page * pageSize, totalCount)}
+        onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1); // Reset to page 1 when page size changes
+        }}
+        onFirstPage={() => setPage(1)}
+        onLastPage={() => setPage(Math.ceil(totalCount / pageSize) || 1)}
+        onNextPage={() => setPage(Math.min(page + 1, Math.ceil(totalCount / pageSize) || 1))}
+        onPreviousPage={() => setPage(Math.max(page - 1, 1))}
+        hasNextPage={page < (Math.ceil(totalCount / pageSize) || 1)}
+        hasPreviousPage={page > 1}
+      />
         </>
       )}
 
@@ -4373,8 +4401,49 @@ const ProjectManagement = () => {
               >
                 {showGridlines ? 'ON' : 'OFF'}
               </Button>
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              <Typography variant="caption" color="text.secondary">
+                Virtual Scrolling:
+              </Typography>
+              <Tooltip title={swimlaneConfig.enabled ? 'Disable swimlanes to enable virtual scrolling' : `${performanceMetrics.shouldUseVirtualScrolling ? 'Recommended for ' : ''}${filteredProjects.length} projects`}>
+                <span>
+                  <Button
+                    size="small"
+                    variant={useVirtualScrolling ? 'contained' : 'outlined'}
+                    color={performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling ? 'warning' : 'primary'}
+                    onClick={() => setUseVirtualScrolling(!useVirtualScrolling)}
+                    disabled={swimlaneConfig.enabled}
+                    sx={{ minWidth: 60, px: 1, py: 0.5 }}
+                  >
+                    {useVirtualScrolling ? 'ON' : 'OFF'}
+                  </Button>
+                </span>
+              </Tooltip>
+
+              {performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling && (
+                <Tooltip title={`Performance: ${performanceMetrics.performanceLevel.toUpperCase()} | Render: ${performanceMetrics.renderTime.toFixed(0)}ms`}>
+                  <InfoIcon fontSize="small" color="warning" sx={{ ml: 0.5 }} />
+                </Tooltip>
+              )}
             </Box>
           </Box>
+
+          {/* Performance Alert */}
+          {performanceMetrics.shouldUseVirtualScrolling && !useVirtualScrolling && !swimlaneConfig.enabled && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Virtual scrolling recommended for better performance with {filteredProjects.length} projects.
+              Enable it to improve render time from {performanceMetrics.renderTime.toFixed(0)}ms to ~{(performanceMetrics.renderTime / 10).toFixed(0)}ms.
+            </Alert>
+          )}
+
+          {/* Swimlane Compatibility Alert */}
+          {useVirtualScrolling && swimlaneConfig.enabled && (
+            <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setUseVirtualScrolling(false)}>
+              Virtual scrolling is currently only available in flat list mode. Disable swimlanes to use virtual scrolling for optimal performance.
+            </Alert>
+          )}
 
           {/* Gantt Filters */}
           <Box sx={{ mb: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
