@@ -6191,7 +6191,7 @@ const ProjectManagement = () => {
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
-                      top: 36, // Account for timeline header (35px height + 1px margin)
+                      top: 0,
                       left: swimlaneConfig.enabled
                         ? (swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth
                         : ganttSidebarWidth,
