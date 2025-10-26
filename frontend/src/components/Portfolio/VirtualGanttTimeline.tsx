@@ -46,8 +46,6 @@ interface VirtualGanttTimelineProps {
   };
   /** Callback when visible range changes */
   onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
-  /** Callback when scroll offset changes */
-  onScrollOffsetChange?: (scrollOffset: number) => void;
 }
 
 interface SwimlaneStructure {
@@ -75,7 +73,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       swimlaneStructure,
       swimlaneConfig,
       onVisibleRangeChange,
-      onScrollOffsetChange,
     },
     ref
   ) => {
@@ -156,16 +153,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       [onVisibleRangeChange]
     );
 
-    // Handle scroll position updates
-    const handleScroll = useCallback(
-      ({ scrollOffset }: { scrollOffset: number }) => {
-        if (onScrollOffsetChange) {
-          onScrollOffsetChange(scrollOffset);
-        }
-      },
-      [onScrollOffsetChange]
-    );
-
     if (flatProjects.length === 0) {
       console.warn('[VirtualGanttTimeline] No projects to display');
       return (
@@ -213,7 +200,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
         width={width}
         overscanCount={overscanCount}
         onItemsRendered={handleItemsRendered}
-        onScroll={handleScroll}
       >
         {Row}
       </List>

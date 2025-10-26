@@ -1055,7 +1055,6 @@ const ProjectManagement = () => {
   });
   const [visibleProjectIds, setVisibleProjectIds] = useState<number[]>([]);
   const [visibleRangeStart, setVisibleRangeStart] = useState(0); // Track visible range start for virtual scrolling
-  const [virtualScrollOffset, setVirtualScrollOffset] = useState(0); // Track scroll offset for SVG positioning
   const [dependencyLineStyle, setDependencyLineStyle] = useState<'solid' | 'dashed' | 'dotted'>(() => {
     const saved = localStorage.getItem('ganttDependencyLineStyle');
     return (saved as 'solid' | 'dashed' | 'dotted') || 'solid';
@@ -5180,9 +5179,6 @@ const ProjectManagement = () => {
                           setVisibleProjectIds(visible);
                           setVisibleRangeStart(startIndex); // Track start index for Y coordinate adjustment
                         }}
-                        onScrollOffsetChange={(scrollOffset) => {
-                          setVirtualScrollOffset(scrollOffset);
-                        }}
                         renderProjectRow={(props) => (
                           <GanttProjectRow {...props} />
                         )}
@@ -6204,7 +6200,6 @@ const ProjectManagement = () => {
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',
-                      transform: useVirtualScrolling ? `translateY(-${virtualScrollOffset}px)` : undefined,
                     }}
                   >
                     <defs>

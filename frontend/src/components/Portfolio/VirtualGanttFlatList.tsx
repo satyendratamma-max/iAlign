@@ -40,7 +40,6 @@ interface VirtualGanttFlatListProps {
   calculateWidth: (startDate: Date | undefined, endDate: Date | undefined, rangeStart: Date, rangeEnd: Date) => number;
   getStatusColor: (status: string) => string;
   onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
-  onScrollOffsetChange?: (scrollOffset: number) => void;
   renderProjectRow: (props: {
     project: Project;
     projectMilestones: Milestone[];
@@ -70,7 +69,6 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
   calculateWidth,
   getStatusColor,
   onVisibleRangeChange,
-  onScrollOffsetChange,
   renderProjectRow,
   virtualGanttRef,
 }) => {
@@ -128,7 +126,6 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
               overscanCount={10}
               renderProjectRow={handleRenderProjectRow as any}
               onVisibleRangeChange={onVisibleRangeChange}
-              onScrollOffsetChange={onScrollOffsetChange}
             />
         )}
       </AutoSizer>
