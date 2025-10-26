@@ -8,19 +8,26 @@ interface FiltersState {
 
 // Load initial state from localStorage
 const loadFiltersFromStorage = (): FiltersState => {
-  try {
-    const stored = localStorage.getItem('globalFilters');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Error loading filters from localStorage:', error);
-  }
-  return {
+  const defaultState: FiltersState = {
     selectedDomainIds: [],
     selectedBusinessDecisions: [],
     selectedFiscalYears: [],
   };
+
+  try {
+    const stored = localStorage.getItem('globalFilters');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Merge with defaults to ensure backward compatibility with old localStorage data
+      return {
+        ...defaultState,
+        ...parsed,
+      };
+    }
+  } catch (error) {
+    console.error('Error loading filters from localStorage:', error);
+  }
+  return defaultState;
 };
 
 // Save filters to localStorage
