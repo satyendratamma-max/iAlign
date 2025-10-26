@@ -132,11 +132,15 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
     milestonesCount: milestones.length,
   });
 
+  // Set a viewport height (not total height of all items - that defeats virtual scrolling!)
+  // Use a reasonable viewport that allows scrolling
+  const viewportHeight = 800; // Fixed viewport height in pixels
+
   return (
-    <Box sx={{ height: '100%', width: '100%', position: 'relative' }}>
+    <Box sx={{ height: viewportHeight, width: '100%', position: 'relative', overflow: 'hidden' }}>
       <AutoSizer>
         {({ height, width }) => {
-          console.log('[VirtualGanttFlatList] AutoSizer dimensions:', { height, width });
+          console.log('[VirtualGanttFlatList] AutoSizer dimensions:', { height, width, projectCount: projects.length });
           return (
             <VirtualGanttTimeline
               ref={virtualGanttRef}
