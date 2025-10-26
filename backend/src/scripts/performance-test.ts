@@ -182,8 +182,8 @@ class PerformanceTest {
 
       await this.testEndpoint('Get Resource by ID', 'GET', '/resources/1', undefined, 20);
       await this.testEndpoint('Get Project by ID', 'GET', '/projects/1', undefined, 20);
-      await this.testEndpoint('Get Resource Capabilities', 'GET', '/resources/1/capabilities', undefined, 20);
-      await this.testEndpoint('Get Project Requirements', 'GET', '/projects/1/requirements', undefined, 20);
+      await this.testEndpoint('Get Resource Capabilities', 'GET', '/resource-capabilities?resourceId=1', undefined, 20);
+      await this.testEndpoint('Get Project Requirements', 'GET', '/project-requirements/project/1', undefined, 20);
 
       // Test filtering and search
       console.log('🔎 Testing Filtering and Search\n');
@@ -195,9 +195,9 @@ class PerformanceTest {
       // Test dashboard/aggregation endpoints
       console.log('📈 Testing Dashboard/Aggregation Endpoints\n');
 
-      await this.testEndpoint('Dashboard Stats', 'GET', '/dashboard/stats', undefined, 15);
-      await this.testEndpoint('Capacity Overview', 'GET', '/capacity/overview', undefined, 15);
-      await this.testEndpoint('Resource Utilization', 'GET', '/reports/utilization', undefined, 15);
+      await this.testEndpoint('Analytics Dashboard', 'GET', '/analytics/dashboard', undefined, 15);
+      await this.testEndpoint('Capacity Dashboard Metrics', 'GET', '/capacity/dashboard/metrics?scenarioId=1', undefined, 15);
+      await this.testEndpoint('Resource Dashboard Metrics', 'GET', '/resources/dashboard/metrics?scenarioId=1', undefined, 15);
 
       // Test write operations (fewer iterations)
       console.log('✍️  Testing WRITE Operations\n');
