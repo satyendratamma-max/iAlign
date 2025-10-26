@@ -938,6 +938,11 @@ const ProjectManagement = () => {
   const [order, setOrder] = useState<OrderDirection>('asc');
   const [projectRisks, setProjectRisks] = useState<Record<number, number>>({});
 
+  // PAGINATION STATE
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // Show 50 projects per page
+  const [totalCount, setTotalCount] = useState(0);
+
   // Swimlane Configuration State
   const [swimlaneConfig, setSwimlaneConfig] = useState<{
     enabled: boolean;
@@ -1068,27 +1073,31 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Use fetchAllPages for paginated projects endpoint
-      const [projectsData, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+      // MEMORY OPTIMIZATION: Fetch only current page of projects (not all 2K+)
+      const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: {
+            scenarioId: activeScenario.id,
+            page,
+            limit: pageSize,
+          },
+        }),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        axios.get(`${API_URL}/milestones`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // Limit milestones to 100 for dropdowns (not all)
+        axios.get(`${API_URL}/milestones`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, limit: 100 },
+        }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
-      // Deduplicate data by id
-      const uniqueProjects = Array.from(
-        new Map(projectsData.map((p: any) => [p.id, p])).values()
-      );
-      const uniqueMilestones = Array.from(
-        new Map((milestonesRes.data.data || []).map((m: any) => [m.id, m])).values()
-      );
-
-      setProjects(uniqueProjects);
+      setProjects(projectsRes.data.data);
+      setTotalCount(projectsRes.data.pagination?.total || 0);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
-      setMilestones(uniqueMilestones);
+      setMilestones(milestonesRes.data.data);
       setAllDomainImpacts(impactsRes.data.data || []);
 
       // Fetch dependencies
@@ -1105,7 +1114,7 @@ const ProjectManagement = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario]);
+  }, [activeScenario, page]); // Re-fetch when page changes
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -4047,7 +4056,8 @@ const ProjectManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {pagination.paginatedData.map((project) => (
+            {/* SERVER-SIDE PAGINATION: Use projects directly (already paginated by backend) */}
+            {projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
                   <IconButton
@@ -4229,22 +4239,33 @@ const ProjectManagement = () => {
         </Table>
       </TableContainer>
 
-      <Pagination
-        page={pagination.page}
-        pageSize={pagination.pageSize}
-        totalItems={pagination.totalItems}
-        totalPages={pagination.totalPages}
-        startIndex={pagination.startIndex}
-        endIndex={pagination.endIndex}
-        onPageChange={pagination.goToPage}
-        onPageSizeChange={pagination.changePageSize}
-        onFirstPage={pagination.goToFirstPage}
-        onLastPage={pagination.goToLastPage}
-        onNextPage={pagination.nextPage}
-        onPreviousPage={pagination.previousPage}
-        hasNextPage={pagination.hasNextPage}
-        hasPreviousPage={pagination.hasPreviousPage}
-      />
+      {/* SERVER-SIDE PAGINATION */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, mt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Showing {projects.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} projects
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
+            Previous
+          </Button>
+          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
+            Page {page} of {Math.ceil(totalCount / pageSize) || 1}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={page >= Math.ceil(totalCount / pageSize)}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
+        </Box>
+      </Box>
         </>
       )}
 
