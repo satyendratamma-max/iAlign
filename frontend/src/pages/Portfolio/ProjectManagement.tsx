@@ -1053,9 +1053,6 @@ const ProjectManagement = () => {
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const virtualGanttRef = useRef<VirtualGanttTimelineHandle>(null);
 
-  // Performance monitoring for Gantt view
-  const { metrics: performanceMetrics, startMeasure, endMeasure } = useGanttPerformance(filteredProjects);
-
   // Save virtual scrolling preference
   useEffect(() => {
     localStorage.setItem('ganttUseVirtualScrolling', String(useVirtualScrolling));
@@ -2366,6 +2363,9 @@ const ProjectManagement = () => {
   const swimlaneStructure = useMemo(() => {
     return swimlaneConfig.enabled ? groupProjectsForSwimlanes() : null;
   }, [swimlaneConfig.enabled, swimlaneConfig.level1, swimlaneConfig.level2, swimlaneConfig.level2Enabled, filteredProjects]);
+
+  // Performance monitoring for Gantt view (must be AFTER filteredProjects is defined)
+  const { metrics: performanceMetrics, startMeasure, endMeasure } = useGanttPerformance(filteredProjects);
 
   // Filter dependencies for visible projects only (virtual scrolling optimization)
   const visibleDependencies = useMemo(() => {
