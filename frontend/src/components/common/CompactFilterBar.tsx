@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Chip,
@@ -48,6 +48,22 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
     (state) => state.filters
   );
   const [expanded, setExpanded] = useState(false);
+
+  // Sort filter values alphabetically
+  const sortedDomains = useMemo(() =>
+    [...domains].sort((a, b) => a.name.localeCompare(b.name)),
+    [domains]
+  );
+
+  const sortedBusinessDecisions = useMemo(() =>
+    [...businessDecisions].sort((a, b) => a.localeCompare(b)),
+    [businessDecisions]
+  );
+
+  const sortedFiscalYears = useMemo(() =>
+    [...fiscalYears].sort((a, b) => a.localeCompare(b)),
+    [fiscalYears]
+  );
 
   const hasActiveFilters =
     selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0 || selectedFiscalYears.length > 0;
@@ -143,7 +159,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
 
         {/* Domain Chips */}
         {selectedDomainIds.map((domainId) => {
-          const domain = domains.find((d) => d.id === domainId);
+          const domain = sortedDomains.find((d) => d.id === domainId);
           return domain ? (
             <Chip
               key={domainId}
@@ -182,7 +198,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
         {selectedFiscalYears.map((fiscalYear) => (
           <Chip
             key={fiscalYear}
-            label={`FY ${fiscalYear}`}
+            label={fiscalYear}
             size="small"
             onDelete={() => handleRemoveFiscalYear(fiscalYear)}
             color="info"
@@ -252,7 +268,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
         <Box sx={{ p: 2, bgcolor: alpha(theme.palette.background.default, 0.3) }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Domain Filter */}
-            {showDomainFilter && domains.length > 0 && (
+            {showDomainFilter && sortedDomains.length > 0 && (
               <Box>
                 <Box
                   sx={{
@@ -267,7 +283,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
                   Domain
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {domains.map((domain) => (
+                  {sortedDomains.map((domain) => (
                     <Chip
                       key={domain.id}
                       label={domain.name}
@@ -291,7 +307,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
             )}
 
             {/* Business Decision Filter */}
-            {showBusinessDecisionFilter && businessDecisions.length > 0 && (
+            {showBusinessDecisionFilter && sortedBusinessDecisions.length > 0 && (
               <Box>
                 <Box
                   sx={{
@@ -306,7 +322,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
                   Business Decision
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {businessDecisions.map((decision) => (
+                  {sortedBusinessDecisions.map((decision) => (
                     <Chip
                       key={decision}
                       label={decision}
@@ -334,7 +350,7 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
             )}
 
             {/* Fiscal Year Filter */}
-            {showFiscalYearFilter && fiscalYears.length > 0 && (
+            {showFiscalYearFilter && sortedFiscalYears.length > 0 && (
               <Box>
                 <Box
                   sx={{
@@ -349,10 +365,10 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
                   Fiscal Year
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {fiscalYears.map((fiscalYear) => (
+                  {sortedFiscalYears.map((fiscalYear) => (
                     <Chip
                       key={fiscalYear}
-                      label={`FY ${fiscalYear}`}
+                      label={fiscalYear}
                       size="small"
                       onClick={() => handleToggleFiscalYear(fiscalYear)}
                       color={
