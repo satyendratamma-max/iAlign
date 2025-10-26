@@ -207,7 +207,7 @@ const ResourceAllocation = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions]);
+  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, currentView]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -249,15 +249,25 @@ const ResourceAllocation = () => {
 
       // SERVER-SIDE FILTERING: All filters applied in database
       // Fetch allocations and summary with same filters in parallel
+      // VIEW-SPECIFIC DATA LOADING:
+      // - Timeline/Kanban views: Load ALL resources and projects for visualization
+      // - Table view: Load limited resources/projects for dropdowns only (first 100)
+      const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
+
       const [allocationsRes, summaryRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/allocations`, { ...config, params: allocationParams }),
         axios.get(`${API_URL}/allocations/summary`, { ...config, params: allocationParams }), // Same filters!
-        // For dropdowns, fetch only first 100 records (not all 10K resources)
-        axios.get(`${API_URL}/resources`, { ...config, params: { limit: 100 } }),
-        // For dropdowns, fetch only first 100 projects (not all 2K projects)
+        // For timeline/kanban views: fetch ALL resources; for table view: only first 100 for dropdowns
+        axios.get(`${API_URL}/resources`, {
+          ...config,
+          params: isVisualizationView ? {} : { limit: 100 }
+        }),
+        // For timeline/kanban views: fetch ALL projects; for table view: only first 100 for dropdowns
         axios.get(`${API_URL}/projects`, {
           ...config,
-          params: { scenarioId: activeScenario.id, limit: 100 }
+          params: isVisualizationView
+            ? { scenarioId: activeScenario.id }
+            : { scenarioId: activeScenario.id, limit: 100 }
         }),
         axios.get(`${API_URL}/domains`, config),
       ]);
