@@ -75,29 +75,25 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
   // Render function for each project row
   const handleRenderProjectRow = useCallback(
     (props: { project: Project; index: number; style: React.CSSProperties }) => {
-      const { project, style } = props;
+      const { project } = props;
       const projectMilestones = milestones.filter((m) => m.projectId === project.id);
       const projectStart = project.startDate || project.desiredStartDate;
       const projectEnd = project.endDate || project.desiredCompletionDate;
 
-      return (
-        <div style={style}>
-          {renderProjectRow({
-            project,
-            projectMilestones,
-            projectStart,
-            projectEnd,
-            ganttSidebarWidth,
-            dateRange,
-            cpmData,
-            tempPositions,
-            draggingItem,
-            calculatePosition,
-            calculateWidth,
-            getStatusColor,
-          })}
-        </div>
-      );
+      return renderProjectRow({
+        project,
+        projectMilestones,
+        projectStart,
+        projectEnd,
+        ganttSidebarWidth,
+        dateRange,
+        cpmData,
+        tempPositions,
+        draggingItem,
+        calculatePosition,
+        calculateWidth,
+        getStatusColor,
+      });
     },
     [
       milestones,
