@@ -28,8 +28,11 @@ import RolesManagement from './pages/Admin/RolesManagement';
 import ScenarioManagement from './pages/Admin/ScenarioManagement';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { ScenarioProvider } from './contexts/ScenarioContext';
+import { ErrorProvider, useError } from './contexts/ErrorContext';
+import BackendErrorDialog from './components/common/BackendErrorDialog';
+import { setGlobalErrorHandler } from './config/axiosConfig';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -46,19 +49,31 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   return <>{children}</>;
 };
 
-function App() {
+const AppContent = () => {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { error, showError, clearError } = useError();
+
+  // Set up global error handler for axios interceptor
+  useEffect(() => {
+    setGlobalErrorHandler(showError);
+  }, [showError]);
+
+  const handleRetry = () => {
+    // Reload the current page to retry
+    window.location.reload();
+  };
 
   if (!isAuthenticated) {
     return <Login />;
   }
 
   return (
-    <ScenarioProvider>
-      <MainLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+    <>
+      <ScenarioProvider>
+        <MainLayout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Segment Function Routes */}
         <Route path="/domains" element={<DomainsList />} />
@@ -163,7 +178,24 @@ function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </MainLayout>
-    </ScenarioProvider>
+      </ScenarioProvider>
+
+      {/* Global Backend Error Dialog */}
+      <BackendErrorDialog
+        open={error !== null}
+        error={error}
+        onRetry={handleRetry}
+        onClose={clearError}
+      />
+    </>
+  );
+};
+
+function App() {
+  return (
+    <ErrorProvider>
+      <AppContent />
+    </ErrorProvider>
   );
 }
 
