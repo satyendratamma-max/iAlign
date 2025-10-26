@@ -122,7 +122,7 @@ interface ProjectRiskScore {
 }
 
 const Dashboard = () => {
-  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [segmentFunctionStats, setSegmentFunctionStats] = useState<SegmentFunctionStats | null>(null);
@@ -299,6 +299,13 @@ const Dashboard = () => {
       );
     }
 
+    // Apply fiscal year filter
+    if (selectedFiscalYears.length > 0) {
+      projects = projects.filter((p: Project) =>
+        selectedFiscalYears.includes(p.fiscalYear || '')
+      );
+    }
+
     // Recalculate segment function stats with filtered projects
     setSegmentFunctionStats({
       totalSegmentFunctions: new Set(projects.map((p: any) => p.segmentFunctionId).filter(Boolean)).size,
@@ -420,7 +427,7 @@ const Dashboard = () => {
     }).filter((d: DomainPerformance) => d.projectCount > 0);
 
     setDomainPerformance(domainPerf);
-  }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, domains, projectRisks]);
+  }, [allProjects, allResources, allAllocations, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, domains, projectRisks]);
 
   const handleExport = async (format: 'png' | 'pdf') => {
     if (!dashboardRef.current) return;
