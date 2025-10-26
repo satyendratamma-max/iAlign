@@ -19,33 +19,38 @@ import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import {
   setDomainFilter,
   setBusinessDecisionFilter,
+  setFiscalYearFilter,
   clearAllFilters,
 } from '../../store/slices/filtersSlice';
 
 interface CompactFilterBarProps {
   domains?: Array<{ id: number; name: string }>;
   businessDecisions?: string[];
+  fiscalYears?: string[];
   showDomainFilter?: boolean;
   showBusinessDecisionFilter?: boolean;
+  showFiscalYearFilter?: boolean;
   extraActions?: React.ReactNode;
 }
 
 const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
   domains = [],
   businessDecisions = [],
+  fiscalYears = [],
   showDomainFilter = true,
   showBusinessDecisionFilter = true,
+  showFiscalYearFilter = true,
   extraActions,
 }) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector(
+  const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector(
     (state) => state.filters
   );
   const [expanded, setExpanded] = useState(false);
 
   const hasActiveFilters =
-    selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0;
+    selectedDomainIds.length > 0 || selectedBusinessDecisions.length > 0 || selectedFiscalYears.length > 0;
 
   const handleRemoveDomain = (domainId: number) => {
     dispatch(setDomainFilter(selectedDomainIds.filter((id) => id !== domainId)));
@@ -55,6 +60,14 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
     dispatch(
       setBusinessDecisionFilter(
         selectedBusinessDecisions.filter((d) => d !== decision)
+      )
+    );
+  };
+
+  const handleRemoveFiscalYear = (fiscalYear: string) => {
+    dispatch(
+      setFiscalYearFilter(
+        selectedFiscalYears.filter((fy) => fy !== fiscalYear)
       )
     );
   };
@@ -80,6 +93,18 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
       );
     } else {
       dispatch(setBusinessDecisionFilter([...selectedBusinessDecisions, decision]));
+    }
+  };
+
+  const handleToggleFiscalYear = (fiscalYear: string) => {
+    if (selectedFiscalYears.includes(fiscalYear)) {
+      dispatch(
+        setFiscalYearFilter(
+          selectedFiscalYears.filter((fy) => fy !== fiscalYear)
+        )
+      );
+    } else {
+      dispatch(setFiscalYearFilter([...selectedFiscalYears, fiscalYear]));
     }
   };
 
@@ -144,6 +169,23 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
             size="small"
             onDelete={() => handleRemoveBusinessDecision(decision)}
             color="secondary"
+            variant="filled"
+            sx={{
+              height: 28,
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+            }}
+          />
+        ))}
+
+        {/* Fiscal Year Chips */}
+        {selectedFiscalYears.map((fiscalYear) => (
+          <Chip
+            key={fiscalYear}
+            label={`FY ${fiscalYear}`}
+            size="small"
+            onDelete={() => handleRemoveFiscalYear(fiscalYear)}
+            color="info"
             variant="filled"
             sx={{
               height: 28,
@@ -277,6 +319,49 @@ const CompactFilterBar: React.FC<CompactFilterBarProps> = ({
                       }
                       variant={
                         selectedBusinessDecisions.includes(decision)
+                          ? 'filled'
+                          : 'outlined'
+                      }
+                      sx={{
+                        cursor: 'pointer',
+                        height: 32,
+                        fontSize: '0.8125rem',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {/* Fiscal Year Filter */}
+            {showFiscalYearFilter && fiscalYears.length > 0 && (
+              <Box>
+                <Box
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    mb: 1,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Fiscal Year
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {fiscalYears.map((fiscalYear) => (
+                    <Chip
+                      key={fiscalYear}
+                      label={`FY ${fiscalYear}`}
+                      size="small"
+                      onClick={() => handleToggleFiscalYear(fiscalYear)}
+                      color={
+                        selectedFiscalYears.includes(fiscalYear)
+                          ? 'info'
+                          : 'default'
+                      }
+                      variant={
+                        selectedFiscalYears.includes(fiscalYear)
                           ? 'filled'
                           : 'outlined'
                       }

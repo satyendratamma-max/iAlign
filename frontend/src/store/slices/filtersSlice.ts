@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface FiltersState {
   selectedDomainIds: number[];
   selectedBusinessDecisions: string[];
+  selectedFiscalYears: string[];
 }
 
 // Load initial state from localStorage
@@ -18,6 +19,7 @@ const loadFiltersFromStorage = (): FiltersState => {
   return {
     selectedDomainIds: [],
     selectedBusinessDecisions: [],
+    selectedFiscalYears: [],
   };
 };
 
@@ -44,9 +46,14 @@ const filtersSlice = createSlice({
       state.selectedBusinessDecisions = action.payload;
       saveFiltersToStorage(state);
     },
+    setFiscalYearFilter: (state, action: PayloadAction<string[]>) => {
+      state.selectedFiscalYears = action.payload;
+      saveFiltersToStorage(state);
+    },
     clearAllFilters: (state) => {
       state.selectedDomainIds = [];
       state.selectedBusinessDecisions = [];
+      state.selectedFiscalYears = [];
       saveFiltersToStorage(state);
     },
     clearDomainFilter: (state) => {
@@ -57,15 +64,21 @@ const filtersSlice = createSlice({
       state.selectedBusinessDecisions = [];
       saveFiltersToStorage(state);
     },
+    clearFiscalYearFilter: (state) => {
+      state.selectedFiscalYears = [];
+      saveFiltersToStorage(state);
+    },
   },
 });
 
 export const {
   setDomainFilter,
   setBusinessDecisionFilter,
+  setFiscalYearFilter,
   clearAllFilters,
   clearDomainFilter,
   clearBusinessDecisionFilter,
+  clearFiscalYearFilter,
 } = filtersSlice.actions;
 
 export default filtersSlice.reducer;

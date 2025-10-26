@@ -50,7 +50,7 @@ import FilterPresets from '../../components/common/FilterPresets';
 import Pagination from '../../components/common/Pagination';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
-import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
+import { setDomainFilter, setBusinessDecisionFilter, setFiscalYearFilter, clearAllFilters } from '../../store/slices/filtersSlice';
 import TimelineView from '../../components/TimelineView';
 import KanbanView from '../../components/KanbanView';
 import { calculateMaxConcurrentAllocation } from '../../utils/allocationCalculations';
@@ -103,6 +103,7 @@ interface Project {
   endDate?: string;
   domainId?: number;
   businessDecision?: string;
+  fiscalYear?: string;
   domain?: {
     id: number;
     name: string;
@@ -141,7 +142,7 @@ interface Domain {
 const ResourceAllocation = () => {
   const { activeScenario } = useScenario();
   const dispatch = useAppDispatch();
-  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -187,12 +188,13 @@ const ResourceAllocation = () => {
 
   // Check if filters are sufficient for visualization views (timeline/kanban)
   const hasScopingFilters = () => {
-    // Require at least one scoping filter: domain, business decision, or global filters
+    // Require at least one scoping filter: domain, business decision, fiscal year, or global filters
     return (
       filters.domainId !== '' ||
       filters.businessDecision !== '' ||
       selectedDomainIds.length > 0 ||
-      selectedBusinessDecisions.length > 0
+      selectedBusinessDecisions.length > 0 ||
+      selectedFiscalYears.length > 0
     );
   };
 
@@ -214,13 +216,13 @@ const ResourceAllocation = () => {
     if (page !== 1) {
       setPage(1);
     }
-  }, [filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions]);
+  }, [filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
 
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, currentView]);
+  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, currentView]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -267,6 +269,11 @@ const ResourceAllocation = () => {
         allocationParams.businessDecision = selectedBusinessDecisions[0];
       } else if (filters.businessDecision) {
         allocationParams.businessDecision = filters.businessDecision;
+      }
+
+      // Fiscal year filter (use global filter from Redux)
+      if (selectedFiscalYears.length > 0) {
+        allocationParams.fiscalYear = selectedFiscalYears[0];
       }
 
       // SERVER-SIDE FILTERING: All filters applied in database
@@ -814,9 +821,13 @@ const ResourceAllocation = () => {
 
   const { outboundCrossDomain, inboundCrossDomain } = calculateCrossDomainMetrics();
 
-  // Extract unique business decisions for filter options
+  // Extract unique business decisions and fiscal years for filter options
   const uniqueBusinessDecisions = Array.from(
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
   ) as string[];
 
   if (loading) {
@@ -887,6 +898,7 @@ const ResourceAllocation = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 
@@ -922,6 +934,11 @@ const ResourceAllocation = () => {
                     <li>
                       <Typography variant="body2">
                         <strong>Business Decision</strong> - View allocations by business decision type
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Fiscal Year</strong> - View allocations for a specific fiscal year
                       </Typography>
                     </li>
                   </Box>
