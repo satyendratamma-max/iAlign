@@ -62,6 +62,7 @@ interface Project {
   domainId?: number;
   budget?: number;
   businessDecision?: string;
+  fiscalYear?: string;
   segmentFunctionId?: number;
   segmentFunctionData?: {
     domainId?: number;
@@ -244,6 +245,11 @@ const DomainsList = () => {
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
   ) as string[];
 
+  // Get unique fiscal years from projects
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
+  ) as string[];
+
   const filteredDomains = domains.filter((domain) => {
     // Get projects for this domain (only direct domainId match)
     const domainProjects = projects.filter(
@@ -293,6 +299,7 @@ const DomainsList = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 

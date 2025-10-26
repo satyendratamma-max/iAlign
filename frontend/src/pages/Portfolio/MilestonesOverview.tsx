@@ -395,6 +395,11 @@ const MilestonesOverview = () => {
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
   ) as string[];
 
+  // Extract unique fiscal years for filter options
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
+  ) as string[];
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -482,6 +487,7 @@ const MilestonesOverview = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 

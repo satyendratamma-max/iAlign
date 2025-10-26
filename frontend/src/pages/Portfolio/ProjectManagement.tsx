@@ -2427,9 +2427,13 @@ const ProjectManagement = () => {
   // PERFORMANCE: Pagination - only render 50 projects at a time (applies to table view only)
   const pagination = usePagination(filteredProjects, { initialPageSize: 50 });
 
-  // Extract unique business decisions for filter options
+  // Extract unique business decisions and fiscal years for filter options
   const uniqueBusinessDecisions = Array.from(
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
   ) as string[];
 
   // Swimlane grouping helper functions
@@ -3907,6 +3911,7 @@ const ProjectManagement = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 

@@ -151,6 +151,7 @@ interface Project {
   id: number;
   name: string;
   businessDecision?: string;
+  fiscalYear?: string;
   startDate?: string;
   endDate?: string;
   domain?: {
@@ -747,6 +748,11 @@ const ResourceOverview = () => {
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
   ) as string[];
 
+  // Get unique fiscal years from projects
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
+  ) as string[];
+
   return (
     <Box>
       <PageHeader
@@ -813,6 +819,7 @@ const ResourceOverview = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 

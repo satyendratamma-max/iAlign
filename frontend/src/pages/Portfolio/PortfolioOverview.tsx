@@ -64,6 +64,7 @@ interface Project {
   forecastedCost?: number;
   actualCost?: number;
   businessDecision?: string;
+  fiscalYear?: string;
 }
 
 interface ProjectRiskScore {
@@ -433,6 +434,11 @@ const PortfolioOverview = () => {
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
   ) as string[];
 
+  // Get unique fiscal years from projects
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
+  ) as string[];
+
   const filteredSegmentFunctions = segmentFunctions.filter((sf) => {
     // Get projects for this segment function
     const sfProjects = projects.filter(
@@ -482,6 +488,7 @@ const PortfolioOverview = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 

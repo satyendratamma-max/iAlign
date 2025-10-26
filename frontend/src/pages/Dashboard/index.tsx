@@ -538,9 +538,13 @@ const Dashboard = () => {
     return 'error';
   };
 
-  // Get unique business decisions from projects
+  // Get unique business decisions and fiscal years from projects
   const uniqueBusinessDecisions = Array.from(
     new Set(allProjects.map((p) => p.businessDecision).filter(Boolean))
+  ) as string[];
+
+  const uniqueFiscalYears = Array.from(
+    new Set(allProjects.map((p) => p.fiscalYear).filter(Boolean))
   ) as string[];
 
   return (
@@ -593,6 +597,7 @@ const Dashboard = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
       />
 
       {/* Alert for Over-allocated Resources */}

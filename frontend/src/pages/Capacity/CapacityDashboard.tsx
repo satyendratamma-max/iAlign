@@ -57,6 +57,7 @@ interface Domain {
 interface Project {
   id: number;
   businessDecision?: string;
+  fiscalYear?: string;
 }
 
 interface DashboardMetrics {
@@ -159,6 +160,11 @@ const CapacityDashboard = () => {
     new Set(projects.map((p) => p.businessDecision).filter(Boolean))
   ) as string[];
 
+  // Get unique fiscal years from projects
+  const uniqueFiscalYears = Array.from(
+    new Set(projects.map((p) => p.fiscalYear).filter(Boolean))
+  ) as string[];
+
   return (
     <Box>
       <PageHeader
@@ -171,6 +177,7 @@ const CapacityDashboard = () => {
       <CompactFilterBar
         domains={domains}
         businessDecisions={uniqueBusinessDecisions}
+        fiscalYears={uniqueFiscalYears}
         extraActions={<FilterPresets />}
       />
 
