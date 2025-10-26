@@ -6119,7 +6119,13 @@ const ProjectManagement = () => {
 
                   {/* Dependency Arrows Overlay */}
                   <svg
-                    viewBox={`0 0 ${timelineWidth} ${swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37}`}
+                    viewBox={`0 0 ${timelineWidth} ${
+                      swimlaneConfig.enabled
+                        ? getTotalSwimlaneRows() * 32
+                        : useVirtualScrolling
+                          ? 800  // Virtual scrolling viewport height
+                          : filteredProjects.length * 37
+                    }`}
                     preserveAspectRatio="none"
                     style={{
                       position: 'absolute',
@@ -6130,7 +6136,11 @@ const ProjectManagement = () => {
                       width: swimlaneConfig.enabled
                         ? `calc(100% - ${(swimlaneConfig.rotateLevel1 ? 50 : 120) + (swimlaneConfig.level2Enabled ? (swimlaneConfig.rotateLevel2 ? 50 : 180) : 0) + ganttSidebarWidth}px - 100px)`
                         : `calc(100% - ${ganttSidebarWidth}px - 100px)`,
-                      height: swimlaneConfig.enabled ? getTotalSwimlaneRows() * 32 : filteredProjects.length * 37,
+                      height: swimlaneConfig.enabled
+                        ? getTotalSwimlaneRows() * 32
+                        : useVirtualScrolling
+                          ? 800  // Virtual scrolling viewport height
+                          : filteredProjects.length * 37,
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',

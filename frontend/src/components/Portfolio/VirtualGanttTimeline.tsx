@@ -153,13 +153,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       [onVisibleRangeChange]
     );
 
-    console.log('[VirtualGanttTimeline] Render called:', {
-      projectCount: flatProjects.length,
-      height,
-      width,
-      rowHeight,
-    });
-
     if (flatProjects.length === 0) {
       console.warn('[VirtualGanttTimeline] No projects to display');
       return (
@@ -183,12 +176,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       ({ index, style }: ListChildComponentProps) => {
         const project = flatProjects[index];
 
-        console.log('[VirtualGanttTimeline] Rendering row:', {
-          index,
-          project: project?.name,
-          style
-        });
-
         if (!project) {
           console.warn('[VirtualGanttTimeline] No project at index:', index);
           return <div style={style}>No project</div>;
@@ -202,13 +189,6 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       },
       [flatProjects, renderProjectRow]
     );
-
-    console.log('[VirtualGanttTimeline] Creating List with:', {
-      rowCount: flatProjects.length,
-      rowHeight,
-      height,
-      width,
-    });
 
     // Use react-window v1 FixedSizeList component
     return (

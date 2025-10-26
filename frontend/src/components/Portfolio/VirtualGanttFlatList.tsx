@@ -80,20 +80,6 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
       const projectStart = project.startDate || project.desiredStartDate;
       const projectEnd = project.endDate || project.desiredCompletionDate;
 
-      console.log('[VirtualGanttFlatList] Row render:', {
-        index: props.index,
-        projectId: project.id,
-        projectName: project.name,
-        projectStart,
-        projectEnd,
-        projectStartType: typeof projectStart,
-        projectEndType: typeof projectEnd,
-        dateRangeStart: dateRange.start,
-        dateRangeEnd: dateRange.end,
-        milestonesCount: projectMilestones.length,
-        style,
-      });
-
       return (
         <div style={style}>
           {renderProjectRow({
@@ -127,11 +113,6 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
     ]
   );
 
-  console.log('[VirtualGanttFlatList] Render called:', {
-    projectCount: projects.length,
-    milestonesCount: milestones.length,
-  });
-
   // Set a viewport height (not total height of all items - that defeats virtual scrolling!)
   // Use a reasonable viewport that allows scrolling
   const viewportHeight = 800; // Fixed viewport height in pixels
@@ -139,9 +120,7 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
   return (
     <Box sx={{ height: viewportHeight, width: '100%', position: 'relative', overflow: 'hidden' }}>
       <AutoSizer>
-        {({ height, width }) => {
-          console.log('[VirtualGanttFlatList] AutoSizer dimensions:', { height, width, projectCount: projects.length });
-          return (
+        {({ height, width }) => (
             <VirtualGanttTimeline
               ref={virtualGanttRef}
               projects={projects}
@@ -152,8 +131,7 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
               renderProjectRow={handleRenderProjectRow as any}
               onVisibleRangeChange={onVisibleRangeChange}
             />
-          );
-        }}
+        )}
       </AutoSizer>
     </Box>
   );
