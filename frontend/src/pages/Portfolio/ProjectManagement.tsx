@@ -1224,28 +1224,41 @@ const ProjectManagement = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // MEMORY OPTIMIZATION: Fetch only current page of projects (not all 2K+)
+      // Determine if we need ALL projects or just a page
+      // Table view: Use pagination for performance
+      // Gantt/Kanban view: Load ALL projects (needed for dependencies, swimlanes, etc.)
+      const shouldLoadAllProjects = viewMode === 'gantt' || viewMode === 'kanban';
+
+      const projectsParams: any = { scenarioId: activeScenario.id };
+      if (!shouldLoadAllProjects) {
+        // Table view: paginated
+        projectsParams.page = page;
+        projectsParams.limit = pageSize;
+      } else {
+        // Gantt/Kanban view: all projects
+        projectsParams.limit = 10000; // High limit to get all projects
+      }
+
       const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/projects`, {
           ...config,
-          params: {
-            scenarioId: activeScenario.id,
-            page,
-            limit: pageSize,
-          },
+          params: projectsParams,
         }),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
-        // Limit milestones to 100 for dropdowns (not all)
+        // Load ALL milestones for Gantt view (needed for rendering)
         axios.get(`${API_URL}/milestones`, {
           ...config,
-          params: { scenarioId: activeScenario.id, limit: 100 },
+          params: {
+            scenarioId: activeScenario.id,
+            limit: shouldLoadAllProjects ? 50000 : 100
+          },
         }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setProjects(projectsRes.data.data);
-      setTotalCount(projectsRes.data.pagination?.total || 0);
+      setTotalCount(projectsRes.data.pagination?.total || projectsRes.data.data.length);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setMilestones(milestonesRes.data.data);
@@ -1265,7 +1278,7 @@ const ProjectManagement = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize]); // Re-fetch when page or pageSize changes
+  }, [activeScenario, page, pageSize, viewMode]); // Re-fetch when viewMode changes to load all/paginated
 
   // Calculate Critical Path when data changes
   useEffect(() => {
