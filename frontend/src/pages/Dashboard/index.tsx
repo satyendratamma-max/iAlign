@@ -153,6 +153,7 @@ const Dashboard = () => {
 
         // MEMORY OPTIMIZATION: Use aggregation and targeted endpoints
         // Instead of loading all 2K+ projects, fetch only what's needed for display
+        // NOTE: We still need to load all projects for filter options (business decision, fiscal year)
         const [
           projectMetrics,
           resourceMetrics,
@@ -162,6 +163,7 @@ const Dashboard = () => {
           topProjectsRes,
           atRiskProjectsRes,
           domainPerfRes,
+          allProjectsRes,
         ] = await Promise.all([
           axios.get(`${API_URL}/projects/dashboard/metrics`, { ...config, params: { scenarioId: activeScenario.id } }),
           axios.get(`${API_URL}/resources/dashboard/metrics`, config),
@@ -171,13 +173,15 @@ const Dashboard = () => {
           axios.get(`${API_URL}/projects/dashboard/top-by-budget`, { ...config, params: { scenarioId: activeScenario.id, limit: 8 } }),
           axios.get(`${API_URL}/projects/dashboard/at-risk`, { ...config, params: { scenarioId: activeScenario.id, limit: 8 } }),
           axios.get(`${API_URL}/projects/dashboard/domain-performance`, { ...config, params: { scenarioId: activeScenario.id } }),
+          // Load all projects for filter extraction (limit 2000)
+          axios.get(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, limit: 2000 } }),
         ]);
 
         const allDomains = domainsRes.data.data;
         const segmentFunctions = segmentFunctionsRes.data.data;
 
-        // Set data for dashboard sections (only what's needed, not all records)
-        setAllProjects([]); // We don't need all projects in memory
+        // Set data for dashboard sections
+        setAllProjects(allProjectsRes.data.data || []); // Needed for filter extraction and client-side filtering
         setAllResources([]); // We don't need all resources in memory
         setAllAllocations([]); // We don't need all allocations in memory
         setDomains(allDomains);
