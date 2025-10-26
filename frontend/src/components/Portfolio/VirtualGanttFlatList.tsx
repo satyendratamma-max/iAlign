@@ -80,6 +80,20 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
       const projectStart = project.startDate || project.desiredStartDate;
       const projectEnd = project.endDate || project.desiredCompletionDate;
 
+      console.log('[VirtualGanttFlatList] Row render:', {
+        index: props.index,
+        projectId: project.id,
+        projectName: project.name,
+        projectStart,
+        projectEnd,
+        projectStartType: typeof projectStart,
+        projectEndType: typeof projectEnd,
+        dateRangeStart: dateRange.start,
+        dateRangeEnd: dateRange.end,
+        milestonesCount: projectMilestones.length,
+        style,
+      });
+
       return (
         <div style={style}>
           {renderProjectRow({
@@ -113,21 +127,29 @@ const VirtualGanttFlatList: React.FC<VirtualGanttFlatListProps> = ({
     ]
   );
 
+  console.log('[VirtualGanttFlatList] Render called:', {
+    projectCount: projects.length,
+    milestonesCount: milestones.length,
+  });
+
   return (
     <Box sx={{ height: 'calc(100vh - 400px)', minHeight: 400 }}>
       <AutoSizer>
-        {({ height, width }) => (
-          <VirtualGanttTimeline
-            ref={virtualGanttRef}
-            projects={projects}
-            rowHeight={37}
-            height={height}
-            width={width}
-            overscanCount={10}
-            renderProjectRow={handleRenderProjectRow as any}
-            onVisibleRangeChange={onVisibleRangeChange}
-          />
-        )}
+        {({ height, width }) => {
+          console.log('[VirtualGanttFlatList] AutoSizer dimensions:', { height, width });
+          return (
+            <VirtualGanttTimeline
+              ref={virtualGanttRef}
+              projects={projects}
+              rowHeight={37}
+              height={height}
+              width={width}
+              overscanCount={10}
+              renderProjectRow={handleRenderProjectRow as any}
+              onVisibleRangeChange={onVisibleRangeChange}
+            />
+          );
+        }}
       </AutoSizer>
     </Box>
   );

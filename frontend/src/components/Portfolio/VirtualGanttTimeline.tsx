@@ -150,18 +150,15 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       [onVisibleRangeChange]
     );
 
-    // Row renderer
-    const Row = useCallback(
-      ({ index, style }: { index: number; style: React.CSSProperties }) => {
-        const project = flatProjects[index];
-        if (!project) return null;
-
-        return <div style={style}>{renderProjectRow({ project, index, style })}</div>;
-      },
-      [flatProjects, renderProjectRow]
-    );
+    console.log('[VirtualGanttTimeline] Render called:', {
+      projectCount: flatProjects.length,
+      height,
+      width,
+      rowHeight,
+    });
 
     if (flatProjects.length === 0) {
+      console.warn('[VirtualGanttTimeline] No projects to display');
       return (
         <Box
           sx={{
@@ -178,17 +175,33 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       );
     }
 
+    // Row renderer - receives index and style from react-window
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const project = flatProjects[index];
+
+      console.log('[VirtualGanttTimeline] Rendering row:', { index, project: project?.name });
+
+      if (!project) {
+        console.warn('[VirtualGanttTimeline] No project at index:', index);
+        return null;
+      }
+
+      return <div style={style}>{renderProjectRow({ project, index, style })}</div>;
+    };
+
+    // Use children pattern for react-window List component
     return (
       <List<{}>
         listRef={listRef}
         rowCount={flatProjects.length}
         rowHeight={rowHeight}
-        rowComponent={Row}
         rowProps={{}}
         onRowsRendered={handleRowsRendered}
         overscanCount={overscanCount}
         style={{ height, width }}
-      />
+      >
+        {Row}
+      </List>
     );
   }
 );
