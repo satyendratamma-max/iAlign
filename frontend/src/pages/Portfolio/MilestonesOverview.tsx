@@ -119,11 +119,16 @@ const MilestonesOverview = () => {
     businessDecision: '',
   });
 
+  // PAGINATION STATE
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // Show 50 milestones per page
+  const [totalCount, setTotalCount] = useState(0);
+
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario]);
+  }, [activeScenario, page]); // Re-fetch when page changes
 
   const fetchData = async () => {
     // Guard: Don't fetch data without an active scenario
@@ -135,16 +140,28 @@ const MilestonesOverview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const scenarioParam = `?scenarioId=${activeScenario.id}`;
 
+      // MEMORY OPTIMIZATION: Fetch only current page of milestones (not all)
       const [milestonesRes, projectsRes, usersRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/milestones${scenarioParam}`, config),
-        axios.get(`${API_URL}/projects${scenarioParam}`, config),
+        axios.get(`${API_URL}/milestones`, {
+          ...config,
+          params: {
+            scenarioId: activeScenario.id,
+            page,
+            limit: pageSize,
+          },
+        }),
+        // For dropdowns, limit projects to 100 (not all 2K+)
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, limit: 100 },
+        }),
         axios.get(`${API_URL}/users`, config),
         axios.get(`${API_URL}/domains`, config),
       ]);
 
       setMilestones(milestonesRes.data.data);
+      setTotalCount(milestonesRes.data.pagination?.total || 0);
       setProjects(projectsRes.data.data);
       setUsers(usersRes.data.data || []);
       setDomains(domainsRes.data.data || []);
@@ -684,6 +701,34 @@ const MilestonesOverview = () => {
           </Box>
         )}
       </TableContainer>
+
+      {/* PAGINATION CONTROLS */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, mt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Showing {milestones.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} milestones
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
+            Previous
+          </Button>
+          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
+            Page {page} of {Math.ceil(totalCount / pageSize) || 1}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={page >= Math.ceil(totalCount / pageSize)}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
+        </Box>
+      </Box>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>{editMode ? 'Edit Milestone' : 'Add Milestone'}</DialogTitle>

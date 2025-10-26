@@ -6,6 +6,11 @@ import User from '../models/User';
 
 export const getAllMilestones = async (req: Request, res: Response) => {
   try {
+    // PAGINATION SUPPORT - CRITICAL for large datasets
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const offset = (page - 1) * limit;
+
     const { projectId, scenarioId } = req.query;
 
     const where: any = { isActive: true };
@@ -38,15 +43,24 @@ export const getAllMilestones = async (req: Request, res: Response) => {
       },
     ];
 
-    const milestones = await Milestone.findAll({
+    const { count, rows: milestones } = await Milestone.findAndCountAll({
       where,
       include: includeArray,
       order: [['plannedStartDate', 'ASC']],
+      limit,
+      offset,
     });
 
     res.json({
       success: true,
       data: milestones,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+        hasMore: page * limit < count,
+      },
     });
   } catch (error: any) {
     res.status(500).json({
