@@ -59,6 +59,7 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   Info as InfoIcon,
+  InfoOutlined,
   CameraAlt as CameraAltIcon,
   Image as ImageIcon,
   PictureAsPdf as PictureAsPdfIcon,
@@ -1015,7 +1016,7 @@ const SortableSwimlaneProjectName: React.FC<SortableSwimlaneProjectNameProps> = 
 
 const ProjectManagement = () => {
   // Redux state
-  const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
+  const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
 
   // Scenario state
   const { activeScenario } = useScenario();
@@ -1082,6 +1083,8 @@ const ProjectManagement = () => {
     health: [] as string[],
     impactedDomain: [] as string[],
   });
+  const [showScopingWarning, setShowScopingWarning] = useState(false);
+  const [projectCountWarning, setProjectCountWarning] = useState<number | null>(null);
 
   // Sorting state
   type OrderDirection = 'asc' | 'desc';
@@ -2422,7 +2425,40 @@ const ProjectManagement = () => {
     }
     return 0;
   });
-  }, [projects, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, orderBy, order, projectRisks, allDomainImpacts]);
+  }, [projects, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, orderBy, order, projectRisks, allDomainImpacts]);
+
+  // Check if filters are sufficient for visualization views (gantt/kanban)
+  const hasScopingFilters = () => {
+    // Require at least one scoping filter: domain, business decision, or fiscal year
+    return (
+      selectedDomainIds.length > 0 ||
+      selectedBusinessDecisions.length > 0 ||
+      selectedFiscalYears.length > 0
+    );
+  };
+
+  // Check scoping and count warnings for gantt/kanban views
+  useEffect(() => {
+    const isVisualizationView = viewMode === 'gantt' || viewMode === 'kanban';
+
+    if (isVisualizationView) {
+      if (!hasScopingFilters()) {
+        setShowScopingWarning(true);
+        setProjectCountWarning(null);
+      } else {
+        setShowScopingWarning(false);
+        // Check project count
+        if (filteredProjects.length > 500) {
+          setProjectCountWarning(filteredProjects.length);
+        } else {
+          setProjectCountWarning(null);
+        }
+      }
+    } else {
+      setShowScopingWarning(false);
+      setProjectCountWarning(null);
+    }
+  }, [viewMode, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, filteredProjects.length]);
 
   // PERFORMANCE: Pagination - only render 50 projects at a time (applies to table view only)
   const pagination = usePagination(filteredProjects, { initialPageSize: 50 });
@@ -3912,6 +3948,66 @@ const ProjectManagement = () => {
       />
 
       <Box ref={contentRef}>
+      {/* Scoping warning for visualization views */}
+      {showScopingWarning && (viewMode === 'gantt' || viewMode === 'kanban') && (
+        <Card sx={{ mb: 3, bgcolor: 'info.lighter', borderLeft: 4, borderColor: 'info.main' }}>
+          <CardContent>
+            <Box display="flex" alignItems="flex-start" gap={2}>
+              <InfoOutlined sx={{ fontSize: 32, color: 'info.main', mt: 0.5 }} />
+              <Box flex={1}>
+                <Typography variant="h6" color="info.dark" gutterBottom>
+                  Select Filters to View {viewMode === 'gantt' ? 'Gantt' : 'Kanban'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Gantt and Kanban views work best with focused data. Please select at least one scoping filter to continue:
+                </Typography>
+                <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Required: Select at least one
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 3, mb: 0 }}>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Domain</strong> - View projects for a specific domain
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Business Decision</strong> - View projects by business decision type
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Fiscal Year</strong> - View projects for a specific fiscal year
+                      </Typography>
+                    </li>
+                  </Box>
+                </Box>
+                <Alert severity="info" sx={{ mb: 0 }}>
+                  <Typography variant="body2">
+                    💡 Tip: Use the global filter bar above or the list view to browse all projects without restrictions.
+                    Recommended limit: <strong>500 projects</strong> for optimal performance.
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Project count warning for large datasets */}
+      {projectCountWarning && (viewMode === 'gantt' || viewMode === 'kanban') && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="body2" fontWeight="medium" gutterBottom>
+            Large Dataset Warning: {projectCountWarning.toLocaleString()} projects found
+          </Typography>
+          <Typography variant="body2">
+            Loading {projectCountWarning.toLocaleString()} projects may impact performance.
+            Consider narrowing your filters for better experience. Recommended limit: 500 projects.
+          </Typography>
+        </Alert>
+      )}
+
       {viewMode === 'list' && (
         <>
           <TableContainer component={Paper} sx={{ overflowX: 'auto', boxShadow: 2, position: 'relative' }}>
@@ -4463,7 +4559,7 @@ const ProjectManagement = () => {
         </>
       )}
 
-      {viewMode === 'kanban' && (
+      {viewMode === 'kanban' && !showScopingWarning && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -4515,7 +4611,7 @@ const ProjectManagement = () => {
         </DndContext>
       )}
 
-      {viewMode === 'gantt' && (
+      {viewMode === 'gantt' && !showScopingWarning && (
         <Paper sx={{ p: 2, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
