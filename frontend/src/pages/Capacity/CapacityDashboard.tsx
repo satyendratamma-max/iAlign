@@ -34,8 +34,6 @@ import {
   Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { calculateResourceAllocations } from '../../utils/allocationCalculations';
-import { fetchAllPages } from '../../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -51,15 +49,6 @@ interface Resource {
   domainId?: number;
 }
 
-interface Allocation {
-  id: number;
-  resourceId: number;
-  projectId: number;
-  allocationPercentage: number;
-  startDate?: string;
-  endDate?: string;
-}
-
 interface Domain {
   id: number;
   name: string;
@@ -70,13 +59,37 @@ interface Project {
   businessDecision?: string;
 }
 
+interface DashboardMetrics {
+  totalResources: number;
+  allocatedResources: number;
+  avgUtilization: number;
+  totalMonthlyCost: number;
+  avgHourlyRate: number;
+  availableCapacityCount: number;
+  benchResourcesCount: number;
+  fullyAllocatedCount: number;
+  criticalResourcesCount: number;
+  overAllocatedCount: number;
+}
+
 const CapacityDashboard = () => {
   const { activeScenario } = useScenario();
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const [resources, setResources] = useState<Resource[]>([]);
-  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalResources: 0,
+    allocatedResources: 0,
+    avgUtilization: 0,
+    totalMonthlyCost: 0,
+    avgHourlyRate: 0,
+    availableCapacityCount: 0,
+    benchResourcesCount: 0,
+    fullyAllocatedCount: 0,
+    criticalResourcesCount: 0,
+    overAllocatedCount: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -84,48 +97,37 @@ const CapacityDashboard = () => {
       if (!activeScenario) return;
 
       try {
+        setLoading(true);
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [allResources, allAllocations, domainsRes, allProjects] = await Promise.all([
-          fetchAllPages(`${API_URL}/resources`, config),
-          fetchAllPages(`${API_URL}/allocations`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // Build filter params for server-side filtering
+        const params: any = {
+          scenarioId: activeScenario.id,
+        };
+
+        // Apply domain filter if selected
+        if (selectedDomainIds.length > 0) {
+          params.domainId = selectedDomainIds[0];
+        }
+
+        // Apply business decision filter if selected
+        if (selectedBusinessDecisions.length > 0) {
+          params.businessDecision = selectedBusinessDecisions[0];
+        }
+
+        // Fetch data from server-side endpoints in parallel
+        const [metricsRes, resourcesRes, domainsRes, projectsRes] = await Promise.all([
+          axios.get(`${API_URL}/capacity/dashboard/metrics`, { ...config, params }),
+          axios.get(`${API_URL}/capacity/dashboard/resources`, { ...config, params: { ...params, limit: 8 } }),
           axios.get(`${API_URL}/domains`, config),
-          fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+          axios.get(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, limit: 100 } }),
         ]);
 
-        const allDomains = domainsRes.data.data || [];
-
-        setDomains(allDomains);
-        setProjects(allProjects);
-
-        // Get project IDs that match the business decision filter
-        const matchingProjectIds = selectedBusinessDecisions.length === 0
-          ? new Set(allProjects.map((p: Project) => p.id))
-          : new Set(
-              allProjects
-                .filter((p: Project) => selectedBusinessDecisions.includes(p.businessDecision || ''))
-                .map((p: Project) => p.id)
-            );
-
-        // Filter allocations by business decision (via projects)
-        const businessDecisionFilteredAllocations = selectedBusinessDecisions.length === 0
-          ? allAllocations
-          : allAllocations.filter((a: Allocation) => matchingProjectIds.has(a.projectId));
-
-        // Filter resources by domain if selected
-        const filteredResources = selectedDomainIds.length === 0
-          ? allResources
-          : allResources.filter((r: Resource) => selectedDomainIds.includes(r.domainId || 0));
-
-        // Filter allocations to match filtered resources and business decisions
-        const filteredResourceIds = filteredResources.map((r: Resource) => r.id);
-        const filteredAllocations = businessDecisionFilteredAllocations.filter((a: Allocation) =>
-          filteredResourceIds.includes(a.resourceId)
-        );
-
-        setResources(filteredResources);
-        setAllocations(filteredAllocations);
+        setMetrics(metricsRes.data.data);
+        setResources(resourcesRes.data.data || []);
+        setDomains(domainsRes.data.data || []);
+        setProjects(projectsRes.data.data || []);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -143,57 +145,6 @@ const CapacityDashboard = () => {
       </Box>
     );
   }
-
-  const totalResources = resources.length;
-  const avgUtilization = resources.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) / totalResources || 0;
-
-  // Calculate actual utilization from allocations (using time-based overlap calculation)
-  const resourceUtilization = calculateResourceAllocations(allocations);
-  const resourceActualUtilization = resourceUtilization; // Same map, use for both purposes
-
-  const allocatedResources = resourceUtilization.size;
-  const totalAllocations = allocations.length;
-
-  // Calculate monthly cost based on resources
-  const totalMonthlyCost = resources.reduce((sum, r) => {
-    const monthlyHours = 160; // Standard work month
-    return sum + ((r.hourlyRate || 0) * monthlyHours);
-  }, 0);
-
-  const avgHourlyRate = resources.reduce((sum, r) => sum + (r.hourlyRate || 0), 0) / totalResources || 0;
-
-  // Get all resource IDs
-  const allResourceIds = resources.map(r => r.id);
-
-  // Available Capacity: resources with actual allocation <= 100%
-  const availableCapacityCount = allResourceIds.filter(id => {
-    const utilization = resourceActualUtilization.get(id) || 0;
-    return utilization <= 100;
-  }).length;
-
-  // Bench Resources: resources with 0% allocation
-  const benchResourcesCount = allResourceIds.filter(id => {
-    const utilization = resourceActualUtilization.get(id) || 0;
-    return utilization === 0;
-  }).length;
-
-  // Fully Allocated: resources with exactly 100% allocation
-  const fullyAllocatedCount = allResourceIds.filter(id => {
-    const utilization = resourceActualUtilization.get(id) || 0;
-    return utilization === 100;
-  }).length;
-
-  // Over-Allocated: resources with >100% allocation
-  const overAllocatedCount = allResourceIds.filter(id => {
-    const utilization = resourceActualUtilization.get(id) || 0;
-    return utilization > 100;
-  }).length;
-
-  // Critical Resources: resources with >=95% and <100% allocation
-  const criticalResourcesCount = allResourceIds.filter(id => {
-    const utilization = resourceActualUtilization.get(id) || 0;
-    return utilization >= 95 && utilization < 100;
-  }).length;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -241,9 +192,9 @@ const CapacityDashboard = () => {
                       <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
                     </Tooltip>
                   </Box>
-                  <Typography variant="h4">{totalResources}</Typography>
+                  <Typography variant="h4">{metrics.totalResources}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {allocatedResources} actively allocated
+                    {metrics.allocatedResources} actively allocated
                   </Typography>
                 </Box>
                 <Box sx={{ color: 'primary.main' }}>
@@ -270,7 +221,7 @@ const CapacityDashboard = () => {
                       <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
                     </Tooltip>
                   </Box>
-                  <Typography variant="h4">{Math.round(avgUtilization)}%</Typography>
+                  <Typography variant="h4">{metrics.avgUtilization}%</Typography>
                   <Typography variant="caption" color="success.main">
                     ↑ Optimal range
                   </Typography>
@@ -299,9 +250,9 @@ const CapacityDashboard = () => {
                       <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
                     </Tooltip>
                   </Box>
-                  <Typography variant="h4">{formatCurrency(totalMonthlyCost)}</Typography>
+                  <Typography variant="h4">{formatCurrency(metrics.totalMonthlyCost)}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {totalResources} resources
+                    {metrics.totalResources} resources
                   </Typography>
                 </Box>
                 <Box sx={{ color: 'info.main' }}>
@@ -328,7 +279,7 @@ const CapacityDashboard = () => {
                       <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
                     </Tooltip>
                   </Box>
-                  <Typography variant="h4">{formatCurrency(avgHourlyRate)}</Typography>
+                  <Typography variant="h4">{formatCurrency(metrics.avgHourlyRate)}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Per resource
                   </Typography>
@@ -362,7 +313,7 @@ const CapacityDashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {resources.slice(0, 8).map((resource) => (
+                    {resources.map((resource) => (
                       <TableRow key={resource.id}>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
@@ -432,10 +383,10 @@ const CapacityDashboard = () => {
                     </Tooltip>
                   </Box>
                   <Typography variant="h4" color="success.main">
-                    {availableCapacityCount}
+                    {metrics.availableCapacityCount}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    at or below capacity ({fullyAllocatedCount} at 100%)
+                    at or below capacity ({metrics.fullyAllocatedCount} at 100%)
                   </Typography>
                 </Box>
 
@@ -454,7 +405,7 @@ const CapacityDashboard = () => {
                     </Tooltip>
                   </Box>
                   <Typography variant="h4" color="info.main">
-                    {benchResourcesCount}
+                    {metrics.benchResourcesCount}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     ready for assignment
@@ -476,7 +427,7 @@ const CapacityDashboard = () => {
                     </Tooltip>
                   </Box>
                   <Typography variant="h4" color="warning.main">
-                    {criticalResourcesCount}
+                    {metrics.criticalResourcesCount}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     near capacity
@@ -498,7 +449,7 @@ const CapacityDashboard = () => {
                     </Tooltip>
                   </Box>
                   <Typography variant="h4" color="error.main">
-                    {overAllocatedCount}
+                    {metrics.overAllocatedCount}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     require attention

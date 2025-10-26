@@ -392,7 +392,13 @@ const ScenarioManagement = () => {
       </TableContainer>
 
       {/* Create Scenario Dialog */}
-      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openCreateDialog}
+        onClose={submitting ? undefined : () => setOpenCreateDialog(false)}
+        disableEscapeKeyDown={submitting}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Create New Scenario</DialogTitle>
         <DialogContent>
           <TextField
@@ -432,7 +438,13 @@ const ScenarioManagement = () => {
       </Dialog>
 
       {/* Clone Scenario Dialog */}
-      <Dialog open={openCloneDialog} onClose={() => setOpenCloneDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openCloneDialog}
+        onClose={submitting ? undefined : () => setOpenCloneDialog(false)}
+        disableEscapeKeyDown={submitting}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Clone Scenario: {selectedScenario?.name}</DialogTitle>
         <DialogContent>
           <TextField
@@ -475,7 +487,11 @@ const ScenarioManagement = () => {
       </Dialog>
 
       {/* Delete Scenario Dialog */}
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+      <Dialog
+        open={openDeleteDialog}
+        onClose={submitting ? undefined : () => setOpenDeleteDialog(false)}
+        disableEscapeKeyDown={submitting}
+      >
         <DialogTitle>Delete Scenario</DialogTitle>
         <DialogContent>
           <Typography>

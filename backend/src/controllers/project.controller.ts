@@ -12,14 +12,18 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
   try {
     // PAGINATION SUPPORT - CRITICAL for 2K+ projects
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 2000); // Max 2000 per page (allows single-request fetching for domain views)
     const offset = (page - 1) * limit;
 
-    const { segmentFunctionId, status, scenarioId, fiscalYear, priority } = req.query;
+    const { segmentFunctionId, status, scenarioId, fiscalYear, priority, domainId } = req.query;
     const where: any = { isActive: true };
 
     if (segmentFunctionId) {
       where.segmentFunctionId = segmentFunctionId;
+    }
+
+    if (domainId) {
+      where.domainId = domainId;
     }
 
     if (status) {

@@ -47,6 +47,7 @@ import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
 import FilterPresets from '../../components/common/FilterPresets';
+import Pagination from '../../components/common/Pagination';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -149,8 +150,15 @@ const ResourceAllocation = () => {
   const [error, setError] = useState('');
   // Pagination state
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50); // Show 50 records per page
+  const [pageSize, setPageSize] = useState(50); // Show 50 records per page
   const [totalCount, setTotalCount] = useState(0);
+  // Summary/KPI state (server-side calculated)
+  const [summary, setSummary] = useState({
+    totalAllocations: 0,
+    overAllocatedResources: 0,
+    poorMatchAllocations: 0,
+    avgMatchScore: 0,
+  });
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentAllocation, setCurrentAllocation] = useState<Partial<Allocation>>({
@@ -171,11 +179,35 @@ const ResourceAllocation = () => {
     businessDecision: '',
   });
 
+  // Debounce state for text filters
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [debouncedResourceFilter, setDebouncedResourceFilter] = useState('');
+
+  // Debounce resource name filter (300ms delay)
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    const timeout = setTimeout(() => {
+      setDebouncedResourceFilter(filters.resource);
+      setPage(1); // Reset to page 1 when filter changes
+    }, 300);
+    setSearchTimeout(timeout);
+    return () => clearTimeout(timeout);
+  }, [filters.resource]);
+
+  // Reset to page 1 when any filter changes (except resource which is debounced above)
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+  }, [filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions]);
+
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page]); // Refetch when page changes
+  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -188,17 +220,38 @@ const ResourceAllocation = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // MEMORY OPTIMIZATION: Fetch only current page of allocations (not all 40K+ records)
-      // Parallel fetch: allocations (paginated), resources (for dropdown), projects (for dropdown), domains
-      const [allocationsRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
-        axios.get(`${API_URL}/allocations`, {
-          ...config,
-          params: {
-            scenarioId: activeScenario.id,
-            page,
-            limit: pageSize
-          }
-        }),
+      // Build query params with server-side filters
+      const allocationParams: any = {
+        scenarioId: activeScenario.id,
+        page,
+        limit: pageSize,
+      };
+
+      // Add filters to params (only non-empty values)
+      if (debouncedResourceFilter) allocationParams.resourceName = debouncedResourceFilter;
+      if (filters.matchScore) allocationParams.matchScore = filters.matchScore;
+
+      // Handle array filters - backend doesn't support multiple projects/types yet, so use first value
+      if (filters.allocationType.length > 0) allocationParams.allocationType = filters.allocationType[0];
+
+      // Domain and business decision filters (use global filters from Redux if set, otherwise use local)
+      if (selectedDomainIds.length > 0) {
+        allocationParams.domainId = selectedDomainIds[0];
+      } else if (filters.domainId) {
+        allocationParams.domainId = filters.domainId;
+      }
+
+      if (selectedBusinessDecisions.length > 0) {
+        allocationParams.businessDecision = selectedBusinessDecisions[0];
+      } else if (filters.businessDecision) {
+        allocationParams.businessDecision = filters.businessDecision;
+      }
+
+      // SERVER-SIDE FILTERING: All filters applied in database
+      // Fetch allocations and summary with same filters in parallel
+      const [allocationsRes, summaryRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
+        axios.get(`${API_URL}/allocations`, { ...config, params: allocationParams }),
+        axios.get(`${API_URL}/allocations/summary`, { ...config, params: allocationParams }), // Same filters!
         // For dropdowns, fetch only first 100 records (not all 10K resources)
         axios.get(`${API_URL}/resources`, { ...config, params: { limit: 100 } }),
         // For dropdowns, fetch only first 100 projects (not all 2K projects)
@@ -211,6 +264,12 @@ const ResourceAllocation = () => {
 
       setAllocations(allocationsRes.data.data || []);
       setTotalCount(allocationsRes.data.pagination?.total || 0);
+      setSummary(summaryRes.data.data || {
+        totalAllocations: 0,
+        overAllocatedResources: 0,
+        poorMatchAllocations: 0,
+        avgMatchScore: 0,
+      });
       setResources(resourcesRes.data.data || []);
       setProjects(projectsRes.data.data || []);
       setDomains(domainsRes.data.data || []);
@@ -609,105 +668,13 @@ const ResourceAllocation = () => {
     return 'Poor Match';
   };
 
-  // Filter resources based on global filters
-  const filteredResources = useMemo(() => {
-    let filtered = resources;
+  // SERVER-SIDE FILTERING: Allocations are already filtered by backend
+  // No need for client-side filtering anymore!
+  // Resources and projects for dropdowns remain unfiltered (for selection purposes)
 
-    // Apply global domain filter
-    if (selectedDomainIds.length > 0) {
-      filtered = filtered.filter(r => {
-        return r.domainId && selectedDomainIds.includes(r.domainId);
-      });
-    }
-
-    return filtered;
-  }, [resources, selectedDomainIds]);
-
-  // Filter projects based on global filters
-  const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    // Apply global domain filter
-    if (selectedDomainIds.length > 0) {
-      filtered = filtered.filter(p => {
-        return p.domainId && selectedDomainIds.includes(p.domainId);
-      });
-    }
-
-    // Apply global business decision filter
-    if (selectedBusinessDecisions.length > 0) {
-      filtered = filtered.filter(p => {
-        return p.businessDecision && selectedBusinessDecisions.includes(p.businessDecision);
-      });
-    }
-
-    return filtered;
-  }, [projects, selectedDomainIds, selectedBusinessDecisions]);
-
-  // Filter allocations based on global and local filters with cross-domain logic
-  const filteredAllocations = useMemo(() => {
-    let filtered = allocations;
-
-    // Apply global domain filter
-    if (selectedDomainIds.length > 0) {
-      filtered = filtered.filter(a => {
-        // Include allocation if project's domain matches OR resource's domain matches (cross-domain)
-        const projectMatches = a.project && selectedDomainIds.includes(a.project.domainId!);
-        const resourceMatches = a.resource && selectedDomainIds.includes(a.resource.domainId!);
-        return projectMatches || resourceMatches;
-      });
-    }
-
-    // Apply global business decision filter
-    if (selectedBusinessDecisions.length > 0) {
-      filtered = filtered.filter(a => {
-        return a.project && selectedBusinessDecisions.includes(a.project.businessDecision!);
-      });
-    }
-
-    // Apply local filters
-    filtered = filtered.filter((allocation) => {
-      const resourceName = `${allocation.resource?.firstName || ''} ${allocation.resource?.lastName || ''}`.toLowerCase();
-
-      // Basic filters
-      const matchesResourceName = resourceName.includes(filters.resource.toLowerCase());
-      const matchesProject = filters.project.length === 0 || filters.project.includes(allocation.project?.name || '');
-      const matchesAllocationType = filters.allocationType.length === 0 || filters.allocationType.includes(allocation.allocationType);
-      const matchesScore = filters.matchScore === '' ||
-        (filters.matchScore === 'excellent' && (allocation.matchScore || 0) >= 80) ||
-        (filters.matchScore === 'good' && (allocation.matchScore || 0) >= 60 && (allocation.matchScore || 0) < 80) ||
-        (filters.matchScore === 'fair' && (allocation.matchScore || 0) >= 40 && (allocation.matchScore || 0) < 60) ||
-        (filters.matchScore === 'poor' && (allocation.matchScore || 0) < 40);
-
-      // Cross-domain filtering logic for local filters
-      let matchesDomain = true;
-      let matchesBusinessDecision = true;
-
-      if (filters.domainId !== '' || filters.businessDecision !== '') {
-        const projectMatchesDomain = filters.domainId === '' || allocation.project?.domainId?.toString() === filters.domainId;
-        const projectMatchesBusinessDecision = filters.businessDecision === '' || allocation.project?.businessDecision === filters.businessDecision;
-
-        // Show allocation if:
-        // 1. Project matches the filter (normal case)
-        // 2. OR resource from selected domain is working on other domain projects (cross-domain outbound)
-        // 3. OR resource from other domain is working on selected domain projects (cross-domain inbound)
-
-        const projectMatchesFilter = projectMatchesDomain && projectMatchesBusinessDecision;
-        const resourceMatchesDomain = filters.domainId === '' || allocation.resource?.domainId?.toString() === filters.domainId;
-
-        matchesDomain = projectMatchesFilter || resourceMatchesDomain;
-        matchesBusinessDecision = projectMatchesBusinessDecision || resourceMatchesDomain;
-      }
-
-      return matchesResourceName && matchesProject && matchesAllocationType && matchesScore && matchesDomain && matchesBusinessDecision;
-    });
-
-    return filtered;
-  }, [allocations, selectedDomainIds, selectedBusinessDecisions, filters]);
-
-  // Calculate resource utilization statistics from filtered allocations
+  // Calculate resource utilization statistics from allocations
   const resourceStats = useMemo(() => {
-    return filteredAllocations.reduce((acc: any, allocation) => {
+    return allocations.reduce((acc: any, allocation) => {
       const resourceId = allocation.resourceId;
       if (!acc[resourceId]) {
         acc[resourceId] = {
@@ -730,7 +697,7 @@ const ResourceAllocation = () => {
 
       return acc;
     }, {});
-  }, [filteredAllocations]);
+  }, [allocations]);
 
   // Calculate max concurrent allocation for each resource
   Object.keys(resourceStats).forEach(resourceId => {
@@ -746,10 +713,10 @@ const ResourceAllocation = () => {
   }, [resourceStats]);
 
   const poorMatchAllocations = useMemo(() => {
-    return filteredAllocations.filter(
+    return allocations.filter(
       (a) => a.matchScore && a.matchScore < 60
     );
-  }, [filteredAllocations]);
+  }, [allocations]);
 
   // Calculate cross-domain metrics
   const calculateCrossDomainMetrics = () => {
@@ -895,7 +862,7 @@ const ResourceAllocation = () => {
           <TimelineView
             resources={filteredResources}
             projects={filteredProjects}
-            allocations={filteredAllocations}
+            allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
             onEdit={handleOpenDialog}
@@ -909,7 +876,7 @@ const ResourceAllocation = () => {
           <KanbanView
             resources={filteredResources}
             projects={filteredProjects}
-            allocations={filteredAllocations}
+            allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
           />
@@ -934,7 +901,7 @@ const ResourceAllocation = () => {
                   <InfoOutlined sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }} />
                 </Tooltip>
               </Box>
-              <Typography variant="h4">{filteredAllocations.length}</Typography>
+              <Typography variant="h4">{summary.totalAllocations}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -953,7 +920,7 @@ const ResourceAllocation = () => {
                 </Tooltip>
               </Box>
               <Typography variant="h4" color="error">
-                {overAllocatedResources.length}
+                {summary.overAllocatedResources}
               </Typography>
             </CardContent>
           </Card>
@@ -973,7 +940,7 @@ const ResourceAllocation = () => {
                 </Tooltip>
               </Box>
               <Typography variant="h4" color="warning.main">
-                {poorMatchAllocations.length}
+                {summary.poorMatchAllocations}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Match score &lt; 60
@@ -996,14 +963,7 @@ const ResourceAllocation = () => {
                 </Tooltip>
               </Box>
               <Typography variant="h4" color="success.main">
-                {filteredAllocations.filter((a) => a.matchScore).length > 0
-                  ? Math.round(
-                      filteredAllocations
-                        .filter((a) => a.matchScore)
-                        .reduce((sum, a) => sum + (a.matchScore || 0), 0) /
-                        filteredAllocations.filter((a) => a.matchScore).length
-                    )
-                  : '-'}
+                {summary.avgMatchScore > 0 ? summary.avgMatchScore.toFixed(1) : '-'}
               </Typography>
             </CardContent>
           </Card>
@@ -1202,7 +1162,7 @@ const ResourceAllocation = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredAllocations.length === 0 ? (
+                {allocations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={12} align="center">
                       <Typography variant="body2" color="text.secondary" py={3}>
@@ -1211,7 +1171,7 @@ const ResourceAllocation = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAllocations.map((allocation) => {
+                  allocations.map((allocation) => {
                     // Check if this is a cross-domain allocation
                     const isCrossDomain = allocation.resource?.domainId !== allocation.project?.domainId;
 
@@ -1287,7 +1247,7 @@ const ResourceAllocation = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        {allocation.resourceCapability ? (
+                        {allocation.resourceCapability?.app && allocation.resourceCapability?.technology && allocation.resourceCapability?.role ? (
                           <Box>
                             <Chip
                               label={`${allocation.resourceCapability.app.code}/${allocation.resourceCapability.technology.code}/${allocation.resourceCapability.role.code}`}
@@ -1302,12 +1262,12 @@ const ResourceAllocation = () => {
                           </Box>
                         ) : (
                           <Typography variant="caption" color="text.secondary">
-                            No capability linked
+                            {allocation.resourceCapability ? 'Capability linked' : 'No capability linked'}
                           </Typography>
                         )}
                       </TableCell>
                       <TableCell>
-                        {allocation.projectRequirement ? (
+                        {allocation.projectRequirement?.app && allocation.projectRequirement?.technology && allocation.projectRequirement?.role ? (
                           <Box>
                             <Chip
                               label={`${allocation.projectRequirement.app.code}/${allocation.projectRequirement.technology.code}/${allocation.projectRequirement.role.code}`}
@@ -1320,7 +1280,7 @@ const ResourceAllocation = () => {
                           </Box>
                         ) : (
                           <Typography variant="caption" color="text.secondary">
-                            No requirement linked
+                            {allocation.projectRequirement ? 'Requirement linked' : 'No requirement linked'}
                           </Typography>
                         )}
                       </TableCell>
@@ -1377,32 +1337,25 @@ const ResourceAllocation = () => {
           </TableContainer>
 
           {/* Pagination Controls */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" color="text.secondary">
-              Showing {allocations.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} allocations
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Previous
-              </Button>
-              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
-                Page {page} of {Math.ceil(totalCount / pageSize)}
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={page >= Math.ceil(totalCount / pageSize)}
-                onClick={() => setPage(page + 1)}
-              >
-                Next
-              </Button>
-            </Box>
-          </Box>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            totalPages={Math.ceil(totalCount / pageSize) || 1}
+            startIndex={(page - 1) * pageSize}
+            endIndex={Math.min(page * pageSize, totalCount)}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1); // Reset to page 1 when page size changes
+            }}
+            onFirstPage={() => setPage(1)}
+            onLastPage={() => setPage(Math.ceil(totalCount / pageSize) || 1)}
+            onNextPage={() => setPage(Math.min(page + 1, Math.ceil(totalCount / pageSize) || 1))}
+            onPreviousPage={() => setPage(Math.max(page - 1, 1))}
+            hasNextPage={page < (Math.ceil(totalCount / pageSize) || 1)}
+            hasPreviousPage={page > 1}
+          />
         </CardContent>
       </Card>
 

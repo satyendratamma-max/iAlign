@@ -11,7 +11,7 @@ export const getAllMilestones = async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
     const offset = (page - 1) * limit;
 
-    const { projectId, scenarioId } = req.query;
+    const { projectId, scenarioId, domainId, businessDecision } = req.query;
 
     const where: any = { isActive: true };
     if (projectId) {
@@ -25,8 +25,25 @@ export const getAllMilestones = async (req: Request, res: Response) => {
     const projectInclude: any = {
       model: Project,
       as: 'project',
-      attributes: ['id', 'name', 'status', 'fiscalYear'],
+      attributes: ['id', 'name', 'status', 'fiscalYear', 'domainId', 'businessDecision'],
+      required: false, // Default to LEFT JOIN
     };
+
+    // Build project filter conditions for JOIN
+    const projectWhere: any = {};
+    if (domainId) {
+      projectWhere.domainId = parseInt(domainId as string);
+      projectInclude.required = true; // INNER JOIN when filtering by domain
+    }
+    if (businessDecision) {
+      projectWhere.businessDecision = businessDecision as string;
+      projectInclude.required = true; // INNER JOIN when filtering by business decision
+    }
+
+    // Apply project filters
+    if (Object.keys(projectWhere).length > 0) {
+      projectInclude.where = projectWhere;
+    }
 
     // Add scenarioId to ON clause if provided
     if (scenarioId) {

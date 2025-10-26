@@ -494,7 +494,13 @@ const QuickAllocationDialog = ({
   const selectedRequirement = requirements.find(r => r.id === selectedRequirementId);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={loading ? undefined : handleClose}
+      disableEscapeKeyDown={loading}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>
         {isEditMode ? 'Edit Allocation' : 'Quick Allocation'}
         <Typography variant="body2" color="text.secondary">

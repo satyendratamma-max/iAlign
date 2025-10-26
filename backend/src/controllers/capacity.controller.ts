@@ -6,6 +6,9 @@ import User from '../models/User';
 import App from '../models/App';
 import Technology from '../models/Technology';
 import Role from '../models/Role';
+import Resource from '../models/Resource';
+import ResourceAllocation from '../models/ResourceAllocation';
+import Project from '../models/Project';
 
 export const getAllModels = async (req: Request, res: Response) => {
   try {
@@ -488,6 +491,214 @@ export const compareModels = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Error comparing models',
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to calculate max concurrent allocation for a resource
+function calculateMaxConcurrentAllocation(allocations: any[]): number {
+  if (allocations.length === 0) return 0;
+
+  const timePoints: { date: Date; delta: number }[] = [];
+
+  allocations.forEach(allocation => {
+    if (allocation.startDate && allocation.endDate) {
+      timePoints.push({
+        date: new Date(allocation.startDate),
+        delta: allocation.allocationPercentage
+      });
+      timePoints.push({
+        date: new Date(allocation.endDate),
+        delta: -allocation.allocationPercentage
+      });
+    }
+  });
+
+  if (timePoints.length === 0) {
+    // If no dates, sum all allocation percentages
+    return allocations.reduce((sum, a) => sum + a.allocationPercentage, 0);
+  }
+
+  timePoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  let current = 0;
+  let max = 0;
+
+  timePoints.forEach(point => {
+    current += point.delta;
+    max = Math.max(max, current);
+  });
+
+  return max;
+}
+
+// Dashboard Metrics Endpoint - Server-side calculation with filters
+export const getDashboardMetrics = async (req: Request, res: Response) => {
+  try {
+    const { scenarioId, domainId, businessDecision } = req.query;
+
+    // Build resource filter
+    const resourceWhere: any = { isActive: true };
+    if (domainId) {
+      resourceWhere.domainId = parseInt(domainId as string);
+    }
+
+    // Build allocation filter
+    const allocationWhere: any = { isActive: true };
+    if (scenarioId) {
+      allocationWhere.scenarioId = parseInt(scenarioId as string);
+    }
+
+    // Fetch filtered resources
+    const resources = await Resource.findAll({
+      where: resourceWhere,
+      attributes: ['id', 'hourlyRate', 'utilizationRate'],
+    });
+
+    // Fetch filtered allocations
+    let allocations = await ResourceAllocation.findAll({
+      where: allocationWhere,
+      attributes: ['id', 'resourceId', 'projectId', 'allocationPercentage', 'startDate', 'endDate'],
+      include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'businessDecision'],
+        },
+      ],
+    });
+
+    // Filter allocations by business decision if specified
+    if (businessDecision) {
+      allocations = allocations.filter((a: any) =>
+        a.project?.businessDecision === businessDecision
+      );
+    }
+
+    // Filter allocations to only include those from filtered resources
+    const resourceIds = new Set(resources.map(r => r.id));
+    allocations = allocations.filter((a: any) => resourceIds.has(a.resourceId));
+
+    // Calculate metrics
+    const totalResources = resources.length;
+
+    // Average utilization from resource model
+    const avgUtilization = totalResources > 0
+      ? resources.reduce((sum: number, r: any) => sum + (r.utilizationRate || 0), 0) / totalResources
+      : 0;
+
+    // Calculate monthly cost (160 hours per month)
+    const totalMonthlyCost = resources.reduce((sum: number, r: any) =>
+      sum + ((r.hourlyRate || 0) * 160), 0
+    );
+
+    // Average hourly rate
+    const avgHourlyRate = totalResources > 0
+      ? resources.reduce((sum: number, r: any) => sum + (r.hourlyRate || 0), 0) / totalResources
+      : 0;
+
+    // Calculate actual utilization per resource from allocations
+    const resourceUtilizationMap = new Map<number, number>();
+
+    // Group allocations by resource
+    const allocationsByResource = new Map<number, any[]>();
+    allocations.forEach((a: any) => {
+      if (!allocationsByResource.has(a.resourceId)) {
+        allocationsByResource.set(a.resourceId, []);
+      }
+      allocationsByResource.get(a.resourceId)!.push(a);
+    });
+
+    // Calculate max concurrent allocation for each resource
+    allocationsByResource.forEach((resourceAllocations, resourceId) => {
+      const maxUtilization = calculateMaxConcurrentAllocation(resourceAllocations);
+      resourceUtilizationMap.set(resourceId, maxUtilization);
+    });
+
+    // Count resources with allocations
+    const allocatedResources = resourceUtilizationMap.size;
+
+    // Capacity status calculations
+    let availableCapacityCount = 0;
+    let benchResourcesCount = 0;
+    let fullyAllocatedCount = 0;
+    let criticalResourcesCount = 0;
+    let overAllocatedCount = 0;
+
+    resources.forEach((r: any) => {
+      const utilization = resourceUtilizationMap.get(r.id) || 0;
+
+      if (utilization === 0) {
+        benchResourcesCount++;
+      }
+      if (utilization === 100) {
+        fullyAllocatedCount++;
+      }
+      if (utilization >= 95 && utilization < 100) {
+        criticalResourcesCount++;
+      }
+      if (utilization > 100) {
+        overAllocatedCount++;
+      }
+      if (utilization <= 100) {
+        availableCapacityCount++;
+      }
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        totalResources,
+        allocatedResources,
+        avgUtilization: Math.round(avgUtilization),
+        totalMonthlyCost,
+        avgHourlyRate,
+        availableCapacityCount,
+        benchResourcesCount,
+        fullyAllocatedCount,
+        criticalResourcesCount,
+        overAllocatedCount,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching dashboard metrics:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard metrics',
+      error: error.message,
+    });
+  }
+};
+
+// Dashboard Resources Endpoint - Paginated resources with utilization
+export const getDashboardResources = async (req: Request, res: Response) => {
+  try {
+    const { domainId, limit = '10' } = req.query;
+
+    // Build resource filter
+    const resourceWhere: any = { isActive: true };
+    if (domainId) {
+      resourceWhere.domainId = parseInt(domainId as string);
+    }
+
+    // Fetch filtered resources with limit
+    const resources = await Resource.findAll({
+      where: resourceWhere,
+      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'role', 'location', 'hourlyRate', 'utilizationRate'],
+      limit: parseInt(limit as string),
+      order: [['id', 'ASC']],
+    });
+
+    return res.json({
+      success: true,
+      data: resources,
+    });
+  } catch (error: any) {
+    console.error('Error fetching dashboard resources:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard resources',
       error: error.message,
     });
   }

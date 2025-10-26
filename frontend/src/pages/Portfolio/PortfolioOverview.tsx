@@ -31,7 +31,7 @@ import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import axios from 'axios';
-import { fetchAllPages } from '../../services/api';
+// Removed fetchAllPages import - using single request instead
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -126,16 +126,20 @@ const PortfolioOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [segmentFunctionsRes, domainsRes, allProjects] = await Promise.all([
+      const [segmentFunctionsRes, domainsRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/domains`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // SINGLE REQUEST: Fetch all projects in one call (max 2000)
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, limit: 2000 }
+        }),
       ]);
 
       const segmentFunctionsData = segmentFunctionsRes.data.data;
       setSegmentFunctions(segmentFunctionsData);
       setDomains(domainsRes.data.data);
-      setProjects(allProjects);
+      setProjects(projectsRes.data.data || []);
 
       // Fetch risk breakdowns for all segment functions
       fetchRiskBreakdowns(segmentFunctionsData, activeScenario.id, token, config);
@@ -153,27 +157,29 @@ const PortfolioOverview = () => {
     config: { headers: { Authorization: string } }
   ) => {
     try {
-      const riskPromises = segmentFunctions.map(async (sf) => {
-        try {
-          const response = await axios.get(
-            `${API_URL}/segment-functions/${sf.id}/risk?scenarioId=${scenarioId}`,
-            config
-          );
-          return { id: sf.id, breakdown: response.data.data };
-        } catch (error) {
-          console.error(`Error fetching risk for segment function ${sf.id}:`, error);
-          return null;
-        }
-      });
+      if (segmentFunctions.length === 0) {
+        setRiskBreakdowns({});
+        return;
+      }
 
-      const results = await Promise.all(riskPromises);
+      // Use batch endpoint - single request instead of N requests
+      const segmentFunctionIds = segmentFunctions.map(sf => sf.id);
+      const idsParam = segmentFunctionIds.join(',');
+      const response = await axios.get(
+        `${API_URL}/segment-functions/batch-risk?ids=${idsParam}&scenarioId=${scenarioId}`,
+        config
+      );
+
       const breakdownsMap: Record<number, RiskBreakdown> = {};
 
-      results.forEach((result) => {
-        if (result) {
-          breakdownsMap[result.id] = result.breakdown;
-        }
-      });
+      // Process batch response
+      if (response?.data?.data) {
+        response.data.data.forEach((result: any) => {
+          if (result?.segmentFunctionId) {
+            breakdownsMap[result.segmentFunctionId] = result;
+          }
+        });
+      }
 
       setRiskBreakdowns(breakdownsMap);
     } catch (error) {

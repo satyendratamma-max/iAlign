@@ -441,7 +441,13 @@ const TechnologiesManagement = () => {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={submitting ? undefined : handleCloseDialog}
+        disableEscapeKeyDown={submitting}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>{selectedTechnology ? 'Edit Technology' : 'Add New Technology'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>

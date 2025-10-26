@@ -42,6 +42,7 @@ import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
 import FilterPresets from '../../components/common/FilterPresets';
+import Pagination from '../../components/common/Pagination';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { setDomainFilter, setBusinessDecisionFilter, clearAllFilters } from '../../store/slices/filtersSlice';
@@ -121,14 +122,19 @@ const MilestonesOverview = () => {
 
   // PAGINATION STATE
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50); // Show 50 milestones per page
+  const [pageSize, setPageSize] = useState(50); // Show 50 milestones per page
   const [totalCount, setTotalCount] = useState(0);
+
+  // Reset to page 1 when global filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedDomainIds, selectedBusinessDecisions]);
 
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page]); // Re-fetch when page changes
+  }, [activeScenario, page, pageSize, selectedDomainIds, selectedBusinessDecisions]); // Re-fetch when filters change
 
   const fetchData = async () => {
     // Guard: Don't fetch data without an active scenario
@@ -138,18 +144,32 @@ const MilestonesOverview = () => {
     }
 
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // MEMORY OPTIMIZATION: Fetch only current page of milestones (not all)
+      // Build filter params for server-side filtering
+      const params: any = {
+        scenarioId: activeScenario.id,
+        page,
+        limit: pageSize,
+      };
+
+      // Apply global domain filter (server-side)
+      if (selectedDomainIds.length > 0) {
+        params.domainId = selectedDomainIds[0]; // Use first selected domain
+      }
+
+      // Apply global business decision filter (server-side)
+      if (selectedBusinessDecisions.length > 0) {
+        params.businessDecision = selectedBusinessDecisions[0]; // Use first selected business decision
+      }
+
+      // SERVER-SIDE FILTERING: Fetch only current page with filters applied
       const [milestonesRes, projectsRes, usersRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/milestones`, {
           ...config,
-          params: {
-            scenarioId: activeScenario.id,
-            page,
-            limit: pageSize,
-          },
+          params,
         }),
         // For dropdowns, limit projects to 100 (not all 2K+)
         axios.get(`${API_URL}/projects`, {
@@ -348,28 +368,10 @@ const MilestonesOverview = () => {
     }
   };
 
-  // Apply global filters first, then local filters
+  // Apply local filters only (global filters are applied server-side)
   const filteredMilestones = useMemo(() => {
-    let filtered = milestones;
-
-    // Apply global domain filter
-    if (selectedDomainIds.length > 0) {
-      filtered = filtered.filter(m => {
-        const project = projects.find(p => p.id === m.projectId);
-        return project && selectedDomainIds.includes(project.domainId!);
-      });
-    }
-
-    // Apply global business decision filter
-    if (selectedBusinessDecisions.length > 0) {
-      filtered = filtered.filter(m => {
-        const project = projects.find(p => p.id === m.projectId);
-        return project && selectedBusinessDecisions.includes(project.businessDecision!);
-      });
-    }
-
     // Apply local filters
-    filtered = filtered.filter((milestone) => {
+    const filtered = milestones.filter((milestone) => {
       const ownerName = milestone.owner
         ? `${milestone.owner.firstName} ${milestone.owner.lastName}`.toLowerCase()
         : '';
@@ -386,7 +388,7 @@ const MilestonesOverview = () => {
     });
 
     return filtered;
-  }, [milestones, projects, selectedDomainIds, selectedBusinessDecisions, filters]);
+  }, [milestones, projects, filters]);
 
   // Extract unique business decisions for filter options
   const uniqueBusinessDecisions = Array.from(
@@ -703,32 +705,25 @@ const MilestonesOverview = () => {
       </TableContainer>
 
       {/* PAGINATION CONTROLS */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, mt: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Showing {milestones.length === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} milestones
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-          >
-            Previous
-          </Button>
-          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
-            Page {page} of {Math.ceil(totalCount / pageSize) || 1}
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={page >= Math.ceil(totalCount / pageSize)}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </Button>
-        </Box>
-      </Box>
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        totalItems={totalCount}
+        totalPages={Math.ceil(totalCount / pageSize) || 1}
+        startIndex={(page - 1) * pageSize}
+        endIndex={Math.min(page * pageSize, totalCount)}
+        onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1); // Reset to page 1 when page size changes
+        }}
+        onFirstPage={() => setPage(1)}
+        onLastPage={() => setPage(Math.ceil(totalCount / pageSize) || 1)}
+        onNextPage={() => setPage(Math.min(page + 1, Math.ceil(totalCount / pageSize) || 1))}
+        onPreviousPage={() => setPage(Math.max(page - 1, 1))}
+        hasNextPage={page < (Math.ceil(totalCount / pageSize) || 1)}
+        hasPreviousPage={page > 1}
+      />
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>{editMode ? 'Edit Milestone' : 'Add Milestone'}</DialogTitle>

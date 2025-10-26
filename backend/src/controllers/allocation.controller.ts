@@ -896,6 +896,177 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
   }
 };
 
+// Get allocation summary/KPIs with same filters as getAllAllocations
+export const getAllocationSummary = async (req: Request, res: Response) => {
+  try {
+    const {
+      projectId,
+      resourceId,
+      domainId,
+      fiscalYear,
+      scenarioId,
+      allocationType,
+      matchScore,
+      resourceName,
+      businessDecision,
+    } = req.query;
+
+    const where: any = { isActive: true };
+
+    if (projectId) where.projectId = projectId;
+    if (resourceId) where.resourceId = resourceId;
+    if (scenarioId) where.scenarioId = scenarioId;
+    if (allocationType) where.allocationType = allocationType;
+
+    // Server-side match score filtering
+    if (matchScore) {
+      if (matchScore === 'excellent') {
+        where.matchScore = { [Op.gte]: 80 };
+      } else if (matchScore === 'good') {
+        where.matchScore = { [Op.between]: [60, 79] };
+      } else if (matchScore === 'fair') {
+        where.matchScore = { [Op.between]: [40, 59] };
+      } else if (matchScore === 'poor') {
+        where.matchScore = { [Op.lt]: 40 };
+      }
+    }
+
+    // Build Resource include with same filters as getAllAllocations
+    const resourceInclude: any = {
+      model: Resource,
+      as: 'resource',
+      attributes: ['id', 'employeeId', 'firstName', 'lastName', 'domainId'],
+      where: {},
+      required: true,
+    };
+
+    if (resourceName) {
+      resourceInclude.where[Op.or] = [
+        { firstName: { [Op.like]: `%${resourceName}%` } },
+        { lastName: { [Op.like]: `%${resourceName}%` } },
+        { employeeId: { [Op.like]: `%${resourceName}%` } },
+      ];
+    }
+
+    if (domainId && !fiscalYear && !businessDecision) {
+      resourceInclude.where.domainId = parseInt(domainId as string);
+    }
+
+    // Build Project include with same filters as getAllAllocations
+    const projectInclude: any = {
+      model: Project,
+      as: 'project',
+      attributes: ['id', 'scenarioId', 'domainId', 'fiscalYear', 'businessDecision'],
+      where: {},
+      required: true,
+    };
+
+    if (scenarioId) {
+      projectInclude.where.scenarioId = parseInt(scenarioId as string);
+    }
+
+    if (domainId) {
+      projectInclude.where.domainId = parseInt(domainId as string);
+    }
+
+    if (fiscalYear) {
+      projectInclude.where.fiscalYear = fiscalYear;
+    }
+
+    if (businessDecision) {
+      projectInclude.where.businessDecision = businessDecision;
+    }
+
+    const include: any[] = [resourceInclude, projectInclude];
+
+    // Get all matching allocations (without pagination) for summary calculations
+    const allAllocations = await ResourceAllocation.findAll({
+      where,
+      include,
+      attributes: ['id', 'resourceId', 'allocationPercentage', 'matchScore', 'startDate', 'endDate'],
+    });
+
+    // Calculate KPIs
+    const totalAllocations = allAllocations.length;
+
+    // Calculate over-allocated resources (resources with total allocation > 100%)
+    const resourceAllocationMap = new Map<number, number[]>();
+    allAllocations.forEach((allocation: any) => {
+      const resourceId = allocation.resourceId;
+      if (!resourceAllocationMap.has(resourceId)) {
+        resourceAllocationMap.set(resourceId, []);
+      }
+      resourceAllocationMap.get(resourceId)!.push({
+        allocationPercentage: allocation.allocationPercentage || 0,
+        startDate: allocation.startDate,
+        endDate: allocation.endDate,
+      } as any);
+    });
+
+    let overAllocatedCount = 0;
+    resourceAllocationMap.forEach((allocations, _resourceId) => {
+      // Calculate max concurrent allocation for this resource
+      const maxConcurrent = calculateMaxConcurrentAllocationBackend(allocations);
+      if (maxConcurrent > 100) {
+        overAllocatedCount++;
+      }
+    });
+
+    // Calculate poor match allocations (matchScore < 60)
+    const poorMatchCount = allAllocations.filter((a: any) => a.matchScore && a.matchScore < 60).length;
+
+    // Calculate average match score
+    const allocationsWithScores = allAllocations.filter((a: any) => a.matchScore);
+    const avgMatchScore = allocationsWithScores.length > 0
+      ? allocationsWithScores.reduce((sum: number, a: any) => sum + a.matchScore, 0) / allocationsWithScores.length
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalAllocations,
+        overAllocatedResources: overAllocatedCount,
+        poorMatchAllocations: poorMatchCount,
+        avgMatchScore: Math.round(avgMatchScore * 10) / 10, // Round to 1 decimal
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error fetching allocation summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching allocation summary',
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to calculate max concurrent allocation
+function calculateMaxConcurrentAllocationBackend(allocations: any[]): number {
+  if (allocations.length === 0) return 0;
+
+  // Group by overlapping date ranges
+  const timePoints: { date: Date; delta: number }[] = [];
+  allocations.forEach((allocation) => {
+    if (allocation.startDate && allocation.endDate) {
+      timePoints.push({ date: new Date(allocation.startDate), delta: allocation.allocationPercentage });
+      timePoints.push({ date: new Date(allocation.endDate), delta: -allocation.allocationPercentage });
+    }
+  });
+
+  // Sort by date
+  timePoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Calculate max concurrent
+  let current = 0;
+  let max = 0;
+  timePoints.forEach((point) => {
+    current += point.delta;
+    max = Math.max(max, current);
+  });
+
+  return max;
+}
+
 // MEMORY OPTIMIZATION: Server-side aggregation for dashboard metrics
 export const getDashboardMetrics = async (req: Request, res: Response) => {
   try {

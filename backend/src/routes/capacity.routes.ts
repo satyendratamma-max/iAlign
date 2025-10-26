@@ -11,9 +11,16 @@ import {
   updateScenario,
   deleteScenario,
   compareModels,
+  getDashboardMetrics,
+  getDashboardResources,
 } from '../controllers/capacity.controller';
+import { shortCache, cacheMiddleware } from '../middleware/cache.middleware';
 
 const router = Router();
+
+// Dashboard endpoints (with caching)
+router.get('/dashboard/metrics', cacheMiddleware(shortCache), getDashboardMetrics);
+router.get('/dashboard/resources', cacheMiddleware(shortCache), getDashboardResources);
 
 // Capacity Model CRUD
 router.get('/models', getAllModels);

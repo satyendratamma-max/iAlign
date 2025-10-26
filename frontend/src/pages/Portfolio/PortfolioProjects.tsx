@@ -36,7 +36,7 @@ import axios from 'axios';
 import Paper from '@mui/material/Paper';
 import PageHeader from '../../components/common/PageHeader';
 import { useScenario } from '../../contexts/ScenarioContext';
-import { fetchAllPages } from '../../services/api';
+// Removed fetchAllPages import - using single request instead
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -130,18 +130,22 @@ const PortfolioProjects = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [segmentFunctionRes, allProjects, impactsRes] = await Promise.all([
+      const [segmentFunctionRes, projectsRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/segment-functions/${segmentFunctionId}`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // SERVER-SIDE FILTERING: Fetch only projects for this segment function
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: {
+            scenarioId: activeScenario.id,
+            segmentFunctionId: parseInt(segmentFunctionId!),
+            limit: 2000
+          }
+        }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setSegmentFunction(segmentFunctionRes.data.data);
-      // Filter projects by segmentFunctionId
-      const segmentFunctionProjects = allProjects.filter(
-        (p: Project) => p.segmentFunctionId === parseInt(segmentFunctionId!)
-      );
-      setProjects(segmentFunctionProjects);
+      setProjects(projectsRes.data.data || []);
       setDomainImpacts(impactsRes.data.data || []);
 
       // Fetch risk data for the segment function

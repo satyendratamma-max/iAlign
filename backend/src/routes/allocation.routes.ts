@@ -8,6 +8,7 @@ import {
   getResourceAllocations,
   getProjectAllocations,
   getDashboardMetrics,
+  getAllocationSummary,
 } from '../controllers/allocation.controller';
 import { shortCache, cacheMiddleware, invalidateCacheMiddleware } from '../middleware/cache.middleware';
 
@@ -24,6 +25,7 @@ router.use(invalidateCacheMiddleware(shortCache, 'allocations:'));
 
 // GET endpoints with caching
 router.get('/', cacheMiddleware(shortCache, allocationCacheKey), getAllAllocations);
+router.get('/summary', cacheMiddleware(shortCache, allocationCacheKey), getAllocationSummary); // Summary endpoint with same filters
 router.get('/dashboard/metrics', cacheMiddleware(shortCache), getDashboardMetrics);
 router.get('/:id', cacheMiddleware(shortCache), getAllocationById);
 

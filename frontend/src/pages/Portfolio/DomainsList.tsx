@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
-import { fetchAllPages } from '../../services/api';
+// Removed fetchAllPages import - using single request instead
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -76,11 +76,20 @@ interface DomainImpact {
   impactLevel: string;
 }
 
+interface DomainStats {
+  domainId: number;
+  domainName: string;
+  totalProjects: number;
+  activeProjects: number;
+  totalBudget: number;
+}
+
 const DomainsList = () => {
   const navigate = useNavigate();
   const { selectedDomainIds, selectedBusinessDecisions } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [domainStats, setDomainStats] = useState<Map<number, DomainStats>>(new Map());
   const [projects, setProjects] = useState<Project[]>([]);
   const [domainImpacts, setDomainImpacts] = useState<DomainImpact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,14 +142,31 @@ const DomainsList = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainsResponse, fetchedProjects, impactsResponse] = await Promise.all([
+      const [domainsResponse, statsResponse, projectsResponse, impactsResponse] = await Promise.all([
         axios.get(`${API_URL}/domains`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // SERVER-SIDE STATS: Get accurate per-domain counts
+        axios.get(`${API_URL}/domains/stats`, {
+          ...config,
+          params: { scenarioId: activeScenario.id }
+        }),
+        // Still fetch some projects for business decision filtering (limited)
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, limit: 500 }
+        }),
         axios.get(`${API_URL}/project-domain-impacts`, config),
       ]);
 
       setDomains(domainsResponse.data.data);
-      setProjects(fetchedProjects);
+
+      // Convert stats array to Map for O(1) lookup
+      const statsMap = new Map<number, DomainStats>();
+      (statsResponse.data.data || []).forEach((stat: DomainStats) => {
+        statsMap.set(stat.domainId, stat);
+      });
+      setDomainStats(statsMap);
+
+      setProjects(projectsResponse.data.data || []);
       setDomainImpacts(impactsResponse.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -149,24 +175,19 @@ const DomainsList = () => {
     }
   };
 
-  const getDomainStats = (domainId: number) => {
-    const domainProjects = projects.filter(
-      (project) =>
-        project.domainId === domainId ||
-        project.segmentFunctionData?.domainId === domainId
-    );
+  const getDomainStatsForDisplay = (domainId: number) => {
+    // Get server-calculated stats (accurate counts regardless of dataset size)
+    const stats = domainStats.get(domainId);
 
-    const activeProjects = domainProjects.filter(
-      (project) => project.status === 'In Progress' || project.status === 'Planning'
-    ).length;
+    if (!stats) {
+      return { activeProjects: 0, totalProjects: 0, totalBudget: 0, impactingCount: 0, impactedCount: 0 };
+    }
 
-    const totalBudget = domainProjects.reduce(
-      (sum, project) => sum + (project.budget || 0),
-      0
-    );
-
-    // Count how many projects from this domain impact other domains (outgoing)
+    // For cross-domain impacts, still use client-side calculation (needs project IDs)
+    // This is approximate for large datasets but acceptable since it's supplementary info
+    const domainProjects = projects.filter(p => p.domainId === domainId);
     const domainProjectIds = domainProjects.map(p => p.id);
+
     const impactingOtherDomains = new Set(
       domainImpacts
         .filter(impact => domainProjectIds.includes(impact.projectId))
@@ -174,13 +195,18 @@ const DomainsList = () => {
     );
     const impactingCount = impactingOtherDomains.size;
 
-    // Count how many projects from other domains impact this domain (incoming)
     const impactedByOtherDomains = domainImpacts.filter(
       impact => impact.domainId === domainId
     );
     const impactedCount = impactedByOtherDomains.length;
 
-    return { activeProjects, totalBudget, impactingCount, impactedCount };
+    return {
+      activeProjects: stats.activeProjects,
+      totalProjects: stats.totalProjects,
+      totalBudget: stats.totalBudget,
+      impactingCount,
+      impactedCount
+    };
   };
 
   const handleOpenDialog = () => {
@@ -219,11 +245,9 @@ const DomainsList = () => {
   ) as string[];
 
   const filteredDomains = domains.filter((domain) => {
-    // Get projects for this domain
+    // Get projects for this domain (only direct domainId match)
     const domainProjects = projects.filter(
-      (project) =>
-        project.domainId === domain.id ||
-        project.segmentFunctionData?.domainId === domain.id
+      (project) => project.domainId === domain.id
     );
 
     // Check if any project matches the business decision filter
@@ -274,7 +298,7 @@ const DomainsList = () => {
 
       <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
         {filteredDomains.map((domain) => {
-          const stats = getDomainStats(domain.id);
+          const stats = getDomainStatsForDisplay(domain.id);
           const icon = getDomainIcon(domain.name);
           const colors = getDomainColor();
           return (
@@ -373,7 +397,10 @@ const DomainsList = () => {
                               fontSize: { xs: '1.25rem', sm: '1.5rem' },
                             }}
                           >
-                            {stats.activeProjects}
+                            {stats.totalProjects}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {stats.activeProjects} active
                           </Typography>
                         </Box>
                         <Box

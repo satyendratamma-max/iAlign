@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useScenario } from '../../contexts/ScenarioContext';
-import { fetchAllPages } from '../../services/api';
+// Removed fetchAllPages import - using single request instead
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -120,17 +120,22 @@ const DomainPortfolioOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [domainRes, fetchedProjects, teamsRes] = await Promise.all([
+      const [domainRes, projectsRes, teamsRes] = await Promise.all([
         axios.get(`${API_URL}/domains/${domainId}`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, domainId } }),
+        // SINGLE REQUEST: Fetch all domain projects in one call (max 2000)
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: { scenarioId: activeScenario.id, domainId, limit: 2000 }
+        }),
         axios.get(`${API_URL}/teams?domainId=${domainId}`, config),
       ]);
 
       setDomain(domainRes.data.data);
-      setProjects(fetchedProjects);
+      setProjects(projectsRes.data.data || []);
       setTeams(teamsRes.data.data);
 
       // Fetch risk data for all segment functions in this domain
+      const fetchedProjects = projectsRes.data.data || [];
       const uniqueSegmentFunctionIds = [...new Set(
         fetchedProjects
           .filter((p: Project) => p.segmentFunctionId)
@@ -154,28 +159,33 @@ const DomainPortfolioOverview = () => {
     config: { headers: { Authorization: string } }
   ) => {
     try {
-      const riskPromises = segmentFunctionIds
-        .filter((id): id is number => id !== undefined)
-        .map(segmentFunctionId =>
-          axios.get(
-            `${API_URL}/segment-functions/${segmentFunctionId}/risk?scenarioId=${scenarioId}`,
-            config
-          ).catch(error => {
-            console.error(`Error fetching risk for segment function ${segmentFunctionId}:`, error);
-            return null;
-          })
-        );
+      // Filter out undefined IDs
+      const validIds = segmentFunctionIds.filter((id): id is number => id !== undefined);
 
-      const riskResponses = await Promise.all(riskPromises);
+      if (validIds.length === 0) {
+        setProjectRisks({});
+        return;
+      }
+
+      // Use batch endpoint - single request instead of N requests
+      const idsParam = validIds.join(',');
+      const response = await axios.get(
+        `${API_URL}/segment-functions/batch-risk?ids=${idsParam}&scenarioId=${scenarioId}`,
+        config
+      );
+
       const risksMap: Record<number, ProjectRiskScore> = {};
 
-      riskResponses.forEach(response => {
-        if (response?.data?.data?.projectRisks) {
-          response.data.data.projectRisks.forEach((risk: ProjectRiskScore) => {
-            risksMap[risk.projectId] = risk;
-          });
-        }
-      });
+      // Process batch response
+      if (response?.data?.data) {
+        response.data.data.forEach((segmentFunctionRisk: any) => {
+          if (segmentFunctionRisk?.projectRisks) {
+            segmentFunctionRisk.projectRisks.forEach((risk: ProjectRiskScore) => {
+              risksMap[risk.projectId] = risk;
+            });
+          }
+        });
+      }
 
       setProjectRisks(risksMap);
     } catch (error) {

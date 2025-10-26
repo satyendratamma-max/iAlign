@@ -163,7 +163,13 @@ const DependencyDialog: React.FC<DependencyDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={loading ? undefined : onClose}
+      disableEscapeKeyDown={loading}
+      maxWidth="md"
+      fullWidth
+    >
       <DialogTitle>Create Project Dependency</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
