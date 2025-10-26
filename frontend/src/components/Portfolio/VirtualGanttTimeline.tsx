@@ -1,5 +1,5 @@
 import { useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { List, ListImperativeAPI } from 'react-window';
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import { Box } from '@mui/material';
 
 interface Project {
@@ -76,7 +76,7 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     },
     ref
   ) => {
-    const listRef = useRef<ListImperativeAPI | null>(null);
+    const listRef = useRef<List | null>(null);
     const visibleRangeRef = useRef({ start: 0, end: 0 });
 
     // Build flat project list for rendering (maintains order)
@@ -116,7 +116,7 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       (projectId: number) => {
         const index = projectIdToIndexMap.get(projectId);
         if (index !== undefined && listRef.current) {
-          listRef.current.scrollToRow({ index, align: 'center', behavior: 'smooth' });
+          listRef.current.scrollToItem(index, 'center');
         }
       },
       [projectIdToIndexMap]
@@ -133,18 +133,21 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     );
 
     // Handle visible range updates
-    const handleRowsRendered = useCallback(
-      (
-        visibleRows: { startIndex: number; stopIndex: number },
-        _allRows: { startIndex: number; stopIndex: number }
-      ) => {
+    const handleItemsRendered = useCallback(
+      ({
+        visibleStartIndex,
+        visibleStopIndex,
+      }: {
+        visibleStartIndex: number;
+        visibleStopIndex: number;
+      }) => {
         visibleRangeRef.current = {
-          start: visibleRows.startIndex,
-          end: visibleRows.stopIndex,
+          start: visibleStartIndex,
+          end: visibleStopIndex,
         };
 
         if (onVisibleRangeChange) {
-          onVisibleRangeChange(visibleRows.startIndex, visibleRows.stopIndex);
+          onVisibleRangeChange(visibleStartIndex, visibleStopIndex);
         }
       },
       [onVisibleRangeChange]
@@ -175,19 +178,30 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       );
     }
 
-    // Row renderer - receives index and style from react-window
-    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-      const project = flatProjects[index];
+    // Row renderer - receives props from react-window v1
+    const Row = useCallback(
+      ({ index, style }: ListChildComponentProps) => {
+        const project = flatProjects[index];
 
-      console.log('[VirtualGanttTimeline] Rendering row:', { index, project: project?.name, style });
+        console.log('[VirtualGanttTimeline] Rendering row:', {
+          index,
+          project: project?.name,
+          style
+        });
 
-      if (!project) {
-        console.warn('[VirtualGanttTimeline] No project at index:', index);
-        return null;
-      }
+        if (!project) {
+          console.warn('[VirtualGanttTimeline] No project at index:', index);
+          return <div style={style}>No project</div>;
+        }
 
-      return <div style={style}>{renderProjectRow({ project, index, style })}</div>;
-    };
+        return (
+          <div style={style}>
+            {renderProjectRow({ project, index, style })}
+          </div>
+        );
+      },
+      [flatProjects, renderProjectRow]
+    );
 
     console.log('[VirtualGanttTimeline] Creating List with:', {
       rowCount: flatProjects.length,
@@ -196,18 +210,19 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       width,
     });
 
-    // Use rowComponent pattern for react-window List component
+    // Use react-window v1 FixedSizeList component
     return (
-      <List<{}>
-        listRef={listRef}
-        rowCount={flatProjects.length}
-        rowHeight={rowHeight}
-        rowComponent={Row}
-        rowProps={{}}
-        onRowsRendered={handleRowsRendered}
+      <List
+        ref={listRef}
+        height={height}
+        itemCount={flatProjects.length}
+        itemSize={rowHeight}
+        width={width}
         overscanCount={overscanCount}
-        style={{ height, width }}
-      />
+        onItemsRendered={handleItemsRendered}
+      >
+        {Row}
+      </List>
     );
   }
 );
