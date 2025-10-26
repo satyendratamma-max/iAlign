@@ -257,16 +257,16 @@ const ResourceAllocation = () => {
       const [allocationsRes, summaryRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/allocations`, { ...config, params: allocationParams }),
         axios.get(`${API_URL}/allocations/summary`, { ...config, params: allocationParams }), // Same filters!
-        // For timeline/kanban views: fetch ALL resources; for table view: only first 100 for dropdowns
+        // For timeline/kanban views: fetch ALL resources (up to backend max); for table view: only first 100 for dropdowns
         axios.get(`${API_URL}/resources`, {
           ...config,
-          params: isVisualizationView ? {} : { limit: 100 }
+          params: isVisualizationView ? { limit: 10000 } : { limit: 100 }
         }),
-        // For timeline/kanban views: fetch ALL projects; for table view: only first 100 for dropdowns
+        // For timeline/kanban views: fetch ALL projects (up to backend max 2000); for table view: only first 100 for dropdowns
         axios.get(`${API_URL}/projects`, {
           ...config,
           params: isVisualizationView
-            ? { scenarioId: activeScenario.id }
+            ? { scenarioId: activeScenario.id, limit: 2000 }
             : { scenarioId: activeScenario.id, limit: 100 }
         }),
         axios.get(`${API_URL}/domains`, config),

@@ -15,7 +15,7 @@ export const getAllResources = async (req: Request, res: Response, next: NextFun
   try {
     // PAGINATION SUPPORT - CRITICAL for 10K+ resources
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 10000); // Max 10000 per page (allows single-request fetching for visualization views)
     const offset = (page - 1) * limit;
 
     // Resources are shared across all scenarios, so we don't filter by scenarioId
