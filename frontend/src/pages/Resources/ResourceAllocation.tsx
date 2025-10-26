@@ -178,10 +178,23 @@ const ResourceAllocation = () => {
     domainId: '',
     businessDecision: '',
   });
+  const [showScopingWarning, setShowScopingWarning] = useState(false);
+  const [allocationCountWarning, setAllocationCountWarning] = useState<number | null>(null);
 
   // Debounce state for text filters
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [debouncedResourceFilter, setDebouncedResourceFilter] = useState('');
+
+  // Check if filters are sufficient for visualization views (timeline/kanban)
+  const hasScopingFilters = () => {
+    // Require at least one scoping filter: domain, business decision, or global filters
+    return (
+      filters.domainId !== '' ||
+      filters.businessDecision !== '' ||
+      selectedDomainIds.length > 0 ||
+      selectedBusinessDecisions.length > 0
+    );
+  };
 
   // Debounce resource name filter (300ms delay)
   useEffect(() => {
@@ -214,6 +227,15 @@ const ResourceAllocation = () => {
       console.warn('No active scenario selected for ResourceAllocation');
       return;
     }
+
+    // For timeline/kanban views, require scoping filters
+    const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
+    if (isVisualizationView && !hasScopingFilters()) {
+      setShowScopingWarning(true);
+      setLoading(false);
+      return;
+    }
+    setShowScopingWarning(false);
 
     try {
       setLoading(true);
@@ -283,6 +305,14 @@ const ResourceAllocation = () => {
       setResources(resourcesRes.data.data || []);
       setProjects(projectsRes.data.data || []);
       setDomains(domainsRes.data.data || []);
+
+      // Check allocation count for visualization views
+      const allocationCount = allocationsRes.data.pagination?.total || 0;
+      if (isVisualizationView && allocationCount > 500) {
+        setAllocationCountWarning(allocationCount);
+      } else {
+        setAllocationCountWarning(null);
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
@@ -866,8 +896,63 @@ const ResourceAllocation = () => {
         </Alert>
       )}
 
+      {/* Scoping warning for visualization views */}
+      {showScopingWarning && (currentView === 'timeline' || currentView === 'kanban') && (
+        <Card sx={{ mb: 3, bgcolor: 'info.lighter', borderLeft: 4, borderColor: 'info.main' }}>
+          <CardContent>
+            <Box display="flex" alignItems="flex-start" gap={2}>
+              <InfoOutlined sx={{ fontSize: 32, color: 'info.main', mt: 0.5 }} />
+              <Box flex={1}>
+                <Typography variant="h6" color="info.dark" gutterBottom>
+                  Select Filters to View {currentView === 'timeline' ? 'Timeline' : 'Kanban'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Timeline and Kanban views work best with focused data. Please select at least one scoping filter to continue:
+                </Typography>
+                <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Required: Select at least one
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 3, mb: 0 }}>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Domain</strong> - View allocations for a specific domain
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography variant="body2">
+                        <strong>Business Decision</strong> - View allocations by business decision type
+                      </Typography>
+                    </li>
+                  </Box>
+                </Box>
+                <Alert severity="info" sx={{ mb: 0 }}>
+                  <Typography variant="body2">
+                    💡 Tip: Use the filter bar above or the table view to browse all allocations without restrictions.
+                    Recommended limit: <strong>500 allocations</strong> for optimal performance.
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Allocation count warning for large datasets */}
+      {allocationCountWarning && (currentView === 'timeline' || currentView === 'kanban') && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="body2" fontWeight="medium" gutterBottom>
+            Large Dataset Warning: {allocationCountWarning.toLocaleString()} allocations found
+          </Typography>
+          <Typography variant="body2">
+            Loading {allocationCountWarning.toLocaleString()} allocations may impact performance.
+            Consider narrowing your filters for better experience. Recommended limit: 500 allocations.
+          </Typography>
+        </Alert>
+      )}
+
       {/* Render appropriate view */}
-      {currentView === 'timeline' && (
+      {currentView === 'timeline' && !showScopingWarning && (
         <>
           <TimelineView
             resources={resources}
@@ -881,7 +966,7 @@ const ResourceAllocation = () => {
         </>
       )}
 
-      {currentView === 'kanban' && (
+      {currentView === 'kanban' && !showScopingWarning && (
         <>
           <KanbanView
             resources={resources}
