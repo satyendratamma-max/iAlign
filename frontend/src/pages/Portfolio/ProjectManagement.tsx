@@ -6182,9 +6182,7 @@ const ProjectManagement = () => {
                     viewBox={`0 0 ${timelineWidth} ${
                       swimlaneConfig.enabled
                         ? getTotalSwimlaneRows() * 32
-                        : useVirtualScrolling
-                          ? 800  // Virtual scrolling viewport height
-                          : filteredProjects.length * 37
+                        : filteredProjects.length * 37
                     }`}
                     preserveAspectRatio="none"
                     style={{
@@ -6198,13 +6196,11 @@ const ProjectManagement = () => {
                         : `calc(100% - ${ganttSidebarWidth}px - 100px)`,
                       height: swimlaneConfig.enabled
                         ? getTotalSwimlaneRows() * 32
-                        : useVirtualScrolling
-                          ? 800  // Virtual scrolling viewport height
-                          : filteredProjects.length * 37,
+                        : filteredProjects.length * 37,
                       pointerEvents: 'none',
                       zIndex: 5,
                       overflow: 'visible',
-                      transform: useVirtualScrolling ? `translateY(${virtualScrollOffset}px)` : undefined,
+                      transform: useVirtualScrolling ? `translateY(-${virtualScrollOffset}px)` : undefined,
                     }}
                   >
                     <defs>
@@ -6265,12 +6261,10 @@ const ProjectManagement = () => {
                         // In swimlane: 32px per row + 1px border (but swimlane borders overlap, no extra accumulation)
                         const rowHeight = swimlaneConfig.enabled ? 32 : 37;
                         const x1 = (predPos.x / 100) * timelineWidth;
-                        // For virtual scrolling: adjust rowIndex to be relative to visible range
-                        const adjustedPredRowIndex = useVirtualScrolling ? predPos.rowIndex - visibleRangeStart : predPos.rowIndex;
-                        const adjustedSuccRowIndex = useVirtualScrolling ? succPos.rowIndex - visibleRangeStart : succPos.rowIndex;
-                        const y1 = adjustedPredRowIndex * rowHeight + predPos.y;
+                        // Use absolute row positions - transform handles scroll synchronization
+                        const y1 = predPos.rowIndex * rowHeight + predPos.y;
                         const x2 = (succPos.x / 100) * timelineWidth;
-                        const y2 = adjustedSuccRowIndex * rowHeight + succPos.y;
+                        const y2 = succPos.rowIndex * rowHeight + succPos.y;
 
                         // MS Project style routing: All paths terminate horizontally towards the target
                         // Exit horizontally from predecessor, always enter target horizontally
