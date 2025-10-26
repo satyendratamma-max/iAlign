@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { QueryTypes } from 'sequelize';
+import { QueryTypes, Op } from 'sequelize';
 import sequelize from '../config/database';
 import Resource from '../models/Resource';
 import Domain from '../models/Domain';
@@ -21,22 +21,54 @@ export const getAllResources = async (req: Request, res: Response, next: NextFun
     // Resources are shared across all scenarios, so we don't filter by scenarioId
     const where: any = { isActive: true };
 
-    // Add filtering support
+    // Add filtering support with LIKE for partial matches
+    if (req.query.employeeId) {
+      where.employeeId = { [Op.like]: `%${req.query.employeeId}%` };
+    }
     if (req.query.role) {
       where.role = req.query.role;
     }
     if (req.query.location) {
-      where.location = req.query.location;
+      where.location = { [Op.like]: `%${req.query.location}%` };
     }
     if (req.query.domainId) {
       where.domainId = req.query.domainId;
     }
+    if (req.query.segmentFunctionId) {
+      where.segmentFunctionId = req.query.segmentFunctionId;
+    }
+
+    // Name filtering requires OR condition on firstName and lastName
+    let nameFilter: any = undefined;
+    if (req.query.name) {
+      const nameParts = (req.query.name as string).trim().split(/\s+/);
+      if (nameParts.length === 1) {
+        // Single word - search in both first and last name
+        nameFilter = {
+          [Op.or]: [
+            { firstName: { [Op.like]: `%${nameParts[0]}%` } },
+            { lastName: { [Op.like]: `%${nameParts[0]}%` } },
+          ],
+        };
+      } else {
+        // Multiple words - assume first and last name
+        nameFilter = {
+          [Op.and]: [
+            { firstName: { [Op.like]: `%${nameParts[0]}%` } },
+            { lastName: { [Op.like]: `%${nameParts[nameParts.length - 1]}%` } },
+          ],
+        };
+      }
+    }
+
+    // Combine where conditions
+    const finalWhere = nameFilter ? { [Op.and]: [where, nameFilter] } : where;
 
     const { count, rows: resources } = await Resource.findAndCountAll({
-      where,
+      where: finalWhere,
       limit,
       offset,
-      order: [['createdDate', 'DESC']],
+      order: [['employeeId', 'ASC']], // Better default sort for resources
       include: [
         {
           model: Domain,

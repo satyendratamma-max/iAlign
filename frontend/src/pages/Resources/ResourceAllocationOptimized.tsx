@@ -11,12 +11,12 @@ import {
   Alert,
   TextField,
   MenuItem,
-  Pagination,
   Autocomplete,
 } from '@mui/material';
 import { Add as AddIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import axios from 'axios';
 import PageHeader from '../../components/common/PageHeader';
+import Pagination from '../../components/common/Pagination';
 import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -64,7 +64,7 @@ const ResourceAllocationOptimized = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [pageSize] = useState(50); // Fixed page size
+  const [pageSize, setPageSize] = useState(50);
 
   // Server-side filters
   const [filters, setFilters] = useState({
@@ -88,7 +88,7 @@ const ResourceAllocationOptimized = () => {
     if (activeScenario) {
       fetchAllocations();
     }
-  }, [activeScenario, page, filters]);
+  }, [activeScenario, page, pageSize, filters]);
 
   const fetchDomains = async () => {
     try {
@@ -152,11 +152,6 @@ const ResourceAllocationOptimized = () => {
       }, 500);
       setSearchTimeout(timeout);
     }
-  };
-
-  const handlePageChange = (_event: any, value: number) => {
-    setPage(value);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRefresh = () => {
@@ -404,19 +399,25 @@ const ResourceAllocationOptimized = () => {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={3}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={handlePageChange}
-                color="primary"
-                size="large"
-                showFirstButton
-                showLastButton
-              />
-            </Box>
-          )}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalRecords}
+            totalPages={totalPages}
+            startIndex={(page - 1) * pageSize}
+            endIndex={Math.min(page * pageSize, totalRecords)}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1); // Reset to page 1 when page size changes
+            }}
+            onFirstPage={() => setPage(1)}
+            onLastPage={() => setPage(totalPages)}
+            onNextPage={() => setPage(Math.min(page + 1, totalPages))}
+            onPreviousPage={() => setPage(Math.max(page - 1, 1))}
+            hasNextPage={page < totalPages}
+            hasPreviousPage={page > 1}
+          />
         </CardContent>
       </Card>
 

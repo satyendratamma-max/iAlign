@@ -249,26 +249,30 @@ const Dashboard = () => {
     config: { headers: { Authorization: string } }
   ) => {
     try {
-      const riskPromises = segmentFunctionIds.map(segmentFunctionId =>
-        axios.get(
-          `${API_URL}/segment-functions/${segmentFunctionId}/risk?scenarioId=${scenarioId}`,
-          config
-        ).catch(error => {
-          console.error(`Error fetching risk for segment function ${segmentFunctionId}:`, error);
-          return null;
-        })
+      if (segmentFunctionIds.length === 0) {
+        setProjectRisks({});
+        return;
+      }
+
+      // Use batch endpoint - single request instead of N requests
+      const idsParam = segmentFunctionIds.join(',');
+      const response = await axios.get(
+        `${API_URL}/segment-functions/batch-risk?ids=${idsParam}&scenarioId=${scenarioId}`,
+        config
       );
 
-      const riskResponses = await Promise.all(riskPromises);
       const risksMap: Record<number, ProjectRiskScore> = {};
 
-      riskResponses.forEach(response => {
-        if (response?.data?.data?.projectRisks) {
-          response.data.data.projectRisks.forEach((risk: ProjectRiskScore) => {
-            risksMap[risk.projectId] = risk;
-          });
-        }
-      });
+      // Process batch response
+      if (response?.data?.data) {
+        response.data.data.forEach((segmentFunctionRisk: any) => {
+          if (segmentFunctionRisk?.projectRisks) {
+            segmentFunctionRisk.projectRisks.forEach((risk: ProjectRiskScore) => {
+              risksMap[risk.projectId] = risk;
+            });
+          }
+        });
+      }
 
       setProjectRisks(risksMap);
     } catch (error) {

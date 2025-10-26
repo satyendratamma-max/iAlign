@@ -1,0 +1,132 @@
+═══════════════════════════════════════════════════════
+          iALIGN PERFORMANCE TEST REPORT
+═══════════════════════════════════════════════════════
+
+Test Date: 10/25/2025, 11:55:53 PM
+API Base URL: http://localhost:5000/api/v1
+Database Size: {
+  "resources": "N/A",
+  "projects": "N/A",
+  "allocations": "N/A"
+}
+
+───────────────────────────────────────────────────────
+                    SUMMARY
+───────────────────────────────────────────────────────
+
+Total Endpoints Tested: 13
+Overall Avg Response Time: 70.54ms
+Fastest Endpoint: GET /projects/1 (21.40ms)
+Slowest Endpoint: POST /allocations (308.80ms)
+
+───────────────────────────────────────────────────────
+                 DETAILED RESULTS
+───────────────────────────────────────────────────────
+
+Endpoint: GET /resources
+  Iterations: 20
+  Avg Response Time: 38.75ms
+  Min: 19ms | Max: 125ms
+  P50: 36ms | P95: 125ms | P99: 125ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:08 PM
+
+Endpoint: GET /resources?include=capabilities
+  Iterations: 20
+  Avg Response Time: 31.55ms
+  Min: 20ms | Max: 40ms
+  P50: 31ms | P95: 40ms | P99: 40ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:10 PM
+
+Endpoint: GET /projects
+  Iterations: 20
+  Avg Response Time: 88.60ms
+  Min: 70ms | Max: 154ms
+  P50: 84ms | P95: 154ms | P99: 154ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:14 PM
+
+Endpoint: GET /projects?include=requirements
+  Iterations: 20
+  Avg Response Time: 82.90ms
+  Min: 61ms | Max: 99ms
+  P50: 82ms | P95: 99ms | P99: 99ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:18 PM
+
+Endpoint: GET /allocations
+  Iterations: 20
+  Avg Response Time: 57.65ms
+  Min: 9ms | Max: 820ms
+  P50: 18ms | P95: 820ms | P99: 820ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:22 PM
+
+Endpoint: GET /domains
+  Iterations: 20
+  Avg Response Time: 22.10ms
+  Min: 8ms | Max: 46ms
+  P50: 22ms | P95: 46ms | P99: 46ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:24 PM
+
+Endpoint: GET /segment-functions
+  Iterations: 20
+  Avg Response Time: 26.35ms
+  Min: 15ms | Max: 66ms
+  P50: 24ms | P95: 66ms | P99: 66ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:27 PM
+
+Endpoint: GET /resources/1
+  Iterations: 20
+  Avg Response Time: 32.65ms
+  Min: 14ms | Max: 206ms
+  P50: 22ms | P95: 206ms | P99: 206ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:30 PM
+
+Endpoint: GET /projects/1
+  Iterations: 20
+  Avg Response Time: 21.40ms
+  Min: 13ms | Max: 49ms
+  P50: 20ms | P95: 49ms | P99: 49ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:32 PM
+
+Endpoint: GET /resources?role=Developer
+  Iterations: 15
+  Avg Response Time: 57.60ms
+  Min: 33ms | Max: 178ms
+  P50: 52ms | P95: 178ms | P99: 178ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:40 PM
+
+Endpoint: GET /projects?status=In%20Progress
+  Iterations: 15
+  Avg Response Time: 86.73ms
+  Min: 62ms | Max: 165ms
+  P50: 84ms | P95: 165ms | P99: 165ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:43 PM
+
+Endpoint: GET /projects?fiscalYear=FY25
+  Iterations: 15
+  Avg Response Time: 62.00ms
+  Min: 37ms | Max: 152ms
+  P50: 54ms | P95: 152ms | P99: 152ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:45 PM
+
+Endpoint: POST /allocations
+  Iterations: 5
+  Avg Response Time: 308.80ms
+  Min: 199ms | Max: 580ms
+  P50: 244ms | P95: 580ms | P99: 580ms
+  Success Rate: 100.0% (0 failed)
+  Timestamp: 10/25/2025, 11:55:53 PM
+
+═══════════════════════════════════════════════════════
+                    END OF REPORT
+═══════════════════════════════════════════════════════

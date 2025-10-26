@@ -104,9 +104,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import VirtualGanttTimeline, { VirtualGanttTimelineHandle } from '../../components/Portfolio/VirtualGanttTimeline';
+import { VirtualGanttTimelineHandle } from '../../components/Portfolio/VirtualGanttTimeline';
+import VirtualGanttFlatList from '../../components/Portfolio/VirtualGanttFlatList';
 import { useGanttPerformance } from '../../hooks/useGanttPerformance';
-import AutoSizer from 'react-virtualized-auto-sizer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -506,6 +506,142 @@ interface SortableGanttProjectRowProps {
   handleMilestoneMouseDown: (e: React.MouseEvent, milestone: Milestone, projectId: number) => void;
   getStatusColor: (status: string) => 'default' | 'primary' | 'success' | 'error' | 'warning';
 }
+
+// Simple Gantt Row Component for Virtual Rendering (no drag-drop)
+interface GanttProjectRowProps {
+  project: Project;
+  projectMilestones: Milestone[];
+  projectStart: string | Date | undefined;
+  projectEnd: string | Date | undefined;
+  ganttSidebarWidth: number;
+  dateRange: { start: Date; end: Date };
+  cpmData: any;
+  tempPositions: any;
+  draggingItem: any;
+  calculatePosition: (date: Date | undefined, start: Date, end: Date) => number;
+  calculateWidth: (start: Date | undefined, end: Date | undefined, rangeStart: Date, rangeEnd: Date) => number;
+  getStatusColor: (status: string) => 'default' | 'primary' | 'success' | 'error' | 'warning';
+}
+
+const GanttProjectRow: React.FC<GanttProjectRowProps> = ({
+  project,
+  projectMilestones,
+  projectStart,
+  projectEnd,
+  ganttSidebarWidth,
+  dateRange,
+  cpmData,
+  tempPositions,
+  draggingItem,
+  calculatePosition,
+  calculateWidth,
+  getStatusColor,
+}) => {
+  return (
+    <Box sx={{ borderBottom: '1px dotted', borderColor: 'divider', marginBottom: '4px', paddingBottom: '4px' }}>
+      {/* Project Row with Milestones */}
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ width: ganttSidebarWidth, flexShrink: 0, pr: 1, display: 'flex', alignItems: 'center' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.7rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block',
+              flex: 1,
+            }}
+            title={`${project.projectNumber || `PRJ-${project.id}`} - ${project.name}`}
+          >
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>
+              {project.projectNumber || `PRJ-${project.id}`}
+            </Box>
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {project.name}
+            </Box>
+          </Typography>
+        </Box>
+        <Box sx={{ flex: 1, position: 'relative', height: 28 }} id={`timeline-container-${project.id}`}>
+          {/* Project Bar */}
+          {projectStart && projectEnd && (() => {
+            const cpmNode = cpmData.nodes.get(`project-${project.id}`);
+            const slackDays = cpmNode?.slack || 0;
+            const isOnCriticalPath = cpmData.criticalPath.includes(`project-${project.id}`);
+            const tooltipContent = `${project.name}\n${isOnCriticalPath ? '⚡ Critical Path' : `Slack: ${slackDays} days`}`;
+
+            return (
+                <Box
+                  title={tooltipContent}
+                  sx={{
+                    position: 'absolute',
+                    left: tempPositions[`project-${project.id}`]?.left || `${calculatePosition(new Date(projectStart), dateRange.start, dateRange.end)}%`,
+                    width: tempPositions[`project-${project.id}`]?.width || `${calculateWidth(new Date(projectStart), new Date(projectEnd), dateRange.start, dateRange.end)}%`,
+                    height: 18,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    bgcolor: project.healthStatus === 'Green' ? '#4caf50' :
+                            project.healthStatus === 'Yellow' ? '#ff9800' :
+                            project.healthStatus === 'Red' ? '#f44336' : '#2196f3',
+                    borderRadius: 0.5,
+                    border: cpmData.criticalPath.includes(`project-${project.id}`) ? '2px solid #fbbf24' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    px: 0.5,
+                    boxShadow: cpmData.criticalPath.includes(`project-${project.id}`) ? 3 : 1,
+                    userSelect: 'none',
+                  }}
+                >
+                  {project.progress}%
+                </Box>
+            );
+          })()}
+
+          {/* Milestones */}
+          {projectMilestones.map((milestone) => {
+            if (!milestone.plannedEndDate) return null;
+            const milestoneDate = new Date(milestone.plannedEndDate);
+            const milestonePos = tempPositions[`milestone-${milestone.id}`]?.left ||
+              calculatePosition(milestoneDate, dateRange.start, dateRange.end);
+
+            return (
+              <Box
+                key={milestone.id}
+                title={`${milestone.name} - ${new Date(milestone.plannedEndDate).toLocaleDateString()}`}
+                sx={{
+                    position: 'absolute',
+                    left: `${milestonePos}%`,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%) rotate(45deg)',
+                    width: 10,
+                    height: 10,
+                    bgcolor: milestone.status === 'Completed' ? '#66bb6a' :
+                            milestone.status === 'In Progress' ? '#42a5f5' : '#9e9e9e',
+                    border: '1px solid white',
+                    boxShadow: 1,
+                  }}
+                />
+            );
+          })}
+        </Box>
+
+        {/* Status column */}
+        <Box sx={{ width: 100, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Chip
+            label={project.status}
+            size="small"
+            color={getStatusColor(project.status)}
+            sx={{ fontSize: '0.55rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+          />
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 const SortableGanttProjectRow: React.FC<SortableGanttProjectRowProps> = ({
   project,
@@ -4951,63 +5087,88 @@ const ProjectManagement = () => {
 
                   {/* Projects and Milestones */}
                   {!swimlaneConfig.enabled ? (
-                    // Flat list rendering when swimlanes are disabled - with drag and drop reordering
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleGanttDragStart}
-                      onDragEnd={handleGanttDragEnd}
-                    >
-                      <SortableContext items={filteredProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
-                        {filteredProjects.map((project) => {
-                          const projectMilestones = milestones.filter(m => m.projectId === project.id);
-                          const projectStart = project.startDate || project.desiredStartDate;
-                          const projectEnd = project.endDate || project.desiredCompletionDate;
+                    // Flat list rendering when swimlanes are disabled
+                    useVirtualScrolling ? (
+                      // Virtual scrolling mode for optimal performance with large datasets
+                      <VirtualGanttFlatList
+                        projects={filteredProjects}
+                        milestones={milestones}
+                        ganttSidebarWidth={ganttSidebarWidth}
+                        dateRange={dateRange}
+                        cpmData={cpmData}
+                        tempPositions={tempPositions}
+                        draggingItem={draggingItem}
+                        calculatePosition={calculatePosition}
+                        calculateWidth={calculateWidth}
+                        getStatusColor={getStatusColor}
+                        onVisibleRangeChange={(startIndex, endIndex) => {
+                          const visible = filteredProjects.slice(startIndex, endIndex + 1).map(p => p.id);
+                          setVisibleProjectIds(visible);
+                        }}
+                        renderProjectRow={(props) => (
+                          <GanttProjectRow {...props} />
+                        )}
+                        virtualGanttRef={virtualGanttRef}
+                      />
+                    ) : (
+                      // Full rendering with drag and drop reordering
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleGanttDragStart}
+                        onDragEnd={handleGanttDragEnd}
+                      >
+                        <SortableContext items={filteredProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                          {filteredProjects.map((project) => {
+                            const projectMilestones = milestones.filter(m => m.projectId === project.id);
+                            const projectStart = project.startDate || project.desiredStartDate;
+                            const projectEnd = project.endDate || project.desiredCompletionDate;
 
-                          return (
-                            <SortableGanttProjectRow
-                              key={project.id}
-                              project={project}
-                              projectMilestones={projectMilestones}
-                              projectStart={projectStart}
-                              projectEnd={projectEnd}
-                              ganttSidebarWidth={ganttSidebarWidth}
-                              dateRange={dateRange}
-                              cpmData={cpmData}
-                              tempPositions={tempPositions}
-                              draggingItem={draggingItem}
-                              setDraggingItem={setDraggingItem}
-                              calculatePosition={calculatePosition}
-                              calculateWidth={calculateWidth}
-                              handleMilestoneMouseDown={(e, milestone, projectId) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const parentProject = projects.find(p => p.id === projectId);
-                                if (parentProject && parentProject.status === 'Completed') {
-                                  return;
-                                }
-                                const container = document.getElementById(`timeline-container-${projectId}`);
-                                if (!container) return;
-                                const rect = container.getBoundingClientRect();
-                                setDraggingItem({
-                                  type: 'milestone',
-                                  id: milestone.id,
-                                  projectId: projectId,
-                                  initialX: e.clientX,
-                                  dragStarted: false,
-                                  initialDates: {
-                                    plannedEndDate: new Date(milestone.plannedEndDate!),
-                                  },
-                                  dateRange: dateRange,
-                                  containerWidth: rect.width,
-                                });
-                              }}
-                              getStatusColor={getStatusColor}
-                            />
-                          );
-                        })}
-                      </SortableContext>
-                    </DndContext>
+                            return (
+                              <SortableGanttProjectRow
+                                key={project.id}
+                                project={project}
+                                projectMilestones={projectMilestones}
+                                projectStart={projectStart}
+                                projectEnd={projectEnd}
+                                ganttSidebarWidth={ganttSidebarWidth}
+                                dateRange={dateRange}
+                                cpmData={cpmData}
+                                tempPositions={tempPositions}
+                                draggingItem={draggingItem}
+                                setDraggingItem={setDraggingItem}
+                                calculatePosition={calculatePosition}
+                                calculateWidth={calculateWidth}
+                                handleMilestoneMouseDown={(e, milestone, projectId) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const parentProject = projects.find(p => p.id === projectId);
+                                  if (parentProject && parentProject.status === 'Completed') {
+                                    return;
+                                  }
+                                  const container = document.getElementById(`timeline-container-${projectId}`);
+                                  if (!container) return;
+                                  const rect = container.getBoundingClientRect();
+                                  setDraggingItem({
+                                    type: 'milestone',
+                                    id: milestone.id,
+                                    projectId: projectId,
+                                    initialX: e.clientX,
+                                    dragStarted: false,
+                                    initialDates: {
+                                      plannedEndDate: new Date(milestone.plannedEndDate!),
+                                    },
+                                    dateRange: dateRange,
+                                    containerWidth: rect.width,
+                                  });
+                                }}
+                                getStatusColor={getStatusColor}
+                              />
+                            );
+                          })}
+                        </SortableContext>
+                      </DndContext>
+                    )
                   ) : (
                     // Swimlane layout
                     true ? (

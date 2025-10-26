@@ -182,3 +182,76 @@ export const getSegmentFunctionRisk = async (req: Request, res: Response, next: 
     next(error);
   }
 };
+
+/**
+ * Batch endpoint: Calculate risk for multiple segment functions at once
+ * Accepts query params: ids (comma-separated) and scenarioId
+ * Example: GET /segment-functions/batch-risk?ids=1,2,3&scenarioId=1
+ */
+export const getBatchSegmentFunctionRisk = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { ids, scenarioId } = req.query;
+
+    if (!ids || typeof ids !== 'string') {
+      throw new ValidationError('ids query parameter is required (comma-separated list)');
+    }
+
+    // Parse and validate IDs
+    const segmentFunctionIds = ids.split(',').map(id => {
+      const parsed = parseInt(id.trim());
+      if (isNaN(parsed)) {
+        throw new ValidationError(`Invalid segment function ID: ${id}`);
+      }
+      return parsed;
+    });
+
+    if (segmentFunctionIds.length === 0) {
+      throw new ValidationError('At least one segment function ID is required');
+    }
+
+    // Default to scenario ID 1 (baseline) if not provided
+    const activeScenarioId = scenarioId ? parseInt(scenarioId as string) : 1;
+
+    // Fetch segment functions to validate they exist
+    const segmentFunctions = await SegmentFunction.findAll({
+      where: { id: segmentFunctionIds },
+      attributes: ['id', 'name'],
+    });
+
+    // Create a map of segment function names
+    const segmentFunctionMap = new Map(
+      segmentFunctions.map(sf => [sf.id, sf.name])
+    );
+
+    // Calculate risks for all segment functions in parallel
+    const riskPromises = segmentFunctionIds.map(async (segmentFunctionId) => {
+      try {
+        const riskData = await calculateSegmentFunctionRisk(segmentFunctionId, activeScenarioId);
+        return {
+          segmentFunctionId,
+          segmentFunctionName: segmentFunctionMap.get(segmentFunctionId) || `Segment Function ${segmentFunctionId}`,
+          scenarioId: activeScenarioId,
+          ...riskData,
+        };
+      } catch (error) {
+        logger.error(`Error calculating risk for segment function ${segmentFunctionId}:`, error);
+        // Return null for failed calculations instead of breaking the entire batch
+        return null;
+      }
+    });
+
+    const results = await Promise.all(riskPromises);
+
+    // Filter out any failed calculations
+    const successfulResults = results.filter(r => r !== null);
+
+    res.json({
+      success: true,
+      data: successfulResults,
+      count: successfulResults.length,
+      requested: segmentFunctionIds.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

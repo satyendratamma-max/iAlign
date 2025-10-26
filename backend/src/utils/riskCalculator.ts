@@ -124,8 +124,18 @@ export const calculateAutoHealthStatus = (project: Project): 'Green' | 'Yellow' 
  * - Dependency: 0-15 points
  * - Complexity: 0-10 points
  * - Health Status: 0-15 points (NEW!)
+ *
+ * @param project - The project to calculate risk for
+ * @param countsData - Optional pre-fetched counts to avoid N+1 queries
  */
-export const calculateProjectRisk = async (project: Project): Promise<number> => {
+export const calculateProjectRisk = async (
+  project: Project,
+  countsData?: {
+    requirements: number;
+    allocations: number;
+    dependencies: number;
+  }
+): Promise<number> => {
   let riskScore = 0;
 
   // 1. Health Status Risk (0-15 points) - PRIMARY INDICATOR
@@ -172,12 +182,23 @@ export const calculateProjectRisk = async (project: Project): Promise<number> =>
   }
 
   // 4. Resource risk (0-20 points)
-  const requirements = await ProjectRequirement.count({
-    where: { projectId: project.id, isActive: true },
-  });
-  const allocations = await ResourceAllocation.count({
-    where: { projectId: project.id, isActive: true },
-  });
+  let requirements: number;
+  let allocations: number;
+
+  if (countsData) {
+    // Use pre-fetched data (optimized bulk query)
+    requirements = countsData.requirements;
+    allocations = countsData.allocations;
+  } else {
+    // Fallback to individual queries (slower, for single project calls)
+    requirements = await ProjectRequirement.count({
+      where: { projectId: project.id, isActive: true },
+    });
+    allocations = await ResourceAllocation.count({
+      where: { projectId: project.id, isActive: true },
+    });
+  }
+
   if (requirements > 0) {
     const allocationRate = (allocations / requirements) * 100;
     if (allocationRate < 60) riskScore += 15;
@@ -186,13 +207,22 @@ export const calculateProjectRisk = async (project: Project): Promise<number> =>
   }
 
   // 5. Dependency risk (0-15 points)
-  const dependencies = await ProjectDependency.count({
-    where: {
-      successorType: 'project',
-      successorId: project.id,
-      isActive: true,
-    },
-  });
+  let dependencies: number;
+
+  if (countsData) {
+    // Use pre-fetched data (optimized bulk query)
+    dependencies = countsData.dependencies;
+  } else {
+    // Fallback to individual query (slower, for single project calls)
+    dependencies = await ProjectDependency.count({
+      where: {
+        successorType: 'project',
+        successorId: project.id,
+        isActive: true,
+      },
+    });
+  }
+
   if (dependencies > 5) riskScore += 12;
   else if (dependencies > 3) riskScore += 8;
   else if (dependencies > 1) riskScore += 4;
@@ -261,10 +291,58 @@ export const calculateSegmentFunctionRisk = async (
     };
   }
 
-  // Calculate risk for each project
+  // OPTIMIZATION: Fetch all requirements, allocations, and dependencies in bulk (3 queries instead of N*3)
+  const projectIds = projects.map(p => p.id);
+
+  const [requirementsByProject, allocationsByProject, dependenciesByProject] = await Promise.all([
+    // Get all requirements grouped by project
+    ProjectRequirement.findAll({
+      where: { projectId: projectIds, isActive: true },
+      attributes: ['projectId'],
+    }).then(results => {
+      const map = new Map<number, number>();
+      results.forEach(r => {
+        map.set(r.projectId, (map.get(r.projectId) || 0) + 1);
+      });
+      return map;
+    }),
+    // Get all allocations grouped by project
+    ResourceAllocation.findAll({
+      where: { projectId: projectIds, isActive: true },
+      attributes: ['projectId'],
+    }).then(results => {
+      const map = new Map<number, number>();
+      results.forEach(r => {
+        map.set(r.projectId, (map.get(r.projectId) || 0) + 1);
+      });
+      return map;
+    }),
+    // Get all dependencies grouped by project
+    ProjectDependency.findAll({
+      where: {
+        successorType: 'project',
+        successorId: projectIds,
+        isActive: true,
+      },
+      attributes: ['successorId'],
+    }).then(results => {
+      const map = new Map<number, number>();
+      results.forEach(r => {
+        const successorId = r.successorId as number;
+        map.set(successorId, (map.get(successorId) || 0) + 1);
+      });
+      return map;
+    }),
+  ]);
+
+  // Calculate risk for each project using pre-fetched data
   const projectRisks: ProjectRiskScore[] = await Promise.all(
     projects.map(async (project) => {
-      const riskScore = await calculateProjectRisk(project);
+      const riskScore = await calculateProjectRisk(project, {
+        requirements: requirementsByProject.get(project.id) || 0,
+        allocations: allocationsByProject.get(project.id) || 0,
+        dependencies: dependenciesByProject.get(project.id) || 0,
+      });
       return {
         projectId: project.id,
         projectName: project.name || `Project ${project.id}`,
@@ -294,8 +372,8 @@ export const calculateSegmentFunctionRisk = async (
   // 2. Schedule Risk (0-25 points)
   const scheduleRisk = await calculateScheduleRisk(projects);
 
-  // 3. Resource Risk (0-20 points)
-  const resourceRisk = await calculateResourceRisk(projects);
+  // 3. Resource Risk (0-20 points) - pass pre-fetched data to avoid duplicate queries
+  const resourceRisk = await calculateResourceRisk(projects, requirementsByProject, allocationsByProject);
 
   // 4. Dependency Risk (0-15 points)
   const dependencyRisk = await calculateDependencyRisk(projects);
@@ -465,23 +543,37 @@ async function calculateScheduleRisk(projects: Project[]): Promise<{ score: numb
 
 /**
  * Calculate resource risk based on allocation issues
+ * @param projects - List of projects to assess
+ * @param requirementsByProject - Optional pre-fetched requirements map to avoid N+1 queries
+ * @param allocationsByProject - Optional pre-fetched allocations map to avoid N+1 queries
  */
-async function calculateResourceRisk(projects: Project[]): Promise<{ score: number; detail: string }> {
+async function calculateResourceRisk(
+  projects: Project[],
+  requirementsByProject?: Map<number, number>,
+  allocationsByProject?: Map<number, number>
+): Promise<{ score: number; detail: string }> {
   let totalRequirements = 0;
   let totalAllocations = 0;
   let underAllocatedCount = 0;
   let overAllocatedCount = 0;
 
   for (const project of projects) {
-    // Count requirements
-    const requirements = await ProjectRequirement.count({
-      where: { projectId: project.id, isActive: true },
-    });
+    let requirements: number;
+    let allocations: number;
 
-    // Count allocations
-    const allocations = await ResourceAllocation.count({
-      where: { projectId: project.id, isActive: true },
-    });
+    if (requirementsByProject && allocationsByProject) {
+      // Use pre-fetched data (optimized)
+      requirements = requirementsByProject.get(project.id) || 0;
+      allocations = allocationsByProject.get(project.id) || 0;
+    } else {
+      // Fallback to individual queries (slower)
+      requirements = await ProjectRequirement.count({
+        where: { projectId: project.id, isActive: true },
+      });
+      allocations = await ResourceAllocation.count({
+        where: { projectId: project.id, isActive: true },
+      });
+    }
 
     totalRequirements += requirements;
     totalAllocations += allocations;

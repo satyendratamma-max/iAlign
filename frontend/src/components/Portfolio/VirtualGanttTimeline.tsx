@@ -1,12 +1,18 @@
 import { useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { VariableSizeList as List, ListChildComponentProps } from 'react-window';
+import { List, ListImperativeAPI } from 'react-window';
 import { Box } from '@mui/material';
 
 interface Project {
   id: number;
   name: string;
-  startDate?: Date;
-  endDate?: Date;
+  projectNumber?: string;
+  status?: string;
+  progress?: number;
+  healthStatus?: string;
+  startDate?: string | Date;
+  endDate?: string | Date;
+  desiredStartDate?: string | Date;
+  desiredCompletionDate?: string | Date;
   [key: string]: any;
 }
 
@@ -70,7 +76,7 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     },
     ref
   ) => {
-    const listRef = useRef<List>(null);
+    const listRef = useRef<ListImperativeAPI | null>(null);
     const visibleRangeRef = useRef({ start: 0, end: 0 });
 
     // Build flat project list for rendering (maintains order)
@@ -110,7 +116,7 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
       (projectId: number) => {
         const index = projectIdToIndexMap.get(projectId);
         if (index !== undefined && listRef.current) {
-          listRef.current.scrollToItem(index, 'center');
+          listRef.current.scrollToRow({ index, align: 'center', behavior: 'smooth' });
         }
       },
       [projectIdToIndexMap]
@@ -127,21 +133,18 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     );
 
     // Handle visible range updates
-    const handleItemsRendered = useCallback(
-      ({
-        visibleStartIndex,
-        visibleStopIndex,
-      }: {
-        visibleStartIndex: number;
-        visibleStopIndex: number;
-      }) => {
+    const handleRowsRendered = useCallback(
+      (
+        visibleRows: { startIndex: number; stopIndex: number },
+        _allRows: { startIndex: number; stopIndex: number }
+      ) => {
         visibleRangeRef.current = {
-          start: visibleStartIndex,
-          end: visibleStopIndex,
+          start: visibleRows.startIndex,
+          end: visibleRows.stopIndex,
         };
 
         if (onVisibleRangeChange) {
-          onVisibleRangeChange(visibleStartIndex, visibleStopIndex);
+          onVisibleRangeChange(visibleRows.startIndex, visibleRows.stopIndex);
         }
       },
       [onVisibleRangeChange]
@@ -149,22 +152,13 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
 
     // Row renderer
     const Row = useCallback(
-      ({ index, style }: ListChildComponentProps) => {
+      ({ index, style }: { index: number; style: React.CSSProperties }) => {
         const project = flatProjects[index];
         if (!project) return null;
 
         return <div style={style}>{renderProjectRow({ project, index, style })}</div>;
       },
       [flatProjects, renderProjectRow]
-    );
-
-    // Get row height (can be dynamic in future)
-    const getItemSize = useCallback(
-      (index: number) => {
-        // For now, fixed height. In future, can vary based on swimlane headers
-        return rowHeight;
-      },
-      [rowHeight]
     );
 
     if (flatProjects.length === 0) {
@@ -185,17 +179,16 @@ const VirtualGanttTimeline = forwardRef<VirtualGanttTimelineHandle, VirtualGantt
     }
 
     return (
-      <List
-        ref={listRef}
-        height={height}
-        itemCount={flatProjects.length}
-        itemSize={getItemSize}
-        width={width}
+      <List<{}>
+        listRef={listRef}
+        rowCount={flatProjects.length}
+        rowHeight={rowHeight}
+        rowComponent={Row}
+        rowProps={{}}
+        onRowsRendered={handleRowsRendered}
         overscanCount={overscanCount}
-        onItemsRendered={handleItemsRendered}
-      >
-        {Row}
-      </List>
+        style={{ height, width }}
+      />
     );
   }
 );

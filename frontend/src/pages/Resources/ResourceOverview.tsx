@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Typography,
   Box,
@@ -35,7 +35,6 @@ import {
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { fetchAllPages } from '../../services/api';
 import { exportToExcel, importFromExcel, generateResourceTemplate } from '../../utils/excelUtils';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar from '../../components/common/ActionBar';
@@ -45,7 +44,6 @@ import Pagination from '../../components/common/Pagination';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useDebounce } from '../../hooks/useDebounce';
-import { usePagination } from '../../hooks/usePagination';
 import { People as PeopleIcon } from '@mui/icons-material';
 import TableSkeleton from '../../components/common/TableSkeleton';
 
@@ -227,32 +225,60 @@ const ResourceOverview = () => {
     segmentFunction: '',
   });
 
+  // Server-side pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const fetchResources = async () => {
     if (!activeScenario) return;
 
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Resources are shared across scenarios, but projects are scenario-specific
-      // Use fetchAllPages for paginated endpoints (resources, projects)
-      const [resourcesData, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes, projectsData] = await Promise.all([
-        fetchAllPages(`${API_URL}/resources`, config),
+      // Build query params for server-side filtering and pagination
+      const params: any = {
+        page: currentPage,
+        limit: pageSize,
+      };
+
+      // Add filters to params (only non-empty values)
+      if (debouncedFilters.employeeId) params.employeeId = debouncedFilters.employeeId;
+      if (debouncedFilters.name) params.name = debouncedFilters.name;
+      if (debouncedFilters.location) params.location = debouncedFilters.location;
+      if (selectedDomainIds.length > 0) params.domainId = selectedDomainIds[0]; // Backend supports single domain for now
+      if (debouncedFilters.segmentFunction) {
+        // Find segment function ID by name
+        const sf = segmentFunctions.find(s => s.name === debouncedFilters.segmentFunction);
+        if (sf) params.segmentFunctionId = sf.id;
+      }
+
+      // SERVER-SIDE PAGINATION: Fetch only the current page
+      const [resourcesRes, domainsRes, segmentFunctionsRes, appsRes, techsRes, rolesRes, projectsRes] = await Promise.all([
+        axios.get(`${API_URL}/resources`, { ...config, params }),
         axios.get(`${API_URL}/domains`, config),
         axios.get(`${API_URL}/segment-functions`, config),
         axios.get(`${API_URL}/apps`, config),
         axios.get(`${API_URL}/technologies`, config),
         axios.get(`${API_URL}/roles`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        // PERFORMANCE: Fetch only first 200 projects for reference (used in allocation dialogs)
+        // Don't fetch all 2,000+ projects - not needed for resource list view
+        axios.get(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id, limit: 200 } }),
       ]);
 
-      setResources(resourcesData);
+      // Extract resources and pagination data
+      setResources(resourcesRes.data.data);
+      setTotalCount(resourcesRes.data.pagination.total);
+      setTotalPages(resourcesRes.data.pagination.totalPages);
       setDomains(domainsRes.data.data);
       setSegmentFunctions(segmentFunctionsRes.data.data);
       setApps(appsRes.data.data);
       setTechnologies(techsRes.data.data);
       setRoles(rolesRes.data.data);
-      setProjects(projectsData);
+      setProjects(projectsRes.data.data);
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
@@ -260,11 +286,22 @@ const ResourceOverview = () => {
     }
   };
 
+  // Fetch debounced filters
+  const debouncedFilters = useDebounce(filters, 300);
+
+  // Refetch when page, filters, or scenario changes
   useEffect(() => {
     if (activeScenario) {
       fetchResources();
     }
-  }, [activeScenario]);
+  }, [activeScenario, currentPage, pageSize, debouncedFilters, selectedDomainIds]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [debouncedFilters, selectedDomainIds]);
 
   const handleOpenDialog = (resource?: Resource) => {
     if (resource) {
@@ -406,15 +443,17 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Use fetchAllPages for paginated allocations endpoint
-      const allAllocations = await fetchAllPages(`${API_URL}/allocations`, {
+      // SERVER-SIDE FILTERING: Fetch only allocations for this specific resource
+      const allocationsRes = await axios.get(`${API_URL}/allocations`, {
         ...config,
-        params: { scenarioId: activeScenario.id }
+        params: {
+          scenarioId: activeScenario.id,
+          resourceId: resourceId,
+          limit: 100 // Max 100 allocations per resource should be enough
+        }
       });
 
-      // Filter allocations for this specific resource
-      const filtered = allAllocations.filter((alloc: Allocation) => alloc.resourceId === resourceId);
-      setResourceAllocations(filtered);
+      setResourceAllocations(allocationsRes.data.data || []);
     } catch (error) {
       console.error('Error fetching resource allocations:', error);
     }
@@ -525,18 +564,27 @@ const ResourceOverview = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Load resource capabilities and all projects in parallel
-      // Use fetchAllPages for paginated projects endpoint
-      const [capRes, allProjects] = await Promise.all([
+      // PERFORMANCE: Load resource capabilities and limited projects
+      // Only fetch first 500 projects (sorted by priority) to suggest for allocation
+      // Fetching all 2000+ projects and their requirements is too slow
+      const [capRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/resource-capabilities?resourceId=${resource.id}`, config),
-        fetchAllPages(`${API_URL}/projects`, { ...config, params: { scenarioId: activeScenario.id } }),
+        axios.get(`${API_URL}/projects`, {
+          ...config,
+          params: {
+            scenarioId: activeScenario.id,
+            limit: 500,
+            // TODO: Add sorting by priority/status in backend
+          }
+        }),
       ]);
 
       const resourceCapabilities = capRes.data.data || [];
+      const limitedProjects = projectsRes.data.data || [];
 
-      // Load requirements for each project
+      // Load requirements for limited set of projects
       const projectsWithRequirements = await Promise.all(
-        allProjects.map(async (proj: Project) => {
+        limitedProjects.map(async (proj: Project) => {
           try {
             const reqRes = await axios.get(`${API_URL}/project-requirements/project/${proj.id}`, config);
             return { ...proj, requirements: reqRes.data.data || [] };
@@ -691,25 +739,8 @@ const ResourceOverview = () => {
     return 'error';
   };
 
-  // PERFORMANCE: Debounce filter inputs to reduce re-renders
-  const debouncedFilters = useDebounce(filters, 300);
-
-  // PERFORMANCE: Memoize filtered resources to avoid recalculating on every render
-  const filteredResources = useMemo(() => {
-    return resources.filter((resource) => {
-      const fullName = `${resource.firstName || ''} ${resource.lastName || ''}`.toLowerCase();
-      return (
-        resource.employeeId.toLowerCase().includes(debouncedFilters.employeeId.toLowerCase()) &&
-        fullName.includes(debouncedFilters.name.toLowerCase()) &&
-        (selectedDomainIds.length === 0 || selectedDomainIds.includes(resource.domainId || 0)) &&
-        (debouncedFilters.segmentFunction === '' || resource.segmentFunction?.name === debouncedFilters.segmentFunction) &&
-        (resource.location || '').toLowerCase().includes(debouncedFilters.location.toLowerCase())
-      );
-    });
-  }, [resources, debouncedFilters, selectedDomainIds]);
-
-  // PERFORMANCE: Pagination - only render 50 resources at a time
-  const pagination = usePagination(filteredResources, { initialPageSize: 50 });
+  // Server-side filtering and pagination - resources are already filtered and paginated by backend
+  // No need for client-side filtering/pagination anymore!
 
   // Get unique business decisions from projects
   const uniqueBusinessDecisions = Array.from(
@@ -856,7 +887,7 @@ const ResourceOverview = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {pagination.paginatedData.map((resource) => (
+            {resources.map((resource) => (
               <TableRow key={resource.id}>
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -932,20 +963,23 @@ const ResourceOverview = () => {
       </TableContainer>
 
       <Pagination
-        page={pagination.page}
-        pageSize={pagination.pageSize}
-        totalItems={pagination.totalItems}
-        totalPages={pagination.totalPages}
-        startIndex={pagination.startIndex}
-        endIndex={pagination.endIndex}
-        onPageChange={pagination.goToPage}
-        onPageSizeChange={pagination.changePageSize}
-        onFirstPage={pagination.goToFirstPage}
-        onLastPage={pagination.goToLastPage}
-        onNextPage={pagination.nextPage}
-        onPreviousPage={pagination.previousPage}
-        hasNextPage={pagination.hasNextPage}
-        hasPreviousPage={pagination.hasPreviousPage}
+        page={currentPage}
+        pageSize={pageSize}
+        totalItems={totalCount}
+        totalPages={totalPages}
+        startIndex={(currentPage - 1) * pageSize + 1}
+        endIndex={Math.min(currentPage * pageSize, totalCount)}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setCurrentPage(1); // Reset to page 1 when page size changes
+        }}
+        onFirstPage={() => setCurrentPage(1)}
+        onLastPage={() => setCurrentPage(totalPages)}
+        onNextPage={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+        onPreviousPage={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+        hasNextPage={currentPage < totalPages}
+        hasPreviousPage={currentPage > 1}
       />
         </>
       )}
