@@ -20,7 +20,8 @@
     "perf:test": "ts-node src/scripts/performance-test.ts",
     "db:indexes": "ts-node src/scripts/add-performance-indexes.ts",
     "migration:create": "sequelize-cli migration:generate",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "reset-admin": "ts-node src/scripts/reset-admin-password.ts"
   },
   "keywords": [
     "enterprise",
