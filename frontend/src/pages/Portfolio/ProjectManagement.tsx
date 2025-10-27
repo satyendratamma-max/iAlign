@@ -2317,6 +2317,7 @@ const ProjectManagement = () => {
       (debouncedFilters.status.length === 0 || debouncedFilters.status.includes(project.status)) &&
       (debouncedFilters.priority === '' || project.priority === debouncedFilters.priority) &&
       (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
+      (selectedFiscalYears.length === 0 || selectedFiscalYears.includes(project.fiscalYear || '')) &&
       (debouncedFilters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(debouncedFilters.currentPhase.toLowerCase())) &&
       (debouncedFilters.health.length === 0 || debouncedFilters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain

@@ -435,6 +435,7 @@ const TimelineView = ({
 
   // Get unallocated projects (projects with no allocations or not fully staffed)
   const unallocatedProjects = useMemo(() => {
+    if (!Array.isArray(allocations) || !Array.isArray(projects)) return [];
     return projects.filter(project => {
       const projectAllocations = allocations.filter(a => a.projectId === project.id);
       return projectAllocations.length === 0 || projectAllocations.length < 3; // Arbitrary threshold

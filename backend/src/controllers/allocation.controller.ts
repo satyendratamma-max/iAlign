@@ -79,7 +79,9 @@ export const getAllAllocations = async (req: Request, res: Response) => {
   try {
     // PAGINATION SUPPORT - CRITICAL for 40K+ allocations
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    // Allow up to 10000 for visualization views (timeline/kanban), default max 100 for table view
+    const requestedLimit = parseInt(req.query.limit as string) || 50;
+    const limit = Math.min(requestedLimit, 10000); // Max 10000 per page for visualization views
     const offset = (page - 1) * limit;
 
     const {
@@ -96,8 +98,22 @@ export const getAllAllocations = async (req: Request, res: Response) => {
 
     const where: any = { isActive: true };
 
-    if (projectId) where.projectId = projectId;
-    if (resourceId) where.resourceId = resourceId;
+    // Support multiple project IDs (comma-separated string or array)
+    if (projectId) {
+      const projectIds = Array.isArray(projectId)
+        ? projectId.map((id: any) => parseInt(id))
+        : projectId.toString().split(',').map((id: string) => parseInt(id.trim()));
+      where.projectId = projectIds.length === 1 ? projectIds[0] : { [Op.in]: projectIds };
+    }
+
+    // Support multiple resource IDs (comma-separated string or array)
+    if (resourceId) {
+      const resourceIds = Array.isArray(resourceId)
+        ? resourceId.map((id: any) => parseInt(id))
+        : resourceId.toString().split(',').map((id: string) => parseInt(id.trim()));
+      where.resourceId = resourceIds.length === 1 ? resourceIds[0] : { [Op.in]: resourceIds };
+    }
+
     if (scenarioId) where.scenarioId = scenarioId;
     if (allocationType) where.allocationType = allocationType;
 
@@ -141,11 +157,9 @@ export const getAllAllocations = async (req: Request, res: Response) => {
       ];
     }
 
-    // Server-side resource domain filtering (for cross-domain allocation support)
-    if (domainId && !fiscalYear && !businessDecision) {
-      // If only domainId is specified, filter resources by domain
-      resourceInclude.where.domainId = parseInt(domainId as string);
-    }
+    // Server-side resource domain filtering removed - domain filter applies to projects only
+    // This allows viewing cross-domain allocations (resources from other domains working on domain-specific projects)
+    // If you want to filter by resource domain specifically, use resourceName or other resource filters
 
     // Build Project include - Projects are scenario-specific, filter by scenarioId
     const projectInclude: any = {
@@ -913,8 +927,22 @@ export const getAllocationSummary = async (req: Request, res: Response) => {
 
     const where: any = { isActive: true };
 
-    if (projectId) where.projectId = projectId;
-    if (resourceId) where.resourceId = resourceId;
+    // Support multiple project IDs (comma-separated string or array)
+    if (projectId) {
+      const projectIds = Array.isArray(projectId)
+        ? projectId.map((id: any) => parseInt(id))
+        : projectId.toString().split(',').map((id: string) => parseInt(id.trim()));
+      where.projectId = projectIds.length === 1 ? projectIds[0] : { [Op.in]: projectIds };
+    }
+
+    // Support multiple resource IDs (comma-separated string or array)
+    if (resourceId) {
+      const resourceIds = Array.isArray(resourceId)
+        ? resourceId.map((id: any) => parseInt(id))
+        : resourceId.toString().split(',').map((id: string) => parseInt(id.trim()));
+      where.resourceId = resourceIds.length === 1 ? resourceIds[0] : { [Op.in]: resourceIds };
+    }
+
     if (scenarioId) where.scenarioId = scenarioId;
     if (allocationType) where.allocationType = allocationType;
 
@@ -1111,3 +1139,4 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
     });
   }
 };
+

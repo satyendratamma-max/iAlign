@@ -14,10 +14,15 @@ import { shortCache, cacheMiddleware, invalidateCacheMiddleware } from '../middl
 
 const router = Router();
 
-// Cache key generator for allocations (includes query params for server-side filtering)
+// Cache key generators for allocations (includes query params for server-side filtering)
 const allocationCacheKey = (req: any) => {
   const params = new URLSearchParams(req.query as any).toString();
-  return `allocations:${params}`;
+  return `allocations:list:${params}`;
+};
+
+const allocationSummaryCacheKey = (req: any) => {
+  const params = new URLSearchParams(req.query as any).toString();
+  return `allocations:summary:${params}`;
 };
 
 // Apply cache invalidation to all modification endpoints
@@ -25,7 +30,7 @@ router.use(invalidateCacheMiddleware(shortCache, 'allocations:'));
 
 // GET endpoints with caching
 router.get('/', cacheMiddleware(shortCache, allocationCacheKey), getAllAllocations);
-router.get('/summary', cacheMiddleware(shortCache, allocationCacheKey), getAllocationSummary); // Summary endpoint with same filters
+router.get('/summary', cacheMiddleware(shortCache, allocationSummaryCacheKey), getAllocationSummary); // Summary endpoint with unique cache key
 router.get('/dashboard/metrics', cacheMiddleware(shortCache), getDashboardMetrics);
 router.get('/:id', cacheMiddleware(shortCache), getAllocationById);
 

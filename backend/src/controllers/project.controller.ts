@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { literal } from 'sequelize';
+import { literal, Op } from 'sequelize';
 import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
@@ -40,6 +40,11 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
 
     if (priority) {
       where.priority = priority;
+    }
+
+    // Name search support for server-side filtering
+    if (req.query.name) {
+      where.name = { [Op.like]: `%${req.query.name}%` };
     }
 
     const { count, rows: projects } = await Project.findAndCountAll({

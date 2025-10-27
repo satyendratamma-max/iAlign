@@ -144,8 +144,10 @@ const ResourceAllocation = () => {
   const dispatch = useAppDispatch();
   const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]); // All resources for dropdowns
+  const [displayResources, setDisplayResources] = useState<Resource[]>([]); // Filtered resources for timeline/kanban
+  const [projects, setProjects] = useState<Project[]>([]); // All projects for dropdowns
+  const [displayProjects, setDisplayProjects] = useState<Project[]>([]); // Filtered projects for timeline/kanban
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -170,7 +172,16 @@ const ResourceAllocation = () => {
   const [selectedProjectRequirements, setSelectedProjectRequirements] = useState<Requirement[]>([]);
   const [availableProjects, setAvailableProjects] = useState<ProjectWithScore[]>([]);
   const [minMatchScore, setMinMatchScore] = useState<number>(0);
-  const [currentView, setCurrentView] = useState<'table' | 'timeline' | 'kanban'>('table');
+  // Persist view selection across page refreshes
+  const [currentView, setCurrentView] = useState<'table' | 'timeline' | 'kanban'>(() => {
+    const savedView = localStorage.getItem('resourceAllocationView');
+    return (savedView === 'timeline' || savedView === 'kanban' || savedView === 'table') ? savedView : 'table';
+  });
+
+  // Save view to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('resourceAllocationView', currentView);
+  }, [currentView]);
   const [filters, setFilters] = useState({
     resource: '',
     project: [] as string[],
@@ -180,7 +191,18 @@ const ResourceAllocation = () => {
     businessDecision: '',
   });
   const [showScopingWarning, setShowScopingWarning] = useState(false);
-  const [allocationCountWarning, setAllocationCountWarning] = useState<number | null>(null);
+
+  // Visualization-specific filters (timeline/kanban only)
+  const [selectedResourceIds, setSelectedResourceIds] = useState<number[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
+  const [loadAllResults, setLoadAllResults] = useState(false);
+  const [showLoadAllWarning, setShowLoadAllWarning] = useState(false);
+
+  // Search states for dropdowns (server-side search)
+  const [resourceSearchTerm, setResourceSearchTerm] = useState('');
+  const [projectSearchTerm, setProjectSearchTerm] = useState('');
+  const [debouncedResourceSearch, setDebouncedResourceSearch] = useState('');
+  const [debouncedProjectSearch, setDebouncedProjectSearch] = useState('');
 
   // Debounce state for text filters
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -211,6 +233,22 @@ const ResourceAllocation = () => {
     return () => clearTimeout(timeout);
   }, [filters.resource]);
 
+  // Debounce resource search for dropdown (750ms delay)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedResourceSearch(resourceSearchTerm);
+    }, 750);
+    return () => clearTimeout(timeout);
+  }, [resourceSearchTerm]);
+
+  // Debounce project search for dropdown (750ms delay)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedProjectSearch(projectSearchTerm);
+    }, 750);
+    return () => clearTimeout(timeout);
+  }, [projectSearchTerm]);
+
   // Reset to page 1 when any filter changes (except resource which is debounced above)
   useEffect(() => {
     if (page !== 1) {
@@ -222,7 +260,19 @@ const ResourceAllocation = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, currentView]);
+  }, [activeScenario, page, pageSize, debouncedResourceFilter, filters.project, filters.allocationType, filters.matchScore, filters.domainId, filters.businessDecision, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, currentView, selectedResourceIds, selectedProjectIds, loadAllResults, debouncedResourceSearch, debouncedProjectSearch]);
+
+  // Check scoping warnings for visualization views
+  useEffect(() => {
+    const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
+    const hasScoping = hasScopingFilters();
+
+    if (isVisualizationView) {
+      setShowScopingWarning(!hasScoping);
+    } else {
+      setShowScopingWarning(false);
+    }
+  }, [currentView, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, filters.domainId, filters.businessDecision]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
@@ -233,27 +283,53 @@ const ResourceAllocation = () => {
     // For timeline/kanban views, require scoping filters
     const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
     if (isVisualizationView && !hasScopingFilters()) {
-      setShowScopingWarning(true);
+      // Clear allocations when filters are cleared (useEffect will handle showScopingWarning)
+      setAllocations([]);
+      setTotalCount(0);
+      setSummary({
+        totalAllocations: 0,
+        overAllocatedResources: 0,
+        poorMatchAllocations: 0,
+        avgMatchScore: 0,
+      });
       setLoading(false);
       return;
     }
-    setShowScopingWarning(false);
 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Check if current view is visualization view
+      const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
+
       // Build query params with server-side filters
+      // For visualization views (timeline/kanban):
+      //   - Load top 50 resources, 50 projects, and 50 allocations by default (best performance)
+      //   - Load all if user explicitly chooses "Load All"
+      // For table view: use pagination
+      const visualizationLimit = loadAllResults ? 10000 : 50;
+      const resourceLimit = isVisualizationView ? visualizationLimit : 100;
+      const projectLimit = isVisualizationView ? (loadAllResults ? 2000 : 50) : 100;
+
       const allocationParams: any = {
         scenarioId: activeScenario.id,
-        page,
-        limit: pageSize,
+        page: isVisualizationView ? 1 : page,
+        limit: isVisualizationView ? visualizationLimit : pageSize,
       };
 
       // Add filters to params (only non-empty values)
       if (debouncedResourceFilter) allocationParams.resourceName = debouncedResourceFilter;
       if (filters.matchScore) allocationParams.matchScore = filters.matchScore;
+
+      // Visualization-specific filters (multiselect) - backend supports comma-separated IDs
+      if (isVisualizationView && selectedResourceIds.length > 0) {
+        allocationParams.resourceId = selectedResourceIds.join(',');
+      }
+      if (isVisualizationView && selectedProjectIds.length > 0) {
+        allocationParams.projectId = selectedProjectIds.join(',');
+      }
 
       // Handle array filters - backend doesn't support multiple projects/types yet, so use first value
       if (filters.allocationType.length > 0) allocationParams.allocationType = filters.allocationType[0];
@@ -279,47 +355,123 @@ const ResourceAllocation = () => {
       // SERVER-SIDE FILTERING: All filters applied in database
       // Fetch allocations and summary with same filters in parallel
       // VIEW-SPECIFIC DATA LOADING:
-      // - Timeline/Kanban views: Load ALL resources and projects for visualization
-      // - Table view: Load limited resources/projects for dropdowns only (first 100)
-      const isVisualizationView = currentView === 'timeline' || currentView === 'kanban';
+      // - Timeline/Kanban views:
+      //   * Server-side search for resources/projects (fetch max 50 results based on search term)
+      //   * Selected items are always included even if not in search results
+      //   * Fetch 50 allocations by default (or all if "Load All" clicked)
+      // - Table view: Load limited resources/projects for dropdowns, paginated allocations for table
+
+      // Build resources params for visualization views with server-side search
+      const resourcesParams: any = {
+        // Limit to 50 search results for better performance
+        limit: isVisualizationView ? 50 : 100
+      };
+
+      // Add search term if user is typing (backend uses 'name' parameter)
+      if (isVisualizationView && debouncedResourceSearch) {
+        resourcesParams.name = debouncedResourceSearch;
+      }
+
+      // Build projects params with server-side search
+      const projectsParams: any = {
+        scenarioId: activeScenario.id,
+        // Limit to 50 search results for better performance
+        limit: isVisualizationView ? 50 : 100
+      };
+
+      // Add search term if user is typing (backend uses 'name' parameter)
+      if (isVisualizationView && debouncedProjectSearch) {
+        projectsParams.name = debouncedProjectSearch;
+      }
+
+      // Apply same filters to projects as allocations for visualization views
+      if (isVisualizationView) {
+        if (selectedDomainIds.length > 0) {
+          projectsParams.domainId = selectedDomainIds[0];
+        }
+        if (selectedBusinessDecisions.length > 0) {
+          projectsParams.businessDecision = selectedBusinessDecisions[0];
+        }
+        if (selectedFiscalYears.length > 0) {
+          projectsParams.fiscalYear = selectedFiscalYears[0];
+        }
+      }
 
       const [allocationsRes, summaryRes, resourcesRes, projectsRes, domainsRes] = await Promise.all([
         axios.get(`${API_URL}/allocations`, { ...config, params: allocationParams }),
         axios.get(`${API_URL}/allocations/summary`, { ...config, params: allocationParams }), // Same filters!
-        // For timeline/kanban views: fetch ALL resources (up to backend max); for table view: only first 100 for dropdowns
-        axios.get(`${API_URL}/resources`, {
-          ...config,
-          params: isVisualizationView ? { limit: 10000 } : { limit: 100 }
-        }),
-        // For timeline/kanban views: fetch ALL projects (up to backend max 2000); for table view: only first 100 for dropdowns
-        axios.get(`${API_URL}/projects`, {
-          ...config,
-          params: isVisualizationView
-            ? { scenarioId: activeScenario.id, limit: 2000 }
-            : { scenarioId: activeScenario.id, limit: 100 }
-        }),
+        // For timeline/kanban views: load top 50 resources by default, all if "Load All" clicked
+        axios.get(`${API_URL}/resources`, { ...config, params: resourcesParams }),
+        // For timeline/kanban views: load top 50 projects by default, all if "Load All" clicked
+        axios.get(`${API_URL}/projects`, { ...config, params: projectsParams }),
         axios.get(`${API_URL}/domains`, config),
       ]);
 
-      setAllocations(allocationsRes.data.data || []);
-      setTotalCount(allocationsRes.data.pagination?.total || 0);
+      // Backend response structure: { success, data: allocations[], pagination: { total, page, limit, ... } }
+      const allocationsData = Array.isArray(allocationsRes.data.data) ? allocationsRes.data.data : [];
+      const pagination = allocationsRes.data.pagination;
+
+      setAllocations(allocationsData);
+
+      // Use pagination.total for the ACTUAL total count (not just what's loaded)
+      const totalAllocations = pagination?.total || allocationsData.length || 0;
+      setTotalCount(totalAllocations);
+
       setSummary(summaryRes.data.data || {
         totalAllocations: 0,
         overAllocatedResources: 0,
         poorMatchAllocations: 0,
         avgMatchScore: 0,
       });
-      setResources(resourcesRes.data.data || []);
-      setProjects(projectsRes.data.data || []);
-      setDomains(domainsRes.data.data || []);
 
-      // Check allocation count for visualization views
-      const allocationCount = allocationsRes.data.pagination?.total || 0;
-      if (isVisualizationView && allocationCount > 500) {
-        setAllocationCountWarning(allocationCount);
+      // Merge search results with currently selected items (so selected items are always visible)
+      const searchedResources = resourcesRes.data.data || [];
+      const searchedProjects = projectsRes.data.data || [];
+
+      // Ensure selected resources are included even if not in search results
+      const selectedResources = resources.filter(r => selectedResourceIds.includes(r.id));
+      const selectedProjects = projects.filter(p => selectedProjectIds.includes(p.id));
+
+      // Merge unique resources (search results + selected)
+      const mergedResources = [...searchedResources];
+      selectedResources.forEach(selected => {
+        if (!mergedResources.find(r => r.id === selected.id)) {
+          mergedResources.push(selected);
+        }
+      });
+
+      // Merge unique projects (search results + selected)
+      const mergedProjects = [...searchedProjects];
+      selectedProjects.forEach(selected => {
+        if (!mergedProjects.find(p => p.id === selected.id)) {
+          mergedProjects.push(selected);
+        }
+      });
+
+      setResources(mergedResources);
+      setProjects(mergedProjects);
+
+      // Filter resources and projects for visualization display
+      if (isVisualizationView) {
+        // If specific resources/projects are selected, show only those
+        // Otherwise, show search results (already limited to 50 by server)
+        const filteredResources = selectedResourceIds.length > 0
+          ? mergedResources.filter(r => selectedResourceIds.includes(r.id))
+          : mergedResources;
+
+        const filteredProjects = selectedProjectIds.length > 0
+          ? mergedProjects.filter(p => selectedProjectIds.includes(p.id))
+          : mergedProjects;
+
+        setDisplayResources(filteredResources);
+        setDisplayProjects(filteredProjects);
       } else {
-        setAllocationCountWarning(null);
+        // Table view - show all
+        setDisplayResources(mergedResources);
+        setDisplayProjects(mergedProjects);
       }
+
+      setDomains(domainsRes.data.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
@@ -721,6 +873,7 @@ const ResourceAllocation = () => {
 
   // Calculate resource utilization statistics from allocations
   const resourceStats = useMemo(() => {
+    if (!Array.isArray(allocations)) return {};
     return allocations.reduce((acc: any, allocation) => {
       const resourceId = allocation.resourceId;
       if (!acc[resourceId]) {
@@ -760,6 +913,7 @@ const ResourceAllocation = () => {
   }, [resourceStats]);
 
   const poorMatchAllocations = useMemo(() => {
+    if (!Array.isArray(allocations)) return [];
     return allocations.filter(
       (a) => a.matchScore && a.matchScore < 60
     );
@@ -767,7 +921,7 @@ const ResourceAllocation = () => {
 
   // Calculate cross-domain metrics
   const calculateCrossDomainMetrics = () => {
-    if (filters.domainId === '' && filters.businessDecision === '') {
+    if (!Array.isArray(allocations) || filters.domainId === '' && filters.businessDecision === '') {
       return { outboundCrossDomain: 0, inboundCrossDomain: 0 };
     }
 
@@ -955,25 +1109,230 @@ const ResourceAllocation = () => {
         </Card>
       )}
 
-      {/* Allocation count warning for large datasets */}
-      {allocationCountWarning && (currentView === 'timeline' || currentView === 'kanban') && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight="medium" gutterBottom>
-            Large Dataset Warning: {allocationCountWarning.toLocaleString()} allocations found
-          </Typography>
-          <Typography variant="body2">
-            Loading {allocationCountWarning.toLocaleString()} allocations may impact performance.
-            Consider narrowing your filters for better experience. Recommended limit: 500 allocations.
-          </Typography>
-        </Alert>
+      {/* Visualization-specific filters and load controls */}
+      {!showScopingWarning && (currentView === 'timeline' || currentView === 'kanban') && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                  Refine Results
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {!loadAllResults ? (
+                    <>Showing <strong>50 search results</strong> in dropdowns and timeline. Type to search for specific resources/projects, or load all to see everything.</>
+                  ) : (
+                    <>Loading <strong>all matching results</strong>. This may impact performance with large datasets.</>
+                  )}
+                </Typography>
+              </Box>
+              <Box>
+                {!loadAllResults && totalCount > 50 && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    onClick={() => setShowLoadAllWarning(true)}
+                    sx={{ mr: 1 }}
+                  >
+                    Load All ({totalCount.toLocaleString()})
+                  </Button>
+                )}
+                {loadAllResults && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setLoadAllResults(false)}
+                  >
+                    Load Top 50 Only
+                  </Button>
+                )}
+              </Box>
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  multiple
+                  limitTags={2}
+                  options={resources}
+                  filterOptions={(x) => x} // No client-side filtering, all filtering is server-side
+                  getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeId})`}
+                  value={resources.filter(r => selectedResourceIds.includes(r.id))}
+                  inputValue={resourceSearchTerm}
+                  onChange={(_event, newValue) => {
+                    const newIds = newValue.map(r => r.id);
+                    // Only clear search if an item was added (not removed)
+                    if (newIds.length > selectedResourceIds.length) {
+                      setResourceSearchTerm('');
+                    }
+                    setSelectedResourceIds(newIds);
+                  }}
+                  onInputChange={(_event, value, reason) => {
+                    // Only update search term when user is typing, not when resetting
+                    if (reason === 'input') {
+                      setResourceSearchTerm(value);
+                    } else if (reason === 'clear') {
+                      setResourceSearchTerm('');
+                    }
+                  }}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2">
+                          {option.firstName} {option.lastName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.employeeId} • {option.domain?.name || 'No domain'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Filter by Specific Resources"
+                      placeholder={selectedResourceIds.length === 0 ? "Type to search by name, ID, or domain..." : ""}
+                      size="small"
+                      helperText={`${selectedResourceIds.length} selected${resourceSearchTerm && resourceSearchTerm !== debouncedResourceSearch ? ' • Searching...' : ''}`}
+                    />
+                  )}
+                  noOptionsText={resourceSearchTerm ? "No resources found. Try a different search." : "Type to search resources..."}
+                  sx={{ bgcolor: 'background.paper' }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  multiple
+                  limitTags={2}
+                  options={projects}
+                  filterOptions={(x) => x} // No client-side filtering, all filtering is server-side
+                  getOptionLabel={(option) => option.name || `Project #${option.id}`}
+                  value={projects.filter(p => selectedProjectIds.includes(p.id))}
+                  inputValue={projectSearchTerm}
+                  onChange={(_event, newValue) => {
+                    const newIds = newValue.map(p => p.id);
+                    // Only clear search if an item was added (not removed)
+                    if (newIds.length > selectedProjectIds.length) {
+                      setProjectSearchTerm('');
+                    }
+                    setSelectedProjectIds(newIds);
+                  }}
+                  onInputChange={(_event, value, reason) => {
+                    // Only update search term when user is typing, not when resetting
+                    if (reason === 'input') {
+                      setProjectSearchTerm(value);
+                    } else if (reason === 'clear') {
+                      setProjectSearchTerm('');
+                    }
+                  }}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2">
+                          {option.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          #{option.id} • {option.fiscalYear || 'No FY'} • {option.status || 'No status'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Filter by Specific Projects"
+                      placeholder={selectedProjectIds.length === 0 ? "Type to search by name, ID, or fiscal year..." : ""}
+                      size="small"
+                      helperText={`${selectedProjectIds.length} selected${projectSearchTerm && projectSearchTerm !== debouncedProjectSearch ? ' • Searching...' : ''}`}
+                    />
+                  )}
+                  noOptionsText={projectSearchTerm ? "No projects found. Try a different search." : "Type to search projects..."}
+                  sx={{ bgcolor: 'background.paper' }}
+                />
+              </Grid>
+            </Grid>
+
+            {(selectedResourceIds.length > 0 || selectedProjectIds.length > 0) && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setSelectedResourceIds([]);
+                    setSelectedProjectIds([]);
+                    setResourceSearchTerm('');
+                    setProjectSearchTerm('');
+                  }}
+                  sx={{ mb: 1 }}
+                >
+                  Clear Filters
+                </Button>
+              </Box>
+            )}
+
+            {(selectedResourceIds.length > 0 || selectedProjectIds.length > 0) && (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  <strong>Note:</strong> Additional filters applied. Showing allocations matching selected resources and/or projects.
+                </Typography>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       )}
+
+      {/* Load All Warning Dialog */}
+      <Dialog open={showLoadAllWarning} onClose={() => setShowLoadAllWarning(false)}>
+        <DialogTitle>Load All Results?</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" fontWeight="medium" gutterBottom>
+              Performance Warning
+            </Typography>
+            <Typography variant="body2">
+              You are about to load <strong>all resources, projects, and allocations</strong> (up to {totalCount.toLocaleString()} total records).
+              This may cause performance issues in the timeline/kanban view.
+            </Typography>
+          </Alert>
+          <Typography variant="body2" paragraph>
+            <strong>Recommendations:</strong>
+          </Typography>
+          <Box component="ul" sx={{ pl: 2 }}>
+            <li>
+              <Typography variant="body2">Use the resource/project filters above to narrow results</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">Apply additional domain, business decision, or fiscal year filters</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">Use table view for browsing large datasets</Typography>
+            </li>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowLoadAllWarning(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={() => {
+              setLoadAllResults(true);
+              setShowLoadAllWarning(false);
+            }}
+          >
+            Load All Anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Render appropriate view */}
       {currentView === 'timeline' && !showScopingWarning && (
         <>
           <TimelineView
-            resources={resources}
-            projects={projects}
+            resources={displayResources}
+            projects={displayProjects}
             allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
@@ -986,8 +1345,8 @@ const ResourceAllocation = () => {
       {currentView === 'kanban' && !showScopingWarning && (
         <>
           <KanbanView
-            resources={resources}
-            projects={projects}
+            resources={displayResources}
+            projects={displayProjects}
             allocations={allocations}
             scenarioId={activeScenario?.id || 0}
             onRefresh={fetchData}
@@ -1274,7 +1633,7 @@ const ResourceAllocation = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {allocations.length === 0 ? (
+                {!Array.isArray(allocations) || allocations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={12} align="center">
                       <Typography variant="body2" color="text.secondary" py={3}>
