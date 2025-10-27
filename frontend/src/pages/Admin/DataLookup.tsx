@@ -18,6 +18,7 @@ import {
   Chip,
   Alert,
   CircularProgress,
+  TableSortLabel,
 } from '@mui/material';
 import { Search } from '@mui/icons-material';
 import axios from 'axios';
@@ -39,11 +40,15 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+type Order = 'asc' | 'desc';
+
 const DataLookup = () => {
   const [tabValue, setTabValue] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [orderBy, setOrderBy] = useState<string>('id');
+  const [order, setOrder] = useState<Order>('asc');
 
   // Entity data
   const [domains, setDomains] = useState<any[]>([]);
@@ -96,6 +101,41 @@ const DataLookup = () => {
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
     setSearchTerm('');
+    setOrderBy('id');
+    setOrder('asc');
+  };
+
+  const handleRequestSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const getComparator = (order: Order, orderBy: string) => {
+    return (a: any, b: any) => {
+      const aValue = a[orderBy];
+      const bValue = b[orderBy];
+
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+
+      // Handle numeric values
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return order === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // Handle string values (case-insensitive)
+      const aString = String(aValue).toLowerCase();
+      const bString = String(bValue).toLowerCase();
+
+      if (order === 'asc') {
+        return aString.localeCompare(bString);
+      } else {
+        return bString.localeCompare(aString);
+      }
+    };
   };
 
   const filterData = (data: any[], searchFields: string[]) => {
@@ -105,6 +145,10 @@ const DataLookup = () => {
         String(item[field] || '').toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
+  };
+
+  const sortData = (data: any[]) => {
+    return [...data].sort(getComparator(order, orderBy));
   };
 
   if (loading) {
@@ -168,21 +212,53 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Domain Name</strong></TableCell>
-                    <TableCell><strong>Description</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'name'}
+                        direction={orderBy === 'name' ? order : 'asc'}
+                        onClick={() => handleRequestSort('name')}
+                      >
+                        <strong>Domain Name</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'description'}
+                        direction={orderBy === 'description' ? order : 'asc'}
+                        onClick={() => handleRequestSort('description')}
+                      >
+                        <strong>Description</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'status'}
+                        direction={orderBy === 'status' ? order : 'asc'}
+                        onClick={() => handleRequestSort('status')}
+                      >
+                        <strong>Status</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(domains, ['id', 'name', 'description']).length === 0 ? (
+                  {sortData(filterData(domains, ['id', 'name', 'description'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} align="center">
                         No domains found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(domains, ['id', 'name', 'description']).map((domain) => (
+                    sortData(filterData(domains, ['id', 'name', 'description'])).map((domain) => (
                       <TableRow key={domain.id} hover>
                         <TableCell>
                           <Chip label={domain.id} size="small" color="primary" />
@@ -210,22 +286,54 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Segment Function Name</strong></TableCell>
-                    <TableCell><strong>Domain ID</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'name'}
+                        direction={orderBy === 'name' ? order : 'asc'}
+                        onClick={() => handleRequestSort('name')}
+                      >
+                        <strong>Segment Function Name</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'domainId'}
+                        direction={orderBy === 'domainId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('domainId')}
+                      >
+                        <strong>Domain ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell><strong>Domain Name</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'status'}
+                        direction={orderBy === 'status' ? order : 'asc'}
+                        onClick={() => handleRequestSort('status')}
+                      >
+                        <strong>Status</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(segmentFunctions, ['id', 'name', 'domainId']).length === 0 ? (
+                  {sortData(filterData(segmentFunctions, ['id', 'name', 'domainId'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         No segment functions found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(segmentFunctions, ['id', 'name', 'domainId']).map((segmentFunction) => {
+                    sortData(filterData(segmentFunctions, ['id', 'name', 'domainId'])).map((segmentFunction) => {
                       const domain = domains.find((d) => d.id === segmentFunction.domainId);
                       return (
                         <TableRow key={segmentFunction.id} hover>
@@ -259,22 +367,54 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Project Name</strong></TableCell>
-                    <TableCell><strong>Segment Function ID</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'name'}
+                        direction={orderBy === 'name' ? order : 'asc'}
+                        onClick={() => handleRequestSort('name')}
+                      >
+                        <strong>Project Name</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'segmentFunctionId'}
+                        direction={orderBy === 'segmentFunctionId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('segmentFunctionId')}
+                      >
+                        <strong>Segment Function ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell><strong>Segment Function Name</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'status'}
+                        direction={orderBy === 'status' ? order : 'asc'}
+                        onClick={() => handleRequestSort('status')}
+                      >
+                        <strong>Status</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(projects, ['id', 'name', 'segmentFunctionId']).length === 0 ? (
+                  {sortData(filterData(projects, ['id', 'name', 'segmentFunctionId'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         No projects found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(projects, ['id', 'name', 'segmentFunctionId']).map((project) => {
+                    sortData(filterData(projects, ['id', 'name', 'segmentFunctionId'])).map((project) => {
                       const segmentFunction = segmentFunctions.find((p) => p.id === project.segmentFunctionId);
                       return (
                         <TableRow key={project.id} hover>
@@ -308,23 +448,71 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Employee ID</strong></TableCell>
-                    <TableCell><strong>Resource Name</strong></TableCell>
-                    <TableCell><strong>Domain ID</strong></TableCell>
-                    <TableCell><strong>Segment Function ID</strong></TableCell>
-                    <TableCell><strong>Role</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'employeeId'}
+                        direction={orderBy === 'employeeId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('employeeId')}
+                      >
+                        <strong>Employee ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'firstName'}
+                        direction={orderBy === 'firstName' ? order : 'asc'}
+                        onClick={() => handleRequestSort('firstName')}
+                      >
+                        <strong>Resource Name</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'domainId'}
+                        direction={orderBy === 'domainId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('domainId')}
+                      >
+                        <strong>Domain ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'segmentFunctionId'}
+                        direction={orderBy === 'segmentFunctionId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('segmentFunctionId')}
+                      >
+                        <strong>Segment Function ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'role'}
+                        direction={orderBy === 'role' ? order : 'asc'}
+                        onClick={() => handleRequestSort('role')}
+                      >
+                        <strong>Role</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role']).length === 0 ? (
+                  {sortData(filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} align="center">
                         No resources found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role']).map((resource) => {
+                    sortData(filterData(resources, ['id', 'employeeId', 'firstName', 'lastName', 'role'])).map((resource) => {
                       return (
                         <TableRow key={resource.id} hover>
                           <TableCell>
@@ -354,22 +542,54 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Milestone Name</strong></TableCell>
-                    <TableCell><strong>Project ID</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'name'}
+                        direction={orderBy === 'name' ? order : 'asc'}
+                        onClick={() => handleRequestSort('name')}
+                      >
+                        <strong>Milestone Name</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'projectId'}
+                        direction={orderBy === 'projectId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('projectId')}
+                      >
+                        <strong>Project ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell><strong>Project Name</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'status'}
+                        direction={orderBy === 'status' ? order : 'asc'}
+                        onClick={() => handleRequestSort('status')}
+                      >
+                        <strong>Status</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(milestones, ['id', 'name', 'projectId']).length === 0 ? (
+                  {sortData(filterData(milestones, ['id', 'name', 'projectId'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         No milestones found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(milestones, ['id', 'name', 'projectId']).map((milestone) => {
+                    sortData(filterData(milestones, ['id', 'name', 'projectId'])).map((milestone) => {
                       const project = projects.find((p) => p.id === milestone.projectId);
                       return (
                         <TableRow key={milestone.id} hover>
@@ -409,23 +629,55 @@ const DataLookup = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Resource ID</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'id'}
+                        direction={orderBy === 'id' ? order : 'asc'}
+                        onClick={() => handleRequestSort('id')}
+                      >
+                        <strong>ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'resourceId'}
+                        direction={orderBy === 'resourceId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('resourceId')}
+                      >
+                        <strong>Resource ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell><strong>Resource Name</strong></TableCell>
-                    <TableCell><strong>Project ID</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'projectId'}
+                        direction={orderBy === 'projectId' ? order : 'asc'}
+                        onClick={() => handleRequestSort('projectId')}
+                      >
+                        <strong>Project ID</strong>
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell><strong>Project Name</strong></TableCell>
-                    <TableCell><strong>Allocation %</strong></TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'allocationPercentage'}
+                        direction={orderBy === 'allocationPercentage' ? order : 'asc'}
+                        onClick={() => handleRequestSort('allocationPercentage')}
+                      >
+                        <strong>Allocation %</strong>
+                      </TableSortLabel>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filterData(allocations, ['id', 'resourceId', 'projectId']).length === 0 ? (
+                  {sortData(filterData(allocations, ['id', 'resourceId', 'projectId'])).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} align="center">
                         No allocations found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterData(allocations, ['id', 'resourceId', 'projectId']).map((allocation) => {
+                    sortData(filterData(allocations, ['id', 'resourceId', 'projectId'])).map((allocation) => {
                       const resource = resources.find((r) => r.id === allocation.resourceId);
                       const project = projects.find((p) => p.id === allocation.projectId);
                       return (

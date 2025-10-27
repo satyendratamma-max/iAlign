@@ -749,6 +749,14 @@ const DataManagement = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
+          {resetting && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="primary" gutterBottom>
+                Resetting database...
+              </Typography>
+              <LinearProgress />
+            </Box>
+          )}
           <Alert severity="error" sx={{ mb: 2 }}>
             <Typography variant="body2" fontWeight="bold" gutterBottom>
               This action will permanently delete ALL data except the admin user:
@@ -804,6 +812,14 @@ const DataManagement = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
+          {reseeding && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="primary" gutterBottom>
+                Resetting and reseeding database... This may take a few moments.
+              </Typography>
+              <LinearProgress />
+            </Box>
+          )}
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" fontWeight="bold" gutterBottom>
               This action will:
