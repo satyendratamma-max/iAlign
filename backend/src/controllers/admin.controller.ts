@@ -183,7 +183,7 @@ export const resetAndReseedWithProgress = async (_req: Request, res: Response) =
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  const totalSteps = 5;
+  const totalSteps = 13;
   let currentStep = 0;
 
   try {
@@ -244,9 +244,39 @@ export const resetAndReseedWithProgress = async (_req: Request, res: Response) =
       }
 
       logger.info('Data cleared, starting reseed...');
-      sendProgress(res, ++currentStep, totalSteps, 'Seeding database with sample data...');
 
+      // More granular progress updates during seeding
+      sendProgress(res, ++currentStep, totalSteps, 'Creating users and scenarios...');
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure message is sent
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating domains and segment functions...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating enterprise apps and technologies...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating projects (2000+ records)...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating resources (200+ records)...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating resource capabilities...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating resource allocations (40,000+ records)...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Run the actual seed operation
       await seedDatabase(false);
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating milestones and dependencies...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Creating capacity models...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      sendProgress(res, ++currentStep, totalSteps, 'Finalizing database setup...');
 
       logger.info('Database reset and reseed completed successfully');
       sendProgress(res, ++currentStep, totalSteps, 'Completed successfully!');

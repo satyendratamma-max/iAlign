@@ -148,7 +148,9 @@ const createPerformanceIndexes = async () => {
   }
 };
 
-const seedDatabase = async (dropTables: boolean = true) => {
+type ProgressCallback = (step: number, total: number, message: string) => void;
+
+const seedDatabase = async (dropTables: boolean = true, onProgress?: ProgressCallback) => {
   try {
     console.log('🌱 Starting comprehensive database seeding...\n');
 
