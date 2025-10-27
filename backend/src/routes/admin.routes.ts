@@ -1,10 +1,13 @@
 import { Router } from 'express';
-import { resetAllData, resetAndReseedData } from '../controllers/admin.controller';
-import { authenticate, authorize } from '../middleware/auth';
+import { resetAllData, resetAndReseedData, resetAndReseedWithProgress } from '../controllers/admin.controller';
+import { authenticate, authorize, authenticateSSE } from '../middleware/auth';
 
 const router = Router();
 
-// All routes require authentication and admin role
+// SSE endpoint for reset-and-reseed progress (uses query param auth)
+router.get('/reset-and-reseed-progress', authenticateSSE, authorize('Administrator'), resetAndReseedWithProgress);
+
+// All other routes require authentication and admin role
 router.use(authenticate);
 router.use(authorize('Administrator'));
 

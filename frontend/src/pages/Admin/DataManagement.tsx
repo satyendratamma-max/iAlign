@@ -61,6 +61,8 @@ const DataManagement = () => {
   const [resetComplete, setResetComplete] = useState(false);
   const [reseedComplete, setReseedComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reseedProgress, setReseedProgress] = useState(0);
+  const [reseedProgressMessage, setReseedProgressMessage] = useState('');
 
   const [steps, setSteps] = useState<ImportStep[]>([
     {
@@ -265,29 +267,68 @@ const DataManagement = () => {
 
     setReseeding(true);
     setError(null);
+    setReseedProgress(0);
+    setReseedProgressMessage('Initializing...');
 
     try {
       const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const url = `${API_URL}/admin/reset-and-reseed-progress`;
 
-      await axios.post(`${API_URL}/admin/reset-and-reseed`, {}, config);
+      // Create EventSource for SSE
+      const eventSource = new EventSource(url + `?token=${token}`);
 
-      setReseedComplete(true);
-      setReseedDialogOpen(false);
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
 
-      // Reset all steps
-      setSteps(
-        steps.map((step) => ({
-          ...step,
-          completed: false,
-          importing: false,
-          result: undefined,
-        }))
-      );
-      setActiveStep(0);
+          if (data.error) {
+            setError(data.message || 'Error resetting and reseeding database');
+            eventSource.close();
+            setReseeding(false);
+            return;
+          }
+
+          if (data.success) {
+            setReseedComplete(true);
+            setReseedDialogOpen(false);
+            setReseedProgress(100);
+            setReseedProgressMessage('Completed successfully!');
+
+            // Reset all steps
+            setSteps(
+              steps.map((step) => ({
+                ...step,
+                completed: false,
+                importing: false,
+                result: undefined,
+              }))
+            );
+            setActiveStep(0);
+
+            eventSource.close();
+            setReseeding(false);
+            return;
+          }
+
+          // Update progress
+          if (data.progress !== undefined) {
+            setReseedProgress(data.progress);
+            setReseedProgressMessage(data.message || '');
+          }
+        } catch (err) {
+          console.error('Error parsing SSE data:', err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('EventSource error:', err);
+        setError('Connection error. Please try again.');
+        eventSource.close();
+        setReseeding(false);
+      };
+
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error resetting and reseeding database');
-    } finally {
+      setError(error.message || 'Error resetting and reseeding database');
       setReseeding(false);
     }
   };
@@ -814,10 +855,15 @@ const DataManagement = () => {
         <DialogContent>
           {reseeding && (
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="primary" gutterBottom>
-                Resetting and reseeding database... This may take a few moments.
-              </Typography>
-              <LinearProgress />
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="body2" color="primary">
+                  {reseedProgressMessage}
+                </Typography>
+                <Typography variant="body2" color="primary" fontWeight="bold">
+                  {reseedProgress}%
+                </Typography>
+              </Box>
+              <LinearProgress variant="determinate" value={reseedProgress} />
             </Box>
           )}
           <Alert severity="warning" sx={{ mb: 2 }}>

@@ -48,3 +48,28 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction) =>
     next();
   })(req, res, next);
 };
+
+// SSE authentication middleware - accepts token from query params or headers
+export const authenticateSSE = (req: Request, res: Response, next: NextFunction) => {
+  // Check if token is in query params (for SSE/EventSource which can't set headers)
+  const tokenFromQuery = req.query.token as string;
+
+  if (tokenFromQuery) {
+    // Temporarily set Authorization header for passport
+    req.headers.authorization = `Bearer ${tokenFromQuery}`;
+  }
+
+  // Use standard passport authentication
+  passport.authenticate('jwt', { session: false }, (_err: Error, user: User) => {
+    if (_err) {
+      return next(_err);
+    }
+
+    if (!user) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+
+    (req as AuthRequest).user = user;
+    next();
+  })(req, res, next);
+};
