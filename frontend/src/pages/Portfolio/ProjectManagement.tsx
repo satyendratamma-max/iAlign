@@ -1249,6 +1249,51 @@ const ProjectManagement = () => {
         projectsParams.limit = 10000; // High limit to get all projects
       }
 
+      // Add global filters
+      if (selectedDomainIds.length > 0) {
+        projectsParams.domainId = selectedDomainIds;
+      }
+      if (selectedBusinessDecisions.length > 0) {
+        projectsParams.businessDecision = selectedBusinessDecisions;
+      }
+      if (selectedFiscalYears.length > 0) {
+        projectsParams.fiscalYear = selectedFiscalYears;
+      }
+
+      // Add column header filters (only for table view with debounced values)
+      if (!shouldLoadAllProjects) {
+        if (debouncedFilters.projectNumber) {
+          projectsParams.projectNumber = debouncedFilters.projectNumber;
+        }
+        if (debouncedFilters.name) {
+          projectsParams.name = debouncedFilters.name;
+        }
+        if (debouncedFilters.type) {
+          projectsParams.type = debouncedFilters.type;
+        }
+        if (debouncedFilters.currentPhase) {
+          projectsParams.currentPhase = debouncedFilters.currentPhase;
+        }
+        if (debouncedFilters.priority) {
+          projectsParams.priority = debouncedFilters.priority;
+        }
+        if (debouncedFilters.segmentFunction.length > 0) {
+          projectsParams.segmentFunction = debouncedFilters.segmentFunction;
+        }
+        if (debouncedFilters.status.length > 0) {
+          projectsParams.status = debouncedFilters.status;
+        }
+        if (debouncedFilters.targetRelease.length > 0) {
+          projectsParams.targetRelease = debouncedFilters.targetRelease;
+        }
+        if (debouncedFilters.targetSprint.length > 0) {
+          projectsParams.targetSprint = debouncedFilters.targetSprint;
+        }
+        if (debouncedFilters.health.length > 0) {
+          projectsParams.healthStatus = debouncedFilters.health;
+        }
+      }
+
       const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([
         axios.get(`${API_URL}/projects`, {
           ...config,
@@ -1284,11 +1329,16 @@ const ProjectManagement = () => {
     }
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
+
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, viewMode]); // Re-fetch when viewMode changes to load all/paginated
+  }, [activeScenario, page, pageSize, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]); // Re-fetch when filters change
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -2299,27 +2349,24 @@ const ProjectManagement = () => {
   const debouncedFilters = useDebounce(filters, 300);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
+  // For table view: backend handles filtering, so use projects directly
+  // For gantt/kanban: client-side filtering needed (all projects loaded)
   const filteredProjects = useMemo(() => {
+    // Table view: backend already filtered, no need for client-side filtering
+    if (viewMode === 'table') {
+      return projects;
+    }
+
+    // Gantt/Kanban view: apply client-side filtering
     return projects.filter((project) => {
     const impactedDomains = getImpactedDomains(project.id);
     const matchesImpactedDomain = debouncedFilters.impactedDomain.length === 0 ||
       debouncedFilters.impactedDomain.some(domain => impactedDomains.includes(domain));
 
     return (
-      (project.projectNumber || '').toLowerCase().includes(debouncedFilters.projectNumber.toLowerCase()) &&
-      project.name.toLowerCase().includes(debouncedFilters.name.toLowerCase()) &&
       (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
-      (debouncedFilters.segmentFunction.length === 0 || debouncedFilters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
-      (debouncedFilters.type === '' || (project.type || '').toLowerCase().includes(debouncedFilters.type.toLowerCase())) &&
-      (debouncedFilters.targetRelease.length === 0 || debouncedFilters.targetRelease.includes(project.targetRelease || '')) &&
-      (debouncedFilters.targetSprint.length === 0 || debouncedFilters.targetSprint.includes(project.targetSprint || '')) &&
-      (debouncedFilters.status.length === 0 || debouncedFilters.status.includes(project.status)) &&
-      (debouncedFilters.priority === '' || project.priority === debouncedFilters.priority) &&
       (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
       (selectedFiscalYears.length === 0 || selectedFiscalYears.includes(project.fiscalYear || '')) &&
-      (debouncedFilters.fiscalYear.length === 0 || debouncedFilters.fiscalYear.includes(project.fiscalYear || '')) &&
-      (debouncedFilters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(debouncedFilters.currentPhase.toLowerCase())) &&
-      (debouncedFilters.health.length === 0 || debouncedFilters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain
     );
   }).sort((a, b) => {
@@ -2426,7 +2473,7 @@ const ProjectManagement = () => {
     }
     return 0;
   });
-  }, [projects, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, orderBy, order, projectRisks, allDomainImpacts]);
+  }, [projects, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, orderBy, order, projectRisks, allDomainImpacts]);
 
   // Check if filters are sufficient for visualization views (gantt/kanban)
   const hasScopingFilters = () => {
@@ -4354,8 +4401,8 @@ const ProjectManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {/* CLIENT-SIDE FILTERING AND PAGINATION: Use pagination.paginatedData for filtered and paginated results */}
-            {pagination.paginatedData.map((project) => (
+            {/* SERVER-SIDE FILTERING AND PAGINATION: Backend handles filtering and pagination */}
+            {projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
                   <IconButton
@@ -4537,22 +4584,25 @@ const ProjectManagement = () => {
         </Table>
       </TableContainer>
 
-      {/* CLIENT-SIDE PAGINATION */}
+      {/* SERVER-SIDE PAGINATION */}
       <Pagination
-        page={pagination.page}
-        pageSize={pagination.pageSize}
-        totalItems={pagination.totalItems}
-        totalPages={pagination.totalPages}
-        startIndex={pagination.startIndex}
-        endIndex={pagination.endIndex}
-        onPageChange={pagination.goToPage}
-        onPageSizeChange={pagination.changePageSize}
-        onFirstPage={pagination.goToFirstPage}
-        onLastPage={pagination.goToLastPage}
-        onNextPage={pagination.nextPage}
-        onPreviousPage={pagination.previousPage}
-        hasNextPage={pagination.hasNextPage}
-        hasPreviousPage={pagination.hasPreviousPage}
+        page={page}
+        pageSize={pageSize}
+        totalItems={totalCount}
+        totalPages={Math.ceil(totalCount / pageSize) || 1}
+        startIndex={(page - 1) * pageSize}
+        endIndex={Math.min(page * pageSize, totalCount)}
+        onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1); // Reset to page 1 when page size changes
+        }}
+        onFirstPage={() => setPage(1)}
+        onLastPage={() => setPage(Math.ceil(totalCount / pageSize) || 1)}
+        onNextPage={() => setPage(Math.min(page + 1, Math.ceil(totalCount / pageSize) || 1))}
+        onPreviousPage={() => setPage(Math.max(page - 1, 1))}
+        hasNextPage={page < (Math.ceil(totalCount / pageSize) || 1)}
+        hasPreviousPage={page > 1}
       />
         </>
       )}

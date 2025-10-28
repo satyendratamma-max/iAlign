@@ -15,36 +15,97 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 2000); // Max 2000 per page (allows single-request fetching for domain views)
     const offset = (page - 1) * limit;
 
-    const { segmentFunctionId, status, scenarioId, fiscalYear, priority, domainId } = req.query;
     const where: any = { isActive: true };
 
-    if (segmentFunctionId) {
-      where.segmentFunctionId = segmentFunctionId;
+    // Scenario filter (required)
+    if (req.query.scenarioId) {
+      where.scenarioId = req.query.scenarioId;
     }
 
-    if (domainId) {
-      where.domainId = domainId;
+    // Single-value filters
+    if (req.query.segmentFunctionId) {
+      where.segmentFunctionId = req.query.segmentFunctionId;
     }
 
-    if (status) {
-      where.status = status;
+    if (req.query.priority) {
+      where.priority = req.query.priority;
     }
 
-    if (scenarioId) {
-      where.scenarioId = scenarioId;
+    // Multiple-value filters (support arrays)
+    if (req.query.domainId) {
+      const domainIds = Array.isArray(req.query.domainId)
+        ? req.query.domainId
+        : [req.query.domainId];
+      where.domainId = { [Op.in]: domainIds };
     }
 
-    if (fiscalYear) {
-      where.fiscalYear = fiscalYear;
+    if (req.query.status) {
+      const statuses = Array.isArray(req.query.status)
+        ? req.query.status
+        : [req.query.status];
+      where.status = { [Op.in]: statuses };
     }
 
-    if (priority) {
-      where.priority = priority;
+    if (req.query.fiscalYear) {
+      const fiscalYears = Array.isArray(req.query.fiscalYear)
+        ? req.query.fiscalYear
+        : [req.query.fiscalYear];
+      where.fiscalYear = { [Op.in]: fiscalYears };
     }
 
-    // Name search support for server-side filtering
+    // Partial text match filters
+    if (req.query.projectNumber) {
+      where.projectNumber = { [Op.like]: `%${req.query.projectNumber}%` };
+    }
+
     if (req.query.name) {
       where.name = { [Op.like]: `%${req.query.name}%` };
+    }
+
+    if (req.query.type) {
+      where.type = { [Op.like]: `%${req.query.type}%` };
+    }
+
+    if (req.query.currentPhase) {
+      where.currentPhase = { [Op.like]: `%${req.query.currentPhase}%` };
+    }
+
+    // Multiple-value array filters
+    if (req.query.targetRelease) {
+      const targetReleases = Array.isArray(req.query.targetRelease)
+        ? req.query.targetRelease
+        : [req.query.targetRelease];
+      where.targetRelease = { [Op.in]: targetReleases };
+    }
+
+    if (req.query.targetSprint) {
+      const targetSprints = Array.isArray(req.query.targetSprint)
+        ? req.query.targetSprint
+        : [req.query.targetSprint];
+      where.targetSprint = { [Op.in]: targetSprints };
+    }
+
+    if (req.query.healthStatus) {
+      const healthStatuses = Array.isArray(req.query.healthStatus)
+        ? req.query.healthStatus
+        : [req.query.healthStatus];
+      where.healthStatus = { [Op.in]: healthStatuses };
+    }
+
+    if (req.query.businessDecision) {
+      const businessDecisions = Array.isArray(req.query.businessDecision)
+        ? req.query.businessDecision
+        : [req.query.businessDecision];
+      where.businessDecision = { [Op.in]: businessDecisions };
+    }
+
+    // Segment function filter (by name) - requires include filter
+    let segmentFunctionFilter: any = undefined;
+    if (req.query.segmentFunction) {
+      const segmentFunctionNames = Array.isArray(req.query.segmentFunction)
+        ? req.query.segmentFunction
+        : [req.query.segmentFunction];
+      segmentFunctionFilter = { name: { [Op.in]: segmentFunctionNames } };
     }
 
     const { count, rows: projects } = await Project.findAndCountAll({
@@ -62,8 +123,10 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
           model: SegmentFunction,
           as: 'segmentFunctionData',
           attributes: ['id', 'name'],
+          ...(segmentFunctionFilter && { where: segmentFunctionFilter, required: true }),
         },
       ],
+      distinct: true, // Ensure accurate count with joins
     });
 
     res.json({
