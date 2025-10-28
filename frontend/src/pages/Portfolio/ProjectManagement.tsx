@@ -2311,13 +2311,13 @@ const ProjectManagement = () => {
       (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
       (debouncedFilters.segmentFunction.length === 0 || debouncedFilters.segmentFunction.includes(project.segmentFunctionData?.name || '')) &&
       (debouncedFilters.type === '' || (project.type || '').toLowerCase().includes(debouncedFilters.type.toLowerCase())) &&
-      (debouncedFilters.fiscalYear.length === 0 || debouncedFilters.fiscalYear.includes(project.fiscalYear || '')) &&
       (debouncedFilters.targetRelease.length === 0 || debouncedFilters.targetRelease.includes(project.targetRelease || '')) &&
       (debouncedFilters.targetSprint.length === 0 || debouncedFilters.targetSprint.includes(project.targetSprint || '')) &&
       (debouncedFilters.status.length === 0 || debouncedFilters.status.includes(project.status)) &&
       (debouncedFilters.priority === '' || project.priority === debouncedFilters.priority) &&
       (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
       (selectedFiscalYears.length === 0 || selectedFiscalYears.includes(project.fiscalYear || '')) &&
+      (debouncedFilters.fiscalYear.length === 0 || debouncedFilters.fiscalYear.includes(project.fiscalYear || '')) &&
       (debouncedFilters.currentPhase === '' || (project.currentPhase || '').toLowerCase().includes(debouncedFilters.currentPhase.toLowerCase())) &&
       (debouncedFilters.health.length === 0 || debouncedFilters.health.includes(project.healthStatus || '')) &&
       matchesImpactedDomain
@@ -4354,8 +4354,8 @@ const ProjectManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {/* SERVER-SIDE PAGINATION: Use projects directly (already paginated by backend) */}
-            {projects.map((project) => (
+            {/* CLIENT-SIDE FILTERING AND PAGINATION: Use pagination.paginatedData for filtered and paginated results */}
+            {pagination.paginatedData.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
                   <IconButton
@@ -4537,25 +4537,22 @@ const ProjectManagement = () => {
         </Table>
       </TableContainer>
 
-      {/* SERVER-SIDE PAGINATION */}
+      {/* CLIENT-SIDE PAGINATION */}
       <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalItems={totalCount}
-        totalPages={Math.ceil(totalCount / pageSize) || 1}
-        startIndex={(page - 1) * pageSize}
-        endIndex={Math.min(page * pageSize, totalCount)}
-        onPageChange={setPage}
-        onPageSizeChange={(newSize) => {
-          setPageSize(newSize);
-          setPage(1); // Reset to page 1 when page size changes
-        }}
-        onFirstPage={() => setPage(1)}
-        onLastPage={() => setPage(Math.ceil(totalCount / pageSize) || 1)}
-        onNextPage={() => setPage(Math.min(page + 1, Math.ceil(totalCount / pageSize) || 1))}
-        onPreviousPage={() => setPage(Math.max(page - 1, 1))}
-        hasNextPage={page < (Math.ceil(totalCount / pageSize) || 1)}
-        hasPreviousPage={page > 1}
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalItems={pagination.totalItems}
+        totalPages={pagination.totalPages}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.changePageSize}
+        onFirstPage={pagination.goToFirstPage}
+        onLastPage={pagination.goToLastPage}
+        onNextPage={pagination.nextPage}
+        onPreviousPage={pagination.previousPage}
+        hasNextPage={pagination.hasNextPage}
+        hasPreviousPage={pagination.hasPreviousPage}
       />
         </>
       )}
