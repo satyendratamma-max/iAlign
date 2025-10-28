@@ -1329,16 +1329,11 @@ const ProjectManagement = () => {
     }
   };
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
-
   useEffect(() => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]); // Re-fetch when filters change
+  }, [activeScenario, page, pageSize, viewMode]); // Re-fetch when page, pageSize, or viewMode changes
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -2347,6 +2342,20 @@ const ProjectManagement = () => {
 
   // PERFORMANCE: Debounce filter inputs to reduce re-renders (300ms delay)
   const debouncedFilters = useDebounce(filters, 300);
+
+  // Reset to page 1 when filters change (to avoid showing empty pages)
+  useEffect(() => {
+    if (viewMode === 'table') {
+      setPage(1);
+    }
+  }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, viewMode]);
+
+  // Re-fetch data when filters change in table view (server-side filtering)
+  useEffect(() => {
+    if (activeScenario && viewMode === 'table') {
+      fetchData();
+    }
+  }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
   // For table view: backend handles filtering, so use projects directly
