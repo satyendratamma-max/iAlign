@@ -193,6 +193,8 @@ const QuickAllocationDialog = ({
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<number | undefined>();
   const [minMatchScore, setMinMatchScore] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [resourceSearchTerm, setResourceSearchTerm] = useState<string>('');
+  const [resourceSearchLoading, setResourceSearchLoading] = useState(false);
 
   useEffect(() => {
     if (open && project) {
@@ -260,19 +262,29 @@ const QuickAllocationDialog = ({
     }
   };
 
-  const loadMatchingResources = async (requirementId: number) => {
+  const loadMatchingResources = async (requirementId: number, searchTerm: string = '') => {
     if (!project) return;
 
     const selectedRequirement = requirements.find(r => r.id === requirementId);
     if (!selectedRequirement) return;
 
     try {
-      setLoading(true);
+      setResourceSearchLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Load all resources
-      const resourcesRes = await axios.get(`${API_URL}/resources`, config);
+      // Load resources with server-side filtering and increased limit
+      const params = new URLSearchParams({
+        limit: '500', // Increase limit to get more potential matches
+        page: '1',
+      });
+
+      // Add name filter if search term is provided
+      if (searchTerm.trim()) {
+        params.append('name', searchTerm.trim());
+      }
+
+      const resourcesRes = await axios.get(`${API_URL}/resources?${params.toString()}`, config);
       const resources = resourcesRes.data.data || [];
 
       // Load capabilities for each resource
@@ -316,21 +328,31 @@ const QuickAllocationDialog = ({
     } catch (error) {
       console.error('Error loading resources:', error);
     } finally {
-      setLoading(false);
+      setResourceSearchLoading(false);
     }
   };
 
   // Similar to loadMatchingResources but for edit mode - doesn't clear selections
-  const loadMatchingResourcesForEdit = async (selectedRequirement: Requirement) => {
+  const loadMatchingResourcesForEdit = async (selectedRequirement: Requirement, searchTerm: string = '') => {
     if (!project) return;
 
     try {
-      setLoading(true);
+      setResourceSearchLoading(true);
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Load all resources
-      const resourcesRes = await axios.get(`${API_URL}/resources`, config);
+      // Load resources with server-side filtering and increased limit
+      const params = new URLSearchParams({
+        limit: '500', // Increase limit to get more potential matches
+        page: '1',
+      });
+
+      // Add name filter if search term is provided
+      if (searchTerm.trim()) {
+        params.append('name', searchTerm.trim());
+      }
+
+      const resourcesRes = await axios.get(`${API_URL}/resources?${params.toString()}`, config);
       const resources = resourcesRes.data.data || [];
 
       // Load capabilities for each resource
@@ -374,18 +396,30 @@ const QuickAllocationDialog = ({
     } catch (error) {
       console.error('Error loading resources for edit mode:', error);
     } finally {
-      setLoading(false);
+      setResourceSearchLoading(false);
     }
   };
+
+  // Debounced search effect for resource filtering
+  useEffect(() => {
+    if (!selectedRequirementId) return;
+
+    const timeoutId = setTimeout(() => {
+      loadMatchingResources(selectedRequirementId, resourceSearchTerm);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [resourceSearchTerm, selectedRequirementId]);
 
   const handleRequirementChange = (requirementId: number | undefined) => {
     setSelectedRequirementId(requirementId);
     setSelectedResourceId(undefined);
     setSelectedCapabilityId(undefined);
     setAvailableResources([]);
+    setResourceSearchTerm(''); // Reset search when requirement changes
 
     if (requirementId) {
-      loadMatchingResources(requirementId);
+      loadMatchingResources(requirementId, '');
     }
   };
 
@@ -441,6 +475,7 @@ const QuickAllocationDialog = ({
     setSelectedResourceId(undefined);
     setSelectedCapabilityId(undefined);
     setMinMatchScore(0);
+    setResourceSearchTerm('');
     onClose();
   };
 
@@ -490,7 +525,6 @@ const QuickAllocationDialog = ({
     );
   };
 
-  const selectedResourceData = resource || availableResources.find(r => r.id === selectedResourceId);
   const selectedRequirement = requirements.find(r => r.id === selectedRequirementId);
 
   return (
@@ -593,19 +627,31 @@ const QuickAllocationDialog = ({
                   }
                   value={availableResources.find(r => r.id === selectedResourceId) || null}
                   onChange={(_, newValue) => handleResourceChange(newValue?.id, newValue?.bestCapability?.id)}
-                  loading={loading}
+                  inputValue={resourceSearchTerm}
+                  onInputChange={(_, newInputValue, reason) => {
+                    // Only update search term on user input, not on selection
+                    if (reason === 'input') {
+                      setResourceSearchTerm(newInputValue);
+                    } else if (reason === 'clear') {
+                      setResourceSearchTerm('');
+                    }
+                  }}
+                  loading={resourceSearchLoading}
                   disabled={isEditMode}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label={isEditMode ? "Resource" : "3. Select Resource *"}
-                      placeholder={isEditMode ? "" : "Choose from matching resources..."}
+                      placeholder={isEditMode ? "" : "Type to search by name..."}
                       required
                       helperText={
                         isEditMode ? '' :
+                        resourceSearchLoading ? 'Searching resources...' :
                         availableResources.filter(r => r.matchScore >= minMatchScore).length === 0
-                          ? 'No resources match the current filter - try lowering the match score'
-                          : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching resource(s) available`
+                          ? 'No resources match - try typing a name or lowering the match score'
+                          : resourceSearchTerm
+                          ? `Found ${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching "${resourceSearchTerm}"`
+                          : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching resource(s) - type to filter by name`
                       }
                     />
                   )}
