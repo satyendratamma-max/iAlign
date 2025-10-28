@@ -1333,7 +1333,7 @@ const ProjectManagement = () => {
     if (activeScenario) {
       fetchData();
     }
-  }, [activeScenario, page, pageSize, viewMode]); // Re-fetch when page, pageSize, or viewMode changes
+  }, [activeScenario, page, pageSize, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]); // Re-fetch when any of these change
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -2349,13 +2349,6 @@ const ProjectManagement = () => {
       setPage(1);
     }
   }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, viewMode]);
-
-  // Re-fetch data when filters change in table view (server-side filtering)
-  useEffect(() => {
-    if (activeScenario && viewMode === 'table') {
-      fetchData();
-    }
-  }, [debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
   // For table view: backend handles filtering, so use projects directly
