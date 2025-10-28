@@ -1292,6 +1292,9 @@ const ProjectManagement = () => {
         if (debouncedFilters.health.length > 0) {
           projectsParams.healthStatus = debouncedFilters.health;
         }
+        if (debouncedFilters.impactedDomain.length > 0) {
+          projectsParams.impactedDomain = debouncedFilters.impactedDomain;
+        }
       }
 
       const [projectsRes, domainsRes, segmentFunctionsRes, milestonesRes, impactsRes] = await Promise.all([

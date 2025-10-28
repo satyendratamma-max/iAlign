@@ -4,6 +4,7 @@ import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
 import Milestone from '../models/Milestone';
+import ProjectDomainImpact from '../models/ProjectDomainImpact';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
@@ -108,6 +109,15 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       segmentFunctionFilter = { name: { [Op.in]: segmentFunctionNames } };
     }
 
+    // Impacted domain filter (by domain name) - requires join with ProjectDomainImpacts
+    let impactedDomainFilter: any = undefined;
+    if (req.query.impactedDomain) {
+      const impactedDomainNames = Array.isArray(req.query.impactedDomain)
+        ? req.query.impactedDomain
+        : [req.query.impactedDomain];
+      impactedDomainFilter = { name: { [Op.in]: impactedDomainNames } };
+    }
+
     const { count, rows: projects } = await Project.findAndCountAll({
       where,
       limit,
@@ -124,6 +134,20 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
           as: 'segmentFunctionData',
           attributes: ['id', 'name'],
           ...(segmentFunctionFilter && { where: segmentFunctionFilter, required: true }),
+        },
+        {
+          model: ProjectDomainImpact,
+          as: 'domainImpacts',
+          attributes: [],
+          required: impactedDomainFilter ? true : false,
+          include: [
+            {
+              model: Domain,
+              as: 'impactedDomain',
+              attributes: [],
+              ...(impactedDomainFilter && { where: impactedDomainFilter }),
+            },
+          ],
         },
       ],
       distinct: true, // Ensure accurate count with joins
