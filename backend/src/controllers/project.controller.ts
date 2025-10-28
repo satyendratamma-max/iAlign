@@ -4,11 +4,11 @@ import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
 import Milestone from '../models/Milestone';
-import ProjectDomainImpact from '../models/ProjectDomainImpact';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
 
+// Get all projects with filtering and pagination
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // PAGINATION SUPPORT - CRITICAL for 2K+ projects
@@ -109,47 +109,52 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       segmentFunctionFilter = { name: { [Op.in]: segmentFunctionNames } };
     }
 
-    // Impacted domain filter (by domain name) - requires join with ProjectDomainImpacts
-    let impactedDomainFilter: any = undefined;
+    // Impacted domain filter (by domain name) - use subquery instead of nested include
     if (req.query.impactedDomain) {
       const impactedDomainNames = Array.isArray(req.query.impactedDomain)
         ? req.query.impactedDomain
         : [req.query.impactedDomain];
-      impactedDomainFilter = { name: { [Op.in]: impactedDomainNames } };
+
+      // Use subquery to filter projects by impacted domains (avoids nested include issues with MSSQL)
+      const domainNamesEscaped = impactedDomainNames
+        .map((name: any) => `N'${String(name).replace(/'/g, "''")}'`)
+        .join(',');
+
+      if (!where[Op.and]) {
+        where[Op.and] = [];
+      }
+      (where[Op.and] as any[]).push(
+        literal(`EXISTS (
+          SELECT 1 FROM ProjectDomainImpacts pdi
+          INNER JOIN Domains d ON pdi.domainId = d.id
+          WHERE pdi.projectId = Project.id
+          AND pdi.isActive = 1
+          AND d.name IN (${domainNamesEscaped})
+        )`)
+      );
     }
+
+    // Build include array
+    const includeArray: any[] = [
+      {
+        model: Domain,
+        as: 'domain',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: SegmentFunction,
+        as: 'segmentFunctionData',
+        attributes: ['id', 'name'],
+        ...(segmentFunctionFilter && { where: segmentFunctionFilter, required: true }),
+      },
+    ];
 
     const { count, rows: projects } = await Project.findAndCountAll({
       where,
       limit,
       offset,
       order: [[literal('COALESCE(sortOrder, 999999)'), 'ASC'], ['createdDate', 'DESC']],
-      include: [
-        {
-          model: Domain,
-          as: 'domain',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: SegmentFunction,
-          as: 'segmentFunctionData',
-          attributes: ['id', 'name'],
-          ...(segmentFunctionFilter && { where: segmentFunctionFilter, required: true }),
-        },
-        {
-          model: ProjectDomainImpact,
-          as: 'domainImpacts',
-          attributes: [],
-          required: impactedDomainFilter ? true : false,
-          include: [
-            {
-              model: Domain,
-              as: 'impactedDomain',
-              attributes: [],
-              ...(impactedDomainFilter && { where: impactedDomainFilter }),
-            },
-          ],
-        },
-      ],
+      include: includeArray,
       distinct: true, // Ensure accurate count with joins
     });
 
@@ -647,3 +652,4 @@ export const getDomainPerformance = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+ 
