@@ -4195,7 +4195,12 @@ const ProjectManagement = () => {
                   direction={orderBy === 'targetRelease' ? order : 'asc'}
                   onClick={() => handleRequestSort('targetRelease')}
                 >
-                  Target Release
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Target Release
+                    <Tooltip title="Click cells to edit" arrow>
+                      <EditIcon sx={{ fontSize: 14, color: 'action.active', opacity: 0.6 }} />
+                    </Tooltip>
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 100 }}>
@@ -4204,7 +4209,12 @@ const ProjectManagement = () => {
                   direction={orderBy === 'targetSprint' ? order : 'asc'}
                   onClick={() => handleRequestSort('targetSprint')}
                 >
-                  Target Sprint
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Target Sprint
+                    <Tooltip title="Click cells to edit" arrow>
+                      <EditIcon sx={{ fontSize: 14, color: 'action.active', opacity: 0.6 }} />
+                    </Tooltip>
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 110 }}>
