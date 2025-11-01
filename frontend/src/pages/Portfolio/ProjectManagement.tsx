@@ -450,7 +450,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, o
         borderColor: isOver ? 'primary.main' : 'divider',
         flex: '0 0 auto',
         transition: 'all 0.2s',
-        minHeight: groupProjects.length === 0 ? 150 : 'auto',
+        minHeight: 400, // Always maintain minimum height for drop zone
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -466,6 +468,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, o
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            flex: 1,
             minHeight: 100,
             border: '2px dashed',
             borderColor: isOver ? 'primary.main' : 'divider',
@@ -479,13 +482,37 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ groupName, groupProjects, o
           </Typography>
         </Box>
       ) : (
-        <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {groupProjects.map((project) => (
-              <KanbanCard key={project.id} project={project} onEdit={onEdit} projectRisks={projectRisks} />
-            ))}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <SortableContext items={groupProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {groupProjects.map((project) => (
+                <KanbanCard key={project.id} project={project} onEdit={onEdit} projectRisks={projectRisks} />
+              ))}
+            </Box>
+          </SortableContext>
+          {/* Empty space at bottom for easier dropping */}
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 60,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mt: 1,
+              border: isOver ? '2px dashed' : 'none',
+              borderColor: 'primary.main',
+              borderRadius: 1,
+              bgcolor: isOver ? 'primary.lighter' : 'transparent',
+              transition: 'all 0.2s',
+            }}
+          >
+            {isOver && (
+              <Typography variant="caption" color="primary">
+                Drop here
+              </Typography>
+            )}
           </Box>
-        </SortableContext>
+        </Box>
       )}
     </Paper>
   );
