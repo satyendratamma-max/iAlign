@@ -1125,6 +1125,10 @@ const ProjectManagement = () => {
   const [pageSize, setPageSize] = useState(50); // Show 50 projects per page
   const [totalCount, setTotalCount] = useState(0);
 
+  // INLINE EDITING STATE
+  const [editingCell, setEditingCell] = useState<{ projectId: number; field: 'targetRelease' | 'targetSprint' } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+
   // Swimlane Configuration State
   const [swimlaneConfig, setSwimlaneConfig] = useState<{
     enabled: boolean;
@@ -3789,6 +3793,41 @@ const ProjectManagement = () => {
     }
   };
 
+  // Inline editing handlers for targetRelease and targetSprint
+  const handleCellClick = (projectId: number, field: 'targetRelease' | 'targetSprint', currentValue: string | undefined) => {
+    setEditingCell({ projectId, field });
+    setEditingValue(currentValue || '');
+  };
+
+  const handleCellSave = async (projectId: number, field: 'targetRelease' | 'targetSprint') => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const project = projects.find(p => p.id === projectId);
+      if (!project) return;
+
+      const updatedProject = { ...project, [field]: editingValue || null };
+
+      await axios.put(`${API_URL}/projects/${projectId}`, updatedProject, config);
+
+      // Update local state
+      setProjects(projects.map(p => p.id === projectId ? updatedProject : p));
+
+      setEditingCell(null);
+      setEditingValue('');
+    } catch (error) {
+      console.error('Error updating project:', error);
+      setEditingCell(null);
+      setEditingValue('');
+    }
+  };
+
+  const handleCellCancel = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
   // Gantt drag and drop handlers for reordering
   const handleGanttDragStart = (event: DragStartEvent) => {
     setGanttActiveId(event.active.id as number);
@@ -4506,8 +4545,76 @@ const ProjectManagement = () => {
                 </TableCell>
                 <TableCell>{project.type || '-'}</TableCell>
                 <TableCell>{project.fiscalYear || '-'}</TableCell>
-                <TableCell>{project.targetRelease || '-'}</TableCell>
-                <TableCell>{project.targetSprint || '-'}</TableCell>
+                <TableCell
+                  onClick={() => handleCellClick(project.id, 'targetRelease', project.targetRelease)}
+                  sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' } }}
+                >
+                  {editingCell?.projectId === project.id && editingCell?.field === 'targetRelease' ? (
+                    <Autocomplete
+                      freeSolo
+                      options={uniqueTargetReleases}
+                      value={editingValue}
+                      onChange={(_, newValue) => setEditingValue(newValue || '')}
+                      onInputChange={(_, newValue) => setEditingValue(newValue)}
+                      onBlur={() => handleCellSave(project.id, 'targetRelease')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCellSave(project.id, 'targetRelease');
+                        } else if (e.key === 'Escape') {
+                          handleCellCancel();
+                        }
+                      }}
+                      size="small"
+                      autoFocus
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          variant="outlined"
+                          size="small"
+                          placeholder="Enter or select"
+                        />
+                      )}
+                      sx={{ minWidth: 150 }}
+                    />
+                  ) : (
+                    project.targetRelease || '-'
+                  )}
+                </TableCell>
+                <TableCell
+                  onClick={() => handleCellClick(project.id, 'targetSprint', project.targetSprint)}
+                  sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' } }}
+                >
+                  {editingCell?.projectId === project.id && editingCell?.field === 'targetSprint' ? (
+                    <Autocomplete
+                      freeSolo
+                      options={uniqueTargetSprints}
+                      value={editingValue}
+                      onChange={(_, newValue) => setEditingValue(newValue || '')}
+                      onInputChange={(_, newValue) => setEditingValue(newValue)}
+                      onBlur={() => handleCellSave(project.id, 'targetSprint')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCellSave(project.id, 'targetSprint');
+                        } else if (e.key === 'Escape') {
+                          handleCellCancel();
+                        }
+                      }}
+                      size="small"
+                      autoFocus
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          variant="outlined"
+                          size="small"
+                          placeholder="Enter or select"
+                        />
+                      )}
+                      sx={{ minWidth: 150 }}
+                    />
+                  ) : (
+                    project.targetSprint || '-'
+                  )}
+                </TableCell>
                 <TableCell>
                   <Chip label={project.status} size="small" color={getStatusColor(project.status)} />
                 </TableCell>
