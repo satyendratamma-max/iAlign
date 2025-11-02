@@ -78,6 +78,7 @@ import { useScenario } from '../../contexts/ScenarioContext';
 import DependencyDialog, { DependencyFormData } from '../../components/Portfolio/DependencyDialog';
 import DependencyManagerDialog from '../../components/Portfolio/DependencyManagerDialog';
 import EnhancedRequirementsTab from '../../components/Projects/EnhancedRequirementsTab';
+import ProjectActivityFeed from '../../components/Projects/ProjectActivityFeed';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import QuickAllocationDialog from '../../components/QuickAllocationDialog';
 import Pagination from '../../components/common/Pagination';
@@ -6772,6 +6773,7 @@ const ProjectManagement = () => {
           <Tab label="Management" />
           <Tab label="Cross-Domain Impact" />
           {editMode && currentProject.id && <Tab label="Requirements" />}
+          {editMode && currentProject.id && <Tab label="Activity" />}
         </Tabs>
         <DialogContent>
           {/* Tab 0: Basic Info */}
@@ -7745,6 +7747,13 @@ const ProjectManagement = () => {
                     : currentProject.endDate,
                 }}
               />
+            </Box>
+          )}
+
+          {/* Tab 8: Activity (only in edit mode) */}
+          {dialogTab === 8 && editMode && currentProject.id && (
+            <Box sx={{ mt: 1 }}>
+              <ProjectActivityFeed projectId={currentProject.id} />
             </Box>
           )}
         </DialogContent>
