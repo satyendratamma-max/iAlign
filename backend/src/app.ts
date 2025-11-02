@@ -41,6 +41,7 @@ import resourceCapabilityRoutes from './routes/resourceCapability.routes';
 import projectRequirementRoutes from './routes/projectRequirement.routes';
 import projectDomainImpactRoutes from './routes/projectDomainImpact.routes';
 import projectDependencyRoutes from './routes/projectDependency.routes';
+import projectActivityRoutes from './routes/projectActivity.routes';
 
 const app: Application = express();
 
@@ -140,6 +141,7 @@ app.use(`/api/${API_VERSION}/resource-capabilities`, resourceCapabilityRoutes);
 app.use(`/api/${API_VERSION}/project-requirements`, projectRequirementRoutes);
 app.use(`/api/${API_VERSION}/project-domain-impacts`, projectDomainImpactRoutes);
 app.use(`/api/${API_VERSION}/project-dependencies`, projectDependencyRoutes);
+app.use(`/api/${API_VERSION}`, projectActivityRoutes); // ProjectActivity routes include /projects/:id/activities
 
 // 404 handler
 app.use(notFoundHandler);

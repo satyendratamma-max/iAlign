@@ -7,6 +7,7 @@ import Milestone from '../models/Milestone';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
+import { createSystemActivity } from './projectActivity.controller';
 
 // Get all projects with filtering and pagination
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
@@ -117,7 +118,10 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
 
       // Use subquery to filter projects by impacted domains (avoids nested include issues with MSSQL)
       const domainNamesEscaped = impactedDomainNames
-        .map((name: any) => `N'${String(name).replace(/'/g, "''")}'`)
+        .map((name: any) => {
+          const nameStr = String(name);
+          return `N'${nameStr.replace(/'/g, "''")}'`;
+        })
         .join(',');
 
       if (!where[Op.and]) {
@@ -293,14 +297,73 @@ export const updateProject = async (req: Request, res: Response, next: NextFunct
     }
 
     const oldStatus = project.status;
+
+    // Capture old values for activity logging
+    const oldValues: any = {};
+    const trackedFields = ['status', 'priority', 'healthStatus', 'targetRelease', 'targetSprint',
+                           'businessDecision', 'startDate', 'endDate', 'actualStartDate',
+                           'actualEndDate', 'budget', 'actualCost', 'progress', 'currentPhase'];
+
+    trackedFields.forEach(field => {
+      if (updateData[field] !== undefined && project[field as keyof typeof project] !== updateData[field]) {
+        oldValues[field] = project[field as keyof typeof project];
+      }
+    });
+
     await project.update(updateData);
 
     logger.info(`Project updated: ${project.name}`);
 
+    // Log field changes as activities
+    const userId = (req as any).user?.id;
+    if (Object.keys(oldValues).length > 0) {
+      try {
+        // Log status changes specially
+        if (oldValues.status) {
+          await createSystemActivity(
+            project.id,
+            'status_change',
+            {
+              field: 'status',
+              oldValue: oldValues.status,
+              newValue: updateData.status,
+            },
+            {
+              projectName: project.name,
+              projectNumber: project.projectNumber,
+            },
+            userId
+          );
+        }
+
+        // Log other field changes
+        const otherChanges = Object.keys(oldValues).filter(f => f !== 'status');
+        if (otherChanges.length > 0) {
+          const changes = otherChanges.map(field => ({
+            field,
+            oldValue: oldValues[field],
+            newValue: updateData[field],
+          }));
+
+          await createSystemActivity(
+            project.id,
+            'field_update',
+            { changes },
+            {
+              projectName: project.name,
+              projectNumber: project.projectNumber,
+            },
+            userId
+          );
+        }
+      } catch (activityError) {
+        logger.error('Failed to create project activity log:', activityError);
+      }
+    }
+
     // Notify stakeholders about project status changes
     try {
       if (updateData.status && updateData.status !== oldStatus) {
-        const userId = (req as any).user?.id; // Get the user ID from the request
         await notifyProjectStatusChanged(project, oldStatus, updateData.status, userId);
       }
     } catch (notifError) {

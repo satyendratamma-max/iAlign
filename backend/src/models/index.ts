@@ -18,6 +18,7 @@ import ProjectRequirement from './ProjectRequirement';
 import ProjectDomainImpact from './ProjectDomainImpact';
 import ProjectDependency from './ProjectDependency';
 import Scenario from './Scenario';
+import ProjectActivity from './ProjectActivity';
 
 // Scenario Associations
 Scenario.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
@@ -237,6 +238,17 @@ ProjectDependency.belongsTo(Milestone, {
   as: 'successorMilestone'
 });
 
+// ⭐ ProjectActivity Associations (Activity Feed / Notes / Discussion)
+Project.hasMany(ProjectActivity, { foreignKey: 'projectId', as: 'activities' });
+ProjectActivity.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+User.hasMany(ProjectActivity, { foreignKey: 'userId', as: 'activities' });
+ProjectActivity.belongsTo(User, { foreignKey: 'userId', as: 'author' });
+
+// Self-referential for threading (replies)
+ProjectActivity.hasMany(ProjectActivity, { foreignKey: 'parentActivityId', as: 'replies' });
+ProjectActivity.belongsTo(ProjectActivity, { foreignKey: 'parentActivityId', as: 'parentActivity' });
+
 export {
   User,
   SegmentFunction,
@@ -258,6 +270,7 @@ export {
   ProjectDomainImpact,
   ProjectDependency,
   Scenario,
+  ProjectActivity,
 };
 
 export default {
@@ -281,4 +294,5 @@ export default {
   ProjectDomainImpact,
   ProjectDependency,
   Scenario,
+  ProjectActivity,
 };
