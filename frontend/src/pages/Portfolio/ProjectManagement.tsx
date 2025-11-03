@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Typography,
   Box,
@@ -1043,6 +1044,9 @@ const SortableSwimlaneProjectName: React.FC<SortableSwimlaneProjectNameProps> = 
 };
 
 const ProjectManagement = () => {
+  // URL search params for deep linking
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Redux state
   const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
 
@@ -2385,6 +2389,28 @@ const ProjectManagement = () => {
       fetchData();
     }
   }, [activeScenario, page, pageSize, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
+
+  // Handle deep linking from My Dashboard - open project edit dialog
+  useEffect(() => {
+    const editProjectId = searchParams.get('editProjectId');
+    const tab = searchParams.get('tab');
+
+    if (editProjectId && projects.length > 0) {
+      const projectId = parseInt(editProjectId);
+      const project = projects.find(p => p.id === projectId);
+
+      if (project) {
+        setCurrentProject(project);
+        setEditMode(true);
+        setOpenDialog(true);
+        if (tab) {
+          setDialogTab(parseInt(tab));
+        }
+        // Clear the query params after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, projects, setSearchParams]);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
   // For table view: backend handles filtering, so use projects directly
@@ -6764,7 +6790,13 @@ const ProjectManagement = () => {
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
-        <Tabs value={dialogTab} onChange={(_e, newValue) => setDialogTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
+        <Tabs
+          value={dialogTab}
+          onChange={(_e, newValue) => setDialogTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
+        >
           <Tab label="Basic Info" />
           <Tab label="Business Details" />
           <Tab label="Financial" />

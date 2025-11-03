@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import Dashboard from './pages/Dashboard';
+import UserDashboard from './pages/UserDashboard';
 import PortfolioOverview from './pages/Portfolio/PortfolioOverview';
 import ProjectManagement from './pages/Portfolio/ProjectManagement';
 import DomainsList from './pages/Portfolio/DomainsList';
@@ -74,6 +75,7 @@ const AppContent = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/my-dashboard" element={<UserDashboard />} />
 
         {/* Segment Function Routes */}
         <Route path="/domains" element={<DomainsList />} />

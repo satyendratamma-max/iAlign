@@ -37,6 +37,7 @@ import {
   Layers,
   ExpandMore,
   ChevronRight,
+  Person,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
@@ -49,6 +50,7 @@ const menuSections = [
     title: 'Main',
     items: [
       { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+      { text: 'My Dashboard', icon: <Person />, path: '/my-dashboard' },
     ],
   },
   {

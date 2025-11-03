@@ -172,3 +172,72 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+/**
+ * Search users for mention autocomplete
+ * Lightweight endpoint optimized for fast lookups
+ */
+export const searchUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { q } = req.query;
+    const query = (q as string || '').trim();
+
+    const { Op } = require('sequelize');
+
+    // If no query or query too short, return all active users
+    if (!query || query.length < 2) {
+      const users = await User.findAll({
+        where: {
+          isActive: true,
+        },
+        attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+        limit: 50,
+        order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+      });
+
+      res.json({
+        success: true,
+        data: users.map(user => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          displayName: `${user.firstName} ${user.lastName}`,
+        })),
+      });
+      return;
+    }
+
+    // Search with query
+    const users = await User.findAll({
+      where: {
+        isActive: true,
+        [Op.or]: [
+          { firstName: { [Op.like]: `%${query}%` } },
+          { lastName: { [Op.like]: `%${query}%` } },
+          { email: { [Op.like]: `%${query}%` } },
+          { username: { [Op.like]: `%${query}%` } },
+        ],
+      },
+      attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+      limit: 10,
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+    });
+
+    res.json({
+      success: true,
+      data: users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: `${user.firstName} ${user.lastName}`,
+      })),
+    });
+    return;
+  } catch (error) {
+    next(error);
+  }
+};

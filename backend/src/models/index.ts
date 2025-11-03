@@ -245,6 +245,10 @@ ProjectActivity.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 User.hasMany(ProjectActivity, { foreignKey: 'userId', as: 'activities' });
 ProjectActivity.belongsTo(User, { foreignKey: 'userId', as: 'author' });
 
+// Task assignee association
+User.hasMany(ProjectActivity, { foreignKey: 'assigneeId', as: 'assignedTasks' });
+ProjectActivity.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+
 // Self-referential for threading (replies)
 ProjectActivity.hasMany(ProjectActivity, { foreignKey: 'parentActivityId', as: 'replies' });
 ProjectActivity.belongsTo(ProjectActivity, { foreignKey: 'parentActivityId', as: 'parentActivity' });

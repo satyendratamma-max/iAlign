@@ -5,7 +5,7 @@ export interface ProjectActivityAttributes {
   id?: number;
   projectId: number;
   userId?: number;
-  activityType: 'comment' | 'status_change' | 'field_update' | 'milestone' | 'allocation' | 'requirement' | 'dependency' | 'system_event';
+  activityType: 'comment' | 'status_change' | 'field_update' | 'milestone' | 'allocation' | 'requirement' | 'dependency' | 'system_event' | 'task' | 'action_item';
   content?: string;
   changes?: object; // { field: string, oldValue: any, newValue: any }
   relatedEntityType?: string; // 'milestone', 'allocation', 'requirement', etc.
@@ -15,6 +15,12 @@ export interface ProjectActivityAttributes {
   isPinned?: boolean;
   isEdited?: boolean;
   editedDate?: Date;
+  // Task-specific fields
+  assigneeId?: number; // User assigned to task
+  taskStatus?: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  taskPriority?: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: Date;
+  completedDate?: Date;
   createdDate?: Date;
   modifiedDate?: Date;
   isActive?: boolean;
@@ -24,7 +30,7 @@ class ProjectActivity extends Model<ProjectActivityAttributes> implements Projec
   declare id: number;
   declare projectId: number;
   declare userId?: number;
-  declare activityType: 'comment' | 'status_change' | 'field_update' | 'milestone' | 'allocation' | 'requirement' | 'dependency' | 'system_event';
+  declare activityType: 'comment' | 'status_change' | 'field_update' | 'milestone' | 'allocation' | 'requirement' | 'dependency' | 'system_event' | 'task' | 'action_item';
   declare content?: string;
   declare changes?: object;
   declare relatedEntityType?: string;
@@ -34,6 +40,12 @@ class ProjectActivity extends Model<ProjectActivityAttributes> implements Projec
   declare isPinned: boolean;
   declare isEdited: boolean;
   declare editedDate?: Date;
+  // Task-specific fields
+  declare assigneeId?: number;
+  declare taskStatus?: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  declare taskPriority?: 'low' | 'medium' | 'high' | 'urgent';
+  declare dueDate?: Date;
+  declare completedDate?: Date;
   declare createdDate: Date;
   declare modifiedDate: Date;
   declare isActive: boolean;
@@ -66,7 +78,7 @@ ProjectActivity.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       validate: {
-        isIn: [['comment', 'status_change', 'field_update', 'milestone', 'allocation', 'requirement', 'dependency', 'system_event']],
+        isIn: [['comment', 'status_change', 'field_update', 'milestone', 'allocation', 'requirement', 'dependency', 'system_event', 'task', 'action_item']],
       },
     },
     content: {
@@ -128,6 +140,42 @@ ProjectActivity.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
+    },
+    // Task-specific fields
+    assigneeId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+      comment: 'User assigned to task',
+    },
+    taskStatus: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      validate: {
+        isIn: [['open', 'in_progress', 'completed', 'cancelled']],
+      },
+      comment: 'Task status',
+    },
+    taskPriority: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      validate: {
+        isIn: [['low', 'medium', 'high', 'urgent']],
+      },
+      comment: 'Task priority level',
+    },
+    dueDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Task due date',
+    },
+    completedDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Date when task was completed',
     },
   },
   {
