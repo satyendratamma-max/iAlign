@@ -1062,6 +1062,7 @@ const ProjectManagement = () => {
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
   const [dialogTab, setDialogTab] = useState(0);
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const [currentProjectMilestones, setCurrentProjectMilestones] = useState<Milestone[]>([]);
   const [originalProjectMilestones, setOriginalProjectMilestones] = useState<Milestone[]>([]);
   const [openResourcesDialog, setOpenResourcesDialog] = useState(false);
@@ -1730,10 +1731,29 @@ const ProjectManagement = () => {
     setCurrentProjectMilestones([]);
     setOriginalProjectMilestones([]);
     setDialogTab(0);
+    setFormErrors({}); // Clear any validation errors
   };
 
   const handleSave = async () => {
     try {
+      // Clear previous errors
+      setFormErrors({});
+
+      // Validate required fields
+      const errors: {[key: string]: string} = {};
+
+      if (!currentProject.name || currentProject.name.trim() === '') {
+        errors.name = 'Project Name is required';
+        setDialogTab(0); // Switch to Basic Info tab where name field is
+      }
+
+      // Show validation errors if any
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        showAlert('Please fill in all required fields marked with *', 'error');
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -6817,9 +6837,15 @@ const ProjectManagement = () => {
                   required
                   label="Project Name"
                   value={currentProject.name || ''}
-                  onChange={(e) =>
-                    setCurrentProject({ ...currentProject, name: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setCurrentProject({ ...currentProject, name: e.target.value });
+                    // Clear error when user starts typing
+                    if (formErrors.name) {
+                      setFormErrors({ ...formErrors, name: '' });
+                    }
+                  }}
+                  error={!!formErrors.name}
+                  helperText={formErrors.name || '* Required field - Enter a unique project name'}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -6830,7 +6856,7 @@ const ProjectManagement = () => {
                   onChange={(e) =>
                     setCurrentProject({ ...currentProject, projectNumber: e.target.value })
                   }
-                  helperText="Unique project identifier"
+                  helperText="Optional - Unique project identifier"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -6843,6 +6869,7 @@ const ProjectManagement = () => {
                   onChange={(e) =>
                     setCurrentProject({ ...currentProject, description: e.target.value })
                   }
+                  helperText="Optional - Brief description of the project goals and scope"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
