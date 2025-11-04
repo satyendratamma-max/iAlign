@@ -8,6 +8,7 @@ import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
 import { createSystemActivity } from './projectActivity.controller';
+import { getCurrentFiscalYear } from '../utils/fiscalYear';
 
 // Get all projects with filtering and pagination
 export const getAllProjects = async (req: Request, res: Response, next: NextFunction) => {
@@ -213,6 +214,11 @@ export const getProjectById = async (req: Request, res: Response, next: NextFunc
 export const createProject = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const projectData = req.body;
+
+    // Set default fiscal year if not provided
+    if (!projectData.fiscalYear) {
+      projectData.fiscalYear = getCurrentFiscalYear();
+    }
 
     const project = await Project.create({
       ...projectData,
@@ -715,4 +721,5 @@ export const getDomainPerformance = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+ 
  

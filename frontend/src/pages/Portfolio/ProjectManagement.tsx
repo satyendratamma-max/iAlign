@@ -70,6 +70,7 @@ import { fetchAllPages } from '../../services/api';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { exportToExcel, importFromExcel, generateProjectTemplate } from '../../utils/excelUtils';
+import { getCurrentFiscalYear, getFiscalYearRange } from '../../utils/fiscalYear';
 import PageHeader from '../../components/common/PageHeader';
 import ActionBar, { ActionGroup } from '../../components/common/ActionBar';
 import CompactFilterBar from '../../components/common/CompactFilterBar';
@@ -1716,7 +1717,14 @@ const ProjectManagement = () => {
       }
     } else {
       setEditMode(false);
-      setCurrentProject({ progress: 0, status: 'Planning', priority: 'Medium' });
+      setCurrentProject({
+        scenarioId: activeScenario?.id,
+        progress: 0,
+        status: 'Planning',
+        priority: 'Medium',
+        businessDecision: 'Pending',
+        fiscalYear: getCurrentFiscalYear()
+      });
       setDomainImpacts([]);
       setCurrentProjectMilestones([]);
       setOriginalProjectMilestones([]);
@@ -2382,7 +2390,10 @@ const ProjectManagement = () => {
   };
 
   // Get unique fiscal years, target releases, and target sprints from projects
-  const uniqueFiscalYears = Array.from(new Set(projects.map(p => p.fiscalYear).filter(Boolean))) as string[];
+  // Always include previous + current + next 2 fiscal years for planning purposes
+  const fiscalYearsFromProjects = projects.map(p => p.fiscalYear).filter(Boolean) as string[];
+  const plannedFiscalYears = getFiscalYearRange(1, 2); // Previous 1, Current, Next 2
+  const uniqueFiscalYears = Array.from(new Set([...fiscalYearsFromProjects, ...plannedFiscalYears]));
   const uniqueTargetReleases = Array.from(new Set(projects.map(p => p.targetRelease).filter(Boolean))) as string[];
   const uniqueTargetSprints = Array.from(new Set(projects.map(p => p.targetSprint).filter(Boolean))) as string[];
 
