@@ -201,116 +201,7 @@ PRINT 'Indexes created successfully.';
 GO
 
 -- =============================================
--- Step 4: Create helper views for common queries
--- =============================================
-
--- View for active comments with author info
-IF OBJECT_ID('vw_ActiveComments', 'V') IS NOT NULL
-    DROP VIEW vw_ActiveComments;
-GO
-
-CREATE VIEW vw_ActiveComments
-AS
-SELECT
-    pa.id,
-    pa.projectId,
-    pa.userId,
-    pa.content,
-    pa.parentActivityId,
-    pa.metadata,
-    pa.isPinned,
-    pa.isEdited,
-    pa.editedDate,
-    pa.createdDate,
-    pa.modifiedDate,
-    u.firstName + ' ' + u.lastName AS authorName,
-    u.email AS authorEmail
-FROM ProjectActivities pa
-LEFT JOIN Users u ON pa.userId = u.id
-WHERE pa.activityType = 'comment'
-  AND pa.isActive = 1;
-GO
-
--- View for active tasks with project and assignee info
-IF OBJECT_ID('vw_ActiveTasks', 'V') IS NOT NULL
-    DROP VIEW vw_ActiveTasks;
-GO
-
-CREATE VIEW vw_ActiveTasks
-AS
-SELECT
-    pa.id,
-    pa.projectId,
-    p.name AS projectName,
-    p.status AS projectStatus,
-    p.priority AS projectPriority,
-    pa.userId,
-    u1.firstName + ' ' + u1.lastName AS authorName,
-    pa.assigneeId,
-    u2.firstName + ' ' + u2.lastName AS assigneeName,
-    u2.email AS assigneeEmail,
-    pa.activityType,
-    pa.content,
-    pa.taskStatus,
-    pa.taskPriority,
-    pa.dueDate,
-    pa.completedDate,
-    pa.createdDate,
-    pa.modifiedDate
-FROM ProjectActivities pa
-LEFT JOIN Users u1 ON pa.userId = u1.id
-LEFT JOIN Users u2 ON pa.assigneeId = u2.id
-LEFT JOIN Projects p ON pa.projectId = p.id
-WHERE pa.activityType IN ('task', 'action_item')
-  AND pa.isActive = 1;
-GO
-
-PRINT 'Helper views created successfully.';
-GO
-
--- =============================================
--- Step 5: Create stored procedure for mentions lookup
--- =============================================
-
-IF OBJECT_ID('sp_GetUserMentions', 'P') IS NOT NULL
-    DROP PROCEDURE sp_GetUserMentions;
-GO
-
-CREATE PROCEDURE sp_GetUserMentions
-    @userId INT,
-    @limit INT = 50,
-    @offset INT = 0
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT
-        pa.id,
-        pa.projectId,
-        p.name AS projectName,
-        pa.userId,
-        u.firstName + ' ' + u.lastName AS authorName,
-        u.email AS authorEmail,
-        pa.content,
-        pa.metadata,
-        pa.createdDate
-    FROM ProjectActivities pa
-    LEFT JOIN Users u ON pa.userId = u.id
-    LEFT JOIN Projects p ON pa.projectId = p.id
-    WHERE pa.activityType = 'comment'
-      AND pa.isActive = 1
-      AND pa.metadata LIKE '%"mentions"%' + CAST(@userId AS VARCHAR) + '%'
-    ORDER BY pa.createdDate DESC
-    OFFSET @offset ROWS
-    FETCH NEXT @limit ROWS ONLY;
-END
-GO
-
-PRINT 'Stored procedures created successfully.';
-GO
-
--- =============================================
--- Step 6: Verification and Statistics
+-- Step 4: Verification and Statistics
 -- =============================================
 PRINT '';
 PRINT '============================================';
@@ -345,8 +236,6 @@ PRINT 'Migration Summary:';
 PRINT '- ProjectActivities table created/updated';
 PRINT '- All foreign keys established';
 PRINT '- Performance indexes created';
-PRINT '- Helper views created (vw_ActiveComments, vw_ActiveTasks)';
-PRINT '- Stored procedure created (sp_GetUserMentions)';
 PRINT '';
 PRINT 'Features Enabled:';
 PRINT '  ✓ Activity Feed & Comments';
@@ -356,6 +245,7 @@ PRINT '  ✓ User Mentions';
 PRINT '  ✓ Pinned Activities';
 PRINT '  ✓ Activity Editing';
 PRINT '';
+PRINT 'Note: Application uses Sequelize ORM for all queries.';
 PRINT 'Ready for production use!';
 PRINT '============================================';
 GO

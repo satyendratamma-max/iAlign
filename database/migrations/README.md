@@ -24,10 +24,9 @@ The migration adds comprehensive activity tracking, threaded comments, tasks man
 - Creates `ProjectActivities` table with all columns
 - Adds foreign key constraints to Projects, Users
 - Creates performance indexes
-- Creates helper views (`vw_ActiveComments`, `vw_ActiveTasks`)
-- Creates stored procedure (`sp_GetUserMentions`)
 - Safe to run multiple times (idempotent)
 - Preserves existing data
+- Application uses Sequelize ORM for all queries
 
 ### 2. `rollback_project_activities_migration.sql`
 **Rollback script** - Removes all migration changes.
@@ -98,16 +97,6 @@ WHERE TABLE_NAME = 'ProjectActivities';
 SELECT name FROM sys.indexes
 WHERE object_id = OBJECT_ID('ProjectActivities');
 -- Should show 7 indexes (including PK)
-
--- Check views exist
-SELECT name FROM sys.views
-WHERE name IN ('vw_ActiveComments', 'vw_ActiveTasks');
--- Should return 2 rows
-
--- Check stored procedure exists
-SELECT name FROM sys.procedures
-WHERE name = 'sp_GetUserMentions';
--- Should return 1 row
 ```
 
 ## Database Schema

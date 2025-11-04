@@ -13,37 +13,7 @@ PRINT 'WARNING: This will delete all activity data!';
 GO
 
 -- =============================================
--- Step 1: Drop stored procedures
--- =============================================
-PRINT 'Dropping stored procedures...';
-
-IF OBJECT_ID('sp_GetUserMentions', 'P') IS NOT NULL
-BEGIN
-    PRINT 'Dropping sp_GetUserMentions...';
-    DROP PROCEDURE sp_GetUserMentions;
-END
-GO
-
--- =============================================
--- Step 2: Drop views
--- =============================================
-PRINT 'Dropping views...';
-
-IF OBJECT_ID('vw_ActiveComments', 'V') IS NOT NULL
-BEGIN
-    PRINT 'Dropping vw_ActiveComments...';
-    DROP VIEW vw_ActiveComments;
-END
-
-IF OBJECT_ID('vw_ActiveTasks', 'V') IS NOT NULL
-BEGIN
-    PRINT 'Dropping vw_ActiveTasks...';
-    DROP VIEW vw_ActiveTasks;
-END
-GO
-
--- =============================================
--- Step 3: Drop foreign key constraints
+-- Step 1: Drop foreign key constraints
 -- =============================================
 PRINT 'Dropping foreign key constraints...';
 
@@ -73,7 +43,7 @@ END
 GO
 
 -- =============================================
--- Step 4: Drop indexes
+-- Step 2: Drop indexes
 -- =============================================
 PRINT 'Dropping indexes...';
 
@@ -109,7 +79,7 @@ END
 GO
 
 -- =============================================
--- Step 5: Drop the table
+-- Step 3: Drop the table
 -- =============================================
 IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ProjectActivities')
 BEGIN
@@ -130,7 +100,7 @@ END
 GO
 
 -- =============================================
--- Step 6: Verification
+-- Step 4: Verification
 -- =============================================
 PRINT '';
 PRINT '============================================';
@@ -141,8 +111,6 @@ PRINT 'All Project Activities objects removed:';
 PRINT '  ✓ ProjectActivities table';
 PRINT '  ✓ All foreign keys';
 PRINT '  ✓ All indexes';
-PRINT '  ✓ Helper views';
-PRINT '  ✓ Stored procedures';
 PRINT '';
 PRINT 'Database restored to pre-migration state.';
 PRINT '============================================';

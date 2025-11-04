@@ -65,8 +65,8 @@ sqlcmd -S localhost -d iAlign -i verify_migration.sql
 - **1 Table**: `ProjectActivities` (23 columns)
 - **4 Foreign Keys**: To Projects, Users (x2), Self-referencing
 - **6 Indexes**: For optimal query performance
-- **2 Views**: `vw_ActiveComments`, `vw_ActiveTasks`
-- **1 Stored Procedure**: `sp_GetUserMentions`
+
+**Note**: Application uses Sequelize ORM for all database queries.
 
 ---
 

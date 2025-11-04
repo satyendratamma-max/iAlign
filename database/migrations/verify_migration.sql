@@ -171,36 +171,9 @@ ELSE
 PRINT '';
 
 -- =============================================
--- Check 7: Views
+-- Check 7: Data Integrity
 -- =============================================
-PRINT '7. Checking helper views...';
-
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'vw_ActiveComments')
-    PRINT '   ✓ vw_ActiveComments exists';
-ELSE
-    PRINT '   ✗ WARNING: vw_ActiveComments is missing';
-
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'vw_ActiveTasks')
-    PRINT '   ✓ vw_ActiveTasks exists';
-ELSE
-    PRINT '   ✗ WARNING: vw_ActiveTasks is missing';
-PRINT '';
-
--- =============================================
--- Check 8: Stored Procedures
--- =============================================
-PRINT '8. Checking stored procedures...';
-
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_GetUserMentions')
-    PRINT '   ✓ sp_GetUserMentions exists';
-ELSE
-    PRINT '   ✗ WARNING: sp_GetUserMentions is missing';
-PRINT '';
-
--- =============================================
--- Check 9: Data Integrity
--- =============================================
-PRINT '9. Checking data integrity...';
+PRINT '7. Checking data integrity...';
 
 DECLARE @TotalRecords INT;
 SELECT @TotalRecords = COUNT(*) FROM ProjectActivities;
@@ -246,9 +219,9 @@ ELSE
 PRINT '';
 
 -- =============================================
--- Check 10: Orphaned Records
+-- Check 8: Orphaned Records
 -- =============================================
-PRINT '10. Checking for orphaned records...';
+PRINT '8. Checking for orphaned records...';
 
 DECLARE @OrphanedProjects INT = 0;
 SELECT @OrphanedProjects = COUNT(*)
