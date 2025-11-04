@@ -6952,10 +6952,11 @@ const ProjectManagement = () => {
                   }
                 >
                   <MenuItem value="">None</MenuItem>
-                  <MenuItem value="FY24">FY24</MenuItem>
-                  <MenuItem value="FY25">FY25</MenuItem>
-                  <MenuItem value="FY26">FY26</MenuItem>
-                  <MenuItem value="FY27">FY27</MenuItem>
+                  {uniqueFiscalYears.sort().map((fy) => (
+                    <MenuItem key={fy} value={fy}>
+                      {fy}
+                    </MenuItem>
+                  ))}
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>

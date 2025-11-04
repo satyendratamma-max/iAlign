@@ -372,8 +372,8 @@ const PortfolioProjects = () => {
 
       {/* Projects grouped by Fiscal Year */}
       {fiscalYears.length > 0 ? (
-        fiscalYears.map((fy) => (
-          <Accordion key={fy} defaultExpanded={fy === 'FY25'} sx={{ mb: 2 }}>
+        fiscalYears.map((fy, index) => (
+          <Accordion key={fy} defaultExpanded={index === fiscalYears.length - 1} sx={{ mb: 2 }}>
             <AccordionSummary expandIcon={<ExpandMore />}>
               <Typography variant="h6">
                 {fy} ({projectsByFY[fy].length} projects)

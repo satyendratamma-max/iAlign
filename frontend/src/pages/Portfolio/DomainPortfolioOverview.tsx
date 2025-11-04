@@ -204,7 +204,7 @@ const DomainPortfolioOverview = () => {
         priority: 'Medium',
         progress: 0,
         healthStatus: 'Green',
-        fiscalYear: 'FY25',
+        // fiscalYear will be set by user from available options
       });
     }
     setOpenDialog(true);
@@ -270,7 +270,8 @@ const DomainPortfolioOverview = () => {
     return acc;
   }, {});
 
-  const fiscalYears = ['FY24', 'FY25', 'FY26', 'FY27'].filter(fy => projectsByFY[fy]);
+  // Get all fiscal years that have projects, sorted
+  const fiscalYears = Object.keys(projectsByFY).sort();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -418,8 +419,8 @@ const DomainPortfolioOverview = () => {
         {/* Projects by Fiscal Year Tab */}
         {selectedTab === 0 && (
           <Box p={3}>
-            {fiscalYears.map((fy) => (
-              <Accordion key={fy} defaultExpanded={fy === 'FY25'}>
+            {fiscalYears.map((fy, index) => (
+              <Accordion key={fy} defaultExpanded={index === fiscalYears.length - 1}>
                 <AccordionSummary expandIcon={<ExpandMore />}>
                   <Typography variant="h6">
                     {fy} ({projectsByFY[fy].length} projects)
@@ -635,15 +636,17 @@ const DomainPortfolioOverview = () => {
                 select
                 fullWidth
                 label="Fiscal Year"
-                value={currentProject.fiscalYear || 'FY25'}
+                value={currentProject.fiscalYear || ''}
                 onChange={(e) =>
                   setCurrentProject({ ...currentProject, fiscalYear: e.target.value })
                 }
               >
-                <MenuItem value="FY24">FY24</MenuItem>
-                <MenuItem value="FY25">FY25</MenuItem>
-                <MenuItem value="FY26">FY26</MenuItem>
-                <MenuItem value="FY27">FY27</MenuItem>
+                <MenuItem value="">None</MenuItem>
+                {fiscalYears.map((fy) => (
+                  <MenuItem key={fy} value={fy}>
+                    {fy}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
