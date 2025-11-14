@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -197,9 +197,31 @@ const QuickAllocationDialog = ({
   const [loading, setLoading] = useState(false);
   const [resourceSearchTerm, setResourceSearchTerm] = useState<string>('');
   const [resourceSearchLoading, setResourceSearchLoading] = useState(false);
+  const hasInitialized = useRef(false);
+  const initialRequirementId = useRef<number | undefined>(undefined);
+  const previousOpenState = useRef(false);
+
+  // Reset initialization flag when dialog closes and track open state changes
+  useEffect(() => {
+    // Dialog just opened
+    if (open && !previousOpenState.current) {
+      hasInitialized.current = false;
+      initialRequirementId.current = requirement?.id;
+    }
+
+    // Dialog just closed
+    if (!open && previousOpenState.current) {
+      hasInitialized.current = false;
+      initialRequirementId.current = undefined;
+    }
+
+    previousOpenState.current = open;
+  }, [open, requirement?.id]);
 
   useEffect(() => {
-    if (open && project) {
+    if (open && project && !hasInitialized.current) {
+      hasInitialized.current = true;
+
       const initializeDialog = async () => {
         // Load requirements first
         const loadedRequirements = await loadProjectRequirements();
@@ -239,11 +261,11 @@ const QuickAllocationDialog = ({
           }
 
           // Pre-select requirement if passed from Requirements tab
-          if (requirement && loadedRequirements) {
+          if (initialRequirementId.current && loadedRequirements) {
             // Verify the requirement exists in the loaded requirements
-            const matchedRequirement = loadedRequirements.find(r => r.id === requirement.id);
+            const matchedRequirement = loadedRequirements.find(r => r.id === initialRequirementId.current);
             if (matchedRequirement) {
-              setSelectedRequirementId(requirement.id);
+              setSelectedRequirementId(initialRequirementId.current);
               // Debounced search useEffect will automatically load resources
             }
           }
