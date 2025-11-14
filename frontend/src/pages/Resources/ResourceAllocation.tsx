@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Typography,
   Box,
@@ -50,6 +51,8 @@ import FilterPresets from '../../components/common/FilterPresets';
 import Pagination from '../../components/common/Pagination';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import NavigationPrompt from '../../components/common/NavigationPrompt';
 import { setDomainFilter, setBusinessDecisionFilter, setFiscalYearFilter, clearAllFilters } from '../../store/slices/filtersSlice';
 import TimelineView from '../../components/TimelineView';
 import KanbanView from '../../components/KanbanView';
@@ -140,6 +143,7 @@ interface Domain {
 }
 
 const ResourceAllocation = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeScenario } = useScenario();
   const dispatch = useAppDispatch();
   const { selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears } = useAppSelector((state) => state.filters);
@@ -172,6 +176,14 @@ const ResourceAllocation = () => {
   const [selectedProjectRequirements, setSelectedProjectRequirements] = useState<Requirement[]>([]);
   const [availableProjects, setAvailableProjects] = useState<ProjectWithScore[]>([]);
   const [minMatchScore, setMinMatchScore] = useState<number>(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Navigation blocking hook
+  const { showPrompt, confirmNavigation, cancelNavigation, message: navigationMessage } = useUnsavedChanges(
+    openDialog && hasUnsavedChanges,
+    'You have unsaved changes in the allocation form. Are you sure you want to leave this page?'
+  );
+
   // Persist view selection across page refreshes
   const [currentView, setCurrentView] = useState<'table' | 'timeline' | 'kanban'>(() => {
     const savedView = localStorage.getItem('resourceAllocationView');
@@ -522,6 +534,12 @@ const ResourceAllocation = () => {
       setMinMatchScore(0);
     }
     setOpenDialog(true);
+    setHasUnsavedChanges(false); // Reset on open
+
+    // Set URL params for edit mode
+    if (allocation?.id) {
+      setSearchParams({ editAllocationId: allocation.id.toString() });
+    }
   };
 
   const handleCloseDialog = () => {
@@ -534,6 +552,14 @@ const ResourceAllocation = () => {
     setSelectedProjectRequirements([]);
     setAvailableProjects([]);
     setMinMatchScore(0);
+    setHasUnsavedChanges(false); // Reset on close
+    setSearchParams({}); // Clear URL params
+  };
+
+  // Helper to update allocation and mark as unsaved
+  const updateAllocation = (updates: Partial<Allocation>) => {
+    setCurrentAllocation({ ...currentAllocation, ...updates });
+    setHasUnsavedChanges(true);
   };
 
   const loadResourceCapabilities = async (resourceId: number) => {
@@ -2164,6 +2190,14 @@ const ResourceAllocation = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Navigation Prompt - Warn when leaving with unsaved changes */}
+      <NavigationPrompt
+        open={showPrompt}
+        message={navigationMessage}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </Box>
   );
 };
