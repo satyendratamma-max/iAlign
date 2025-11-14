@@ -64,6 +64,7 @@ import {
   CameraAlt as CameraAltIcon,
   Image as ImageIcon,
   PictureAsPdf as PictureAsPdfIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { fetchAllPages } from '../../services/api';
@@ -1061,6 +1062,8 @@ const ProjectManagement = () => {
   const [segmentFunctions, setSegmentFunctions] = useState<SegmentFunction[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
@@ -1372,12 +1375,41 @@ const ProjectManagement = () => {
       // Fetch dependencies
       const dependenciesData = await getAllDependencies();
       setDependencies(dependenciesData);
+
+      // Update last refresh time
+      setLastRefreshTime(new Date());
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+  };
+
+  // Auto-refresh on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      // Only refresh if data is stale (more than 30 seconds old)
+      if (lastRefreshTime) {
+        const now = new Date();
+        const timeSinceRefresh = now.getTime() - lastRefreshTime.getTime();
+        const thirtySeconds = 30 * 1000;
+
+        if (timeSinceRefresh > thirtySeconds) {
+          handleRefresh();
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [lastRefreshTime]);
 
   // Calculate Critical Path when data changes
   useEffect(() => {
@@ -4056,6 +4088,25 @@ const ProjectManagement = () => {
             Kanban
           </Button>
         </ActionGroup>
+
+        <Tooltip title={lastRefreshTime ? `Last refreshed: ${lastRefreshTime.toLocaleTimeString()}` : "Refresh data"}>
+          <IconButton
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            color="primary"
+            size="small"
+          >
+            <RefreshIcon
+              sx={{
+                animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' }
+                }
+              }}
+            />
+          </IconButton>
+        </Tooltip>
 
         <Button
           variant="outlined"
