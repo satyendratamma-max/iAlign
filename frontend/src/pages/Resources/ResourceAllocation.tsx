@@ -298,8 +298,9 @@ const ResourceAllocation = () => {
         // URL has editAllocationId but dialog is closed - open it
         handleOpenDialog(allocation);
       }
-    } else if (!editAllocationId && openDialog) {
-      // URL params cleared but dialog is still open - close it (browser back was clicked)
+    } else if (!editAllocationId && openDialog && editMode) {
+      // URL params cleared but dialog is still open AND we were in edit mode - close it (browser back was clicked)
+      // Don't close if we're adding a new allocation (editMode = false)
       setOpenDialog(false);
       setCurrentAllocation({
         allocationPercentage: 50,
@@ -311,7 +312,7 @@ const ResourceAllocation = () => {
       setMinMatchScore(0);
       setHasUnsavedChanges(false);
     }
-  }, [searchParams, allocations, openDialog]);
+  }, [searchParams, allocations, openDialog, editMode]);
 
   const fetchData = async () => {
     if (!activeScenario?.id) {
