@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -559,7 +559,10 @@ const QuickAllocationDialog = ({
     );
   };
 
-  const selectedRequirement = requirements.find(r => r.id === selectedRequirementId);
+  const selectedRequirement = useMemo(() =>
+    requirements.find(r => r.id === selectedRequirementId),
+    [requirements, selectedRequirementId]
+  );
 
   return (
     <Dialog
