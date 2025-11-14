@@ -129,7 +129,8 @@ export function useUnsavedChanges(
     setTimeout(() => {
       if (pendingAction === 'back') {
         // User clicked browser back
-        window.history.back();
+        // Go back 2 steps to skip past the dummy state we pushed when blocking
+        window.history.go(-2);
       } else if (pendingAction === 'forward') {
         // User clicked browser forward
         window.history.forward();
