@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef, useContext } from 'react';
+import { useLocation, useNavigate, UNSAFE_NavigationContext } from 'react-router-dom';
 
 /**
  * Hook to track unsaved changes and prevent navigation
  *
+ * Works with BrowserRouter (doesn't require data router)
+ *
  * @param hasUnsavedChanges - Boolean indicating if there are unsaved changes
  * @param message - Custom warning message (optional)
- * @returns Object with proceed and reset functions for the confirmation dialog
+ * @returns Object with showPrompt and navigation control functions
  *
  * @example
  * const { showPrompt, confirmNavigation, cancelNavigation } = useUnsavedChanges(
@@ -19,12 +21,15 @@ export function useUnsavedChanges(
   message: string = 'You have unsaved changes. Are you sure you want to leave this page?'
 ) {
   const [showPrompt, setShowPrompt] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const navigationContext = useRef<any>(null);
 
-  // Block navigation when there are unsaved changes
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
-  );
+  // Get the navigation context to intercept navigation
+  // @ts-ignore - Accessing internal context
+  const navContext = useContext(UNSAFE_NavigationContext);
+  navigationContext.current = navContext;
 
   // Handle browser refresh/close with beforeunload
   useEffect(() => {
@@ -40,28 +45,91 @@ export function useUnsavedChanges(
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges, message]);
 
-  // Show confirmation dialog when navigation is blocked
+  // Block browser back/forward navigation
   useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setShowPrompt(true);
-    }
-  }, [blocker.state]);
+    if (!hasUnsavedChanges) return;
 
-  // Confirm navigation - proceed with blocked navigation
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      // Store where we want to go
+      const currentPath = window.location.pathname;
+      setPendingNavigation(currentPath);
+      setShowPrompt(true);
+
+      // Push current state back to stay on page
+      window.history.pushState(null, '', location.pathname);
+    };
+
+    // Add a dummy state to prevent immediate back
+    window.history.pushState(null, '', location.pathname);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasUnsavedChanges, location.pathname]);
+
+  // Intercept React Router navigation (in-app links)
+  useEffect(() => {
+    if (!hasUnsavedChanges || !navigationContext.current) return;
+
+    const { navigator } = navigationContext.current;
+    if (!navigator) return;
+
+    // Store original push function
+    const originalPush = navigator.push;
+    const originalReplace = navigator.replace;
+
+    // Override push to show confirmation
+    navigator.push = (...args: any[]) => {
+      const targetPath = typeof args[0] === 'string' ? args[0] : args[0].pathname;
+
+      // If trying to navigate to different path, show prompt
+      if (targetPath !== location.pathname) {
+        setPendingNavigation(targetPath);
+        setShowPrompt(true);
+      } else {
+        originalPush.apply(navigator, args);
+      }
+    };
+
+    // Override replace similarly
+    navigator.replace = (...args: any[]) => {
+      const targetPath = typeof args[0] === 'string' ? args[0] : args[0].pathname;
+
+      if (targetPath !== location.pathname) {
+        setPendingNavigation(targetPath);
+        setShowPrompt(true);
+      } else {
+        originalReplace.apply(navigator, args);
+      }
+    };
+
+    return () => {
+      // Restore original functions
+      navigator.push = originalPush;
+      navigator.replace = originalReplace;
+    };
+  }, [hasUnsavedChanges, location.pathname]);
+
+  // Confirm navigation - proceed with pending navigation
   const confirmNavigation = useCallback(() => {
     setShowPrompt(false);
-    if (blocker.state === 'blocked') {
-      blocker.proceed();
+
+    if (pendingNavigation) {
+      // Navigate to the pending path
+      setTimeout(() => {
+        navigate(pendingNavigation);
+        setPendingNavigation(null);
+      }, 0);
     }
-  }, [blocker]);
+  }, [pendingNavigation, navigate]);
 
   // Cancel navigation - stay on current page
   const cancelNavigation = useCallback(() => {
     setShowPrompt(false);
-    if (blocker.state === 'blocked') {
-      blocker.reset();
-    }
-  }, [blocker]);
+    setPendingNavigation(null);
+  }, []);
 
   return {
     showPrompt,
