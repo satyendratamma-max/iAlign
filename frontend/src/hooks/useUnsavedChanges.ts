@@ -128,9 +128,9 @@ export function useUnsavedChanges(
 
     setTimeout(() => {
       if (pendingAction === 'back') {
-        // User clicked browser back
-        // Go back 2 steps to skip past the dummy state we pushed when blocking
-        window.history.go(-2);
+        // User clicked browser back - navigate to current path without search params
+        // This removes URL params (e.g., ?editResourceId=123), triggering useEffect to close dialogs
+        navigate(location.pathname, { replace: true });
       } else if (pendingAction === 'forward') {
         // User clicked browser forward
         window.history.forward();
@@ -142,7 +142,7 @@ export function useUnsavedChanges(
       // Reset after navigation completes
       setTimeout(() => setIsNavigationConfirmed(false), 100);
     }, 50);
-  }, [pendingAction, pendingNavigation, navigate]);
+  }, [pendingAction, pendingNavigation, navigate, location.pathname]);
 
   // Cancel navigation - stay on current page
   const cancelNavigation = useCallback(() => {
