@@ -86,6 +86,8 @@ import QuickAllocationDialog from '../../components/QuickAllocationDialog';
 import Pagination from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { usePagination } from '../../hooks/usePagination';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import NavigationPrompt from '../../components/common/NavigationPrompt';
 import {
   getAllDependencies,
   createDependency,
@@ -1062,6 +1064,7 @@ const ProjectManagement = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [dialogTab, setDialogTab] = useState(0);
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const [currentProjectMilestones, setCurrentProjectMilestones] = useState<Milestone[]>([]);
@@ -1134,6 +1137,12 @@ const ProjectManagement = () => {
 
   // INLINE EDITING STATE
   const [editingCell, setEditingCell] = useState<{ projectId: number; field: 'targetRelease' | 'targetSprint' } | null>(null);
+
+  // NAVIGATION BLOCKING - Prevent leaving page with unsaved changes
+  const { showPrompt, confirmNavigation, cancelNavigation, message: navigationMessage } = useUnsavedChanges(
+    openDialog && hasUnsavedChanges,
+    'You have unsaved changes in the project form. Are you sure you want to leave this page?'
+  );
   const [editingValue, setEditingValue] = useState<string>('');
 
   // Swimlane Configuration State
@@ -1730,6 +1739,7 @@ const ProjectManagement = () => {
       setOriginalProjectMilestones([]);
     }
     setOpenDialog(true);
+    setHasUnsavedChanges(false); // Reset on open
   };
 
   const handleCloseDialog = () => {
@@ -1740,6 +1750,13 @@ const ProjectManagement = () => {
     setOriginalProjectMilestones([]);
     setDialogTab(0);
     setFormErrors({}); // Clear any validation errors
+    setHasUnsavedChanges(false); // Reset on close
+  };
+
+  // Helper to update project and mark as unsaved
+  const updateProject = (updates: Partial<Project>) => {
+    updateProject({ ...updates });
+    setHasUnsavedChanges(true);
   };
 
   const handleSave = async () => {
@@ -6849,7 +6866,7 @@ const ProjectManagement = () => {
                   label="Project Name"
                   value={currentProject.name || ''}
                   onChange={(e) => {
-                    setCurrentProject({ ...currentProject, name: e.target.value });
+                    updateProject({ name: e.target.value });
                     // Clear error when user starts typing
                     if (formErrors.name) {
                       setFormErrors({ ...formErrors, name: '' });
@@ -6865,7 +6882,7 @@ const ProjectManagement = () => {
                   label="Project Number"
                   value={currentProject.projectNumber || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, projectNumber: e.target.value })
+                    updateProject({ projectNumber: e.target.value })
                   }
                   helperText="Optional - Unique project identifier"
                 />
@@ -6878,7 +6895,7 @@ const ProjectManagement = () => {
                   rows={3}
                   value={currentProject.description || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, description: e.target.value })
+                    updateProject({ description: e.target.value })
                   }
                   helperText="Optional - Brief description of the project goals and scope"
                 />
@@ -6890,7 +6907,7 @@ const ProjectManagement = () => {
                   label="Domain"
                   value={currentProject.domainId || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, domainId: e.target.value ? Number(e.target.value) : undefined })
+                    updateProject({ domainId: e.target.value ? Number(e.target.value) : undefined })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -6908,7 +6925,7 @@ const ProjectManagement = () => {
                   label="Segment Function"
                   value={currentProject.segmentFunctionId || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
+                    updateProject({ segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -6926,7 +6943,7 @@ const ProjectManagement = () => {
                   label="Status"
                   value={currentProject.status || 'Planning'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, status: e.target.value })
+                    updateProject({ status: e.target.value })
                   }
                 >
                   <MenuItem value="Planning">Planning</MenuItem>
@@ -6943,7 +6960,7 @@ const ProjectManagement = () => {
                   label="Priority"
                   value={currentProject.priority || 'Medium'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, priority: e.target.value })
+                    updateProject({ priority: e.target.value })
                   }
                 >
                   <MenuItem value="Low">Low</MenuItem>
@@ -6959,7 +6976,7 @@ const ProjectManagement = () => {
                   label="Fiscal Year"
                   value={currentProject.fiscalYear || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, fiscalYear: e.target.value })
+                    updateProject({ fiscalYear: e.target.value })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -6977,7 +6994,7 @@ const ProjectManagement = () => {
                   label="Target Release"
                   value={currentProject.targetRelease || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, targetRelease: e.target.value })
+                    updateProject({ targetRelease: e.target.value })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -6993,7 +7010,7 @@ const ProjectManagement = () => {
                   label="Target Sprint"
                   value={currentProject.targetSprint || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, targetSprint: e.target.value })
+                    updateProject({ targetSprint: e.target.value })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -7024,7 +7041,7 @@ const ProjectManagement = () => {
                   label="Health Status"
                   value={currentProject.healthStatus || 'Green'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, healthStatus: e.target.value })
+                    updateProject({ healthStatus: e.target.value })
                   }
                 >
                   <MenuItem value="Green">Green</MenuItem>
@@ -7039,7 +7056,7 @@ const ProjectManagement = () => {
                   label="Current Phase"
                   value={currentProject.currentPhase || 'Requirements'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, currentPhase: e.target.value })
+                    updateProject({ currentPhase: e.target.value })
                   }
                 >
                   <MenuItem value="Requirements">Requirements</MenuItem>
@@ -7057,7 +7074,7 @@ const ProjectManagement = () => {
                   label="Project Type"
                   value={currentProject.type || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, type: e.target.value })
+                    updateProject({ type: e.target.value })
                   }
                   placeholder="e.g., Infrastructure, Application, Enhancement"
                 />
@@ -7074,7 +7091,7 @@ const ProjectManagement = () => {
                   label="Business Process"
                   value={currentProject.businessProcess || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, businessProcess: e.target.value })
+                    updateProject({ businessProcess: e.target.value })
                   }
                 />
               </Grid>
@@ -7084,7 +7101,7 @@ const ProjectManagement = () => {
                   label="Division"
                   value={currentProject.division || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, division: e.target.value })
+                    updateProject({ division: e.target.value })
                   }
                 />
               </Grid>
@@ -7096,7 +7113,7 @@ const ProjectManagement = () => {
                   rows={3}
                   value={currentProject.functionality || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, functionality: e.target.value })
+                    updateProject({ functionality: e.target.value })
                   }
                 />
               </Grid>
@@ -7106,7 +7123,7 @@ const ProjectManagement = () => {
                   label="Business Decision"
                   value={currentProject.businessDecision || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, businessDecision: e.target.value })
+                    updateProject({ businessDecision: e.target.value })
                   }
                 />
               </Grid>
@@ -7116,7 +7133,7 @@ const ProjectManagement = () => {
                   label="Business Priority"
                   value={currentProject.businessPriority || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, businessPriority: e.target.value })
+                    updateProject({ businessPriority: e.target.value })
                   }
                 />
               </Grid>
@@ -7126,7 +7143,7 @@ const ProjectManagement = () => {
                   label="Needle Mover"
                   value={currentProject.needleMover || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, needleMover: e.target.value })
+                    updateProject({ needleMover: e.target.value })
                   }
                 />
               </Grid>
@@ -7136,7 +7153,7 @@ const ProjectManagement = () => {
                   label="DOW"
                   value={currentProject.dow || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, dow: e.target.value })
+                    updateProject({ dow: e.target.value })
                   }
                 />
               </Grid>
@@ -7147,7 +7164,7 @@ const ProjectManagement = () => {
                   label="New or Carry Over"
                   value={currentProject.newOrCarryOver || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, newOrCarryOver: e.target.value })
+                    updateProject({ newOrCarryOver: e.target.value })
                   }
                 >
                   <MenuItem value="">None</MenuItem>
@@ -7161,7 +7178,7 @@ const ProjectManagement = () => {
                   label="Technology Choice"
                   value={currentProject.technologyChoice || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, technologyChoice: e.target.value })
+                    updateProject({ technologyChoice: e.target.value })
                   }
                 />
               </Grid>
@@ -7172,7 +7189,7 @@ const ProjectManagement = () => {
                   label="Project Infrastructure Needed"
                   value={currentProject.projectInfrastructureNeeded !== undefined ? (currentProject.projectInfrastructureNeeded ? 'true' : 'false') : 'false'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, projectInfrastructureNeeded: e.target.value === 'true' })
+                    updateProject({ projectInfrastructureNeeded: e.target.value === 'true' })
                   }
                 >
                   <MenuItem value="false">No</MenuItem>
@@ -7186,7 +7203,7 @@ const ProjectManagement = () => {
                   label="Co-Creation"
                   value={currentProject.coCreation !== undefined ? (currentProject.coCreation ? 'true' : 'false') : 'false'}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, coCreation: e.target.value === 'true' })
+                    updateProject({ coCreation: e.target.value === 'true' })
                   }
                 >
                   <MenuItem value="false">No</MenuItem>
@@ -7564,7 +7581,7 @@ const ProjectManagement = () => {
                   label="Investment Class"
                   value={currentProject.investmentClass || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, investmentClass: e.target.value })
+                    updateProject({ investmentClass: e.target.value })
                   }
                 />
               </Grid>
@@ -7574,7 +7591,7 @@ const ProjectManagement = () => {
                   label="Benefit Area"
                   value={currentProject.benefitArea || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, benefitArea: e.target.value })
+                    updateProject({ benefitArea: e.target.value })
                   }
                 />
               </Grid>
@@ -7584,7 +7601,7 @@ const ProjectManagement = () => {
                   label="Technology Area"
                   value={currentProject.technologyArea || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, technologyArea: e.target.value })
+                    updateProject({ technologyArea: e.target.value })
                   }
                 />
               </Grid>
@@ -7594,7 +7611,7 @@ const ProjectManagement = () => {
                   label="Enterprise Category"
                   value={currentProject.enterpriseCategory || ''}
                   onChange={(e) =>
-                    setCurrentProject({ ...currentProject, enterpriseCategory: e.target.value })
+                    updateProject({ enterpriseCategory: e.target.value })
                   }
                 />
               </Grid>
@@ -8150,6 +8167,14 @@ const ProjectManagement = () => {
         onSave={handleSaveDependency}
         projects={filteredProjects}
         milestones={milestones.filter(m => filteredProjects.some(p => p.id === m.projectId))}
+      />
+
+      {/* Navigation Prompt - Warn when leaving with unsaved changes */}
+      <NavigationPrompt
+        open={showPrompt}
+        message={navigationMessage}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
       />
     </Box>
   );
