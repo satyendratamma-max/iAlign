@@ -474,7 +474,11 @@ const QuickAllocationDialog = ({
         await axios.post(`${API_URL}/allocations`, allocationData, config);
       }
 
-      onSave();
+      // Small delay to ensure backend has fully committed before refreshing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Await onSave to ensure parent component completes data refresh
+      await Promise.resolve(onSave());
       handleClose();
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} allocation:`, error);

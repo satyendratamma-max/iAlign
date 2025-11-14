@@ -2029,11 +2029,11 @@ const ProjectManagement = () => {
     }
   };
 
-  const handleAllocationSaved = () => {
+  const handleAllocationSaved = async () => {
     setOpenAllocationDialog(false);
     // Refresh the allocations list
     if (selectedProject) {
-      handleViewResources(selectedProject);
+      await handleViewResources(selectedProject);
     }
   };
 
