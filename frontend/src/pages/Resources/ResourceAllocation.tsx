@@ -2091,7 +2091,7 @@ const ResourceAllocation = () => {
                   {(() => {
                     const selectedReq = selectedProjectRequirements.find(r => r.id === currentAllocation.projectRequirementId) ||
                       availableProjects.find(p => p.id === currentAllocation.projectId)?.bestRequirement;
-                    if (selectedReq) {
+                    if (selectedReq && selectedReq.app && selectedReq.technology && selectedReq.role) {
                       return (
                         <Box>
                           <Typography variant="body2">
