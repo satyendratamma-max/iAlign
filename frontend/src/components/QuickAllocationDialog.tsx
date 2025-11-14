@@ -718,8 +718,8 @@ const QuickAllocationDialog = ({
                         availableResources.filter(r => r.matchScore >= minMatchScore).length === 0
                           ? 'No resources match - try typing a name or lowering the match score'
                           : resourceSearchTerm
-                          ? `Found ${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching "${resourceSearchTerm}"`
-                          : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching resource(s) - type to filter by name`
+                          ? `Found ${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching "${resourceSearchTerm}"${availableResources.length >= 500 ? ' (limit reached - search more specifically for better results)' : ''}`
+                          : `${availableResources.filter(r => r.matchScore >= minMatchScore).length} matching resource(s) - type to filter by name${availableResources.length >= 500 ? ' (showing top 500)' : ''}`
                       }
                     />
                   )}
