@@ -289,6 +289,7 @@ const ResourceAllocation = () => {
   // Handle deep linking - restore dialog state from URL or close when params removed
   useEffect(() => {
     const editAllocationId = searchParams.get('editAllocationId');
+    const addAllocation = searchParams.get('addAllocation');
 
     if (editAllocationId && allocations.length > 0) {
       const allocationId = parseInt(editAllocationId);
@@ -298,7 +299,7 @@ const ResourceAllocation = () => {
         // URL has editAllocationId but dialog is closed - open it
         handleOpenDialog(allocation);
       }
-    } else if (!editAllocationId && openDialog) {
+    } else if (!editAllocationId && !addAllocation && openDialog) {
       // URL params cleared but dialog is still open - close it
       setOpenDialog(false);
       setCurrentAllocation({
@@ -564,9 +565,11 @@ const ResourceAllocation = () => {
     setOpenDialog(true);
     setHasUnsavedChanges(false); // Reset on open
 
-    // Set URL params for edit mode
+    // Set URL params
     if (allocation?.id) {
       setSearchParams({ editAllocationId: allocation.id.toString() });
+    } else {
+      setSearchParams({ addAllocation: 'true' });
     }
   };
 
