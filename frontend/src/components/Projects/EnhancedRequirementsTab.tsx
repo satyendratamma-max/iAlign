@@ -242,6 +242,78 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
     navigate(`/resources/allocation?projectId=${projectId}&requirementId=${requirement.id}&suggest=true`);
   };
 
+  const handleAddDefaultRequirements = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      // Define default requirements: IT Manager, Portfolio Manager, Functional Analyst, Developer, Tester
+      const defaultRoles = [
+        { roleName: 'IT Manager', proficiency: 'Expert', priority: 'High' },
+        { roleName: 'Portfolio Manager', proficiency: 'Expert', priority: 'High' },
+        { roleName: 'Functional Analyst', proficiency: 'Advanced', priority: 'High' },
+        { roleName: 'Developer', proficiency: 'Advanced', priority: 'High' },
+        { roleName: 'Tester', proficiency: 'Intermediate', priority: 'Medium' },
+      ];
+
+      // Fetch all roles, apps, and technologies to find matching IDs
+      const [rolesRes, appsRes, techsRes] = await Promise.all([
+        axios.get(`${API_URL}/roles`, config),
+        axios.get(`${API_URL}/apps`, config),
+        axios.get(`${API_URL}/technologies`, config),
+      ]);
+
+      const roles = rolesRes.data.data || [];
+      const apps = appsRes.data.data || [];
+      const techs = techsRes.data.data || [];
+
+      // Use first app and tech as defaults (or you can make these configurable)
+      const defaultApp = apps[0];
+      const defaultTech = techs[0];
+
+      if (!defaultApp || !defaultTech) {
+        setError('Default app or technology not found. Please ensure master data exists.');
+        return;
+      }
+
+      // Create requirements for each default role
+      const requirementsToCreate = [];
+      for (const defaultRole of defaultRoles) {
+        const role = roles.find((r: any) => r.name?.toLowerCase().includes(defaultRole.roleName.toLowerCase()));
+
+        if (role) {
+          requirementsToCreate.push({
+            projectId: projectId,
+            appId: defaultApp.id,
+            technologyId: defaultTech.id,
+            roleId: role.id,
+            requiredCount: 1,
+            proficiencyLevel: defaultRole.proficiency,
+            priority: defaultRole.priority,
+            startDate: project?.startDate,
+            endDate: project?.endDate,
+            description: `Default requirement for ${defaultRole.roleName}`,
+          });
+        }
+      }
+
+      // Create all requirements
+      await Promise.all(
+        requirementsToCreate.map(req =>
+          axios.post(`${API_URL}/project-requirements`, req, config)
+        )
+      );
+
+      setSuccessMessage(`Added ${requirementsToCreate.length} default requirements successfully`);
+      fetchRequirements();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to add default requirements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Calculate statistics
   const stats = useMemo(() => {
     const total = requirements.length;
@@ -350,6 +422,14 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
             id="template-btn"
           >
             Template
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleAddDefaultRequirements}
+            disabled={loading}
+          >
+            Add Default Requirements
           </Button>
           <Button
             variant="contained"
