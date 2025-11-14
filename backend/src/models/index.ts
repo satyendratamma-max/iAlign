@@ -19,6 +19,15 @@ import ProjectDomainImpact from './ProjectDomainImpact';
 import ProjectDependency from './ProjectDependency';
 import Scenario from './Scenario';
 import ProjectActivity from './ProjectActivity';
+import DefaultRequirement from './DefaultRequirement';
+
+// ⭐ DefaultRequirement Associations (must be early to satisfy TypeScript unused import check)
+App.hasMany(DefaultRequirement, { foreignKey: 'appId', as: 'defaultRequirements' });
+DefaultRequirement.belongsTo(App, { foreignKey: 'appId', as: 'app' });
+Technology.hasMany(DefaultRequirement, { foreignKey: 'technologyId', as: 'defaultRequirements' });
+DefaultRequirement.belongsTo(Technology, { foreignKey: 'technologyId', as: 'technology' });
+Role.hasMany(DefaultRequirement, { foreignKey: 'roleId', as: 'defaultRequirements' });
+DefaultRequirement.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
 // Scenario Associations
 Scenario.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
@@ -275,6 +284,7 @@ export {
   ProjectDependency,
   Scenario,
   ProjectActivity,
+  DefaultRequirement,
 };
 
 export default {
@@ -299,4 +309,5 @@ export default {
   ProjectDependency,
   Scenario,
   ProjectActivity,
+  DefaultRequirement,
 };

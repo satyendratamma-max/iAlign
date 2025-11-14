@@ -26,6 +26,7 @@ import DataModel from './pages/Admin/DataModel';
 import AppsManagement from './pages/Admin/AppsManagement';
 import TechnologiesManagement from './pages/Admin/TechnologiesManagement';
 import RolesManagement from './pages/Admin/RolesManagement';
+import DefaultRequirementsConfig from './pages/Admin/DefaultRequirementsConfig';
 import ScenarioManagement from './pages/Admin/ScenarioManagement';
 import Login from './pages/Auth/Login';
 import { useAppSelector } from './hooks/redux';
@@ -165,6 +166,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute requiredRole="Administrator">
               <RolesManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/default-requirements"
+          element={
+            <ProtectedRoute requiredRole="Administrator">
+              <DefaultRequirementsConfig />
             </ProtectedRoute>
           }
         />

@@ -248,111 +248,31 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Default requirement specs - we'll match to actual roles in the system
-      const defaultSpecs = [
-        { keywords: ['manager', 'project manager', 'portfolio manager', 'program manager'], proficiency: 'Expert', priority: 'High' },
-        { keywords: ['analyst', 'business analyst', 'functional analyst', 'systems analyst'], proficiency: 'Advanced', priority: 'High' },
-        { keywords: ['developer', 'programmer', 'engineer'], proficiency: 'Advanced', priority: 'High' },
-        { keywords: ['tester', 'qa', 'quality assurance', 'test engineer'], proficiency: 'Intermediate', priority: 'Medium' },
-        { keywords: ['architect', 'technical lead', 'lead developer'], proficiency: 'Expert', priority: 'High' },
-      ];
+      // Fetch configured default requirements from the API
+      const defaultReqsRes = await axios.get(`${API_URL}/default-requirements`, config);
+      const defaultRequirements = defaultReqsRes.data.data || [];
 
-      // Fetch all roles, apps, and technologies to find matching IDs
-      const [rolesRes, appsRes, techsRes] = await Promise.all([
-        axios.get(`${API_URL}/roles`, config),
-        axios.get(`${API_URL}/apps`, config),
-        axios.get(`${API_URL}/technologies`, config),
-      ]);
-
-      const roles = rolesRes.data.data || [];
-      const apps = appsRes.data.data || [];
-      const techs = techsRes.data.data || [];
-
-      if (apps.length === 0 || techs.length === 0) {
-        setError('No apps or technologies found. Please ensure master data exists.');
+      if (defaultRequirements.length === 0) {
+        setError('No default requirements configured. Please configure them in Admin Tools > Default Requirements.');
         return;
       }
 
-      // Match default specs to actual roles in the system
-      const requirementsToCreate = [];
-      const usedRoles = new Set<number>(); // Track roles we've already used
+      // Map default requirements to project requirements
+      const requirementsToCreate = defaultRequirements.map((def: any) => ({
+        projectId: projectId,
+        appId: def.appId,
+        technologyId: def.technologyId,
+        roleId: def.roleId,
+        requiredCount: def.requiredCount,
+        proficiencyLevel: def.proficiencyLevel,
+        minYearsExp: def.minYearsExp,
+        priority: def.priority,
+        startDate: project?.startDate,
+        endDate: project?.endDate,
+        description: def.description || `${def.app?.name} / ${def.technology?.name} / ${def.role?.name}`,
+      }));
 
-      for (const spec of defaultSpecs) {
-        // Try to find a role that matches any of the keywords
-        const role = roles.find((r: any) => {
-          if (usedRoles.has(r.id)) return false; // Skip already used roles
-          const roleName = r.name?.toLowerCase() || '';
-          return spec.keywords.some(keyword => roleName.includes(keyword.toLowerCase()));
-        });
-
-        if (!role) {
-          continue; // Skip if no matching role found
-        }
-
-        usedRoles.add(role.id); // Mark this role as used
-
-        // Find compatible app and tech for this role
-        let compatibleApp = apps[0]; // Start with first app
-        let compatibleTech = techs[0]; // Start with first tech
-
-        // If role is specific to an app, use that app
-        if (role.appId) {
-          compatibleApp = apps.find((a: any) => a.id === role.appId);
-          if (!compatibleApp) {
-            continue; // Skip this role if required app not found
-          }
-        }
-
-        // If role is specific to a technology, use that technology
-        if (role.technologyId) {
-          compatibleTech = techs.find((t: any) => t.id === role.technologyId);
-          if (!compatibleTech) {
-            continue; // Skip this role if required tech not found
-          }
-        }
-
-        // If tech is specific to an app, ensure app matches
-        if (compatibleTech.appId && compatibleTech.appId !== compatibleApp.id) {
-          // Find a tech that's compatible with the role's app
-          const alternativeTech = techs.find((t: any) =>
-            !t.appId || t.appId === compatibleApp.id
-          );
-          if (alternativeTech) {
-            compatibleTech = alternativeTech;
-          } else {
-            continue; // Skip this role if no compatible combination found
-          }
-        }
-
-        requirementsToCreate.push({
-          projectId: projectId,
-          appId: compatibleApp.id,
-          technologyId: compatibleTech.id,
-          roleId: role.id,
-          requiredCount: 1,
-          proficiencyLevel: spec.proficiency,
-          priority: spec.priority,
-          startDate: project?.startDate,
-          endDate: project?.endDate,
-          description: `Default requirement for ${role.name}`,
-        });
-      }
-
-      // Check if we found any roles to create
-      if (requirementsToCreate.length === 0) {
-        const availableRoleNames = roles.map((r: any) => r.name).slice(0, 15).join(', ');
-        setError(
-          `Could not find suitable roles matching: Manager, Analyst, Developer, Tester, or Architect. ` +
-          `Available roles include: ${availableRoleNames}${roles.length > 15 ? ', and more...' : ''}. ` +
-          `Please use 'Add Requirement' to manually select from available roles.`
-        );
-        return;
-      }
-
-      // Log what we're about to create for debugging
-      console.log('Creating requirements:', requirementsToCreate);
-
-      // Create all requirements if all roles exist
+      // Create all requirements
       const results = await Promise.allSettled(
         requirementsToCreate.map(req =>
           axios.post(`${API_URL}/project-requirements`, req, config)
