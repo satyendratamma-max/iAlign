@@ -51,24 +51,26 @@ export function useUnsavedChanges(
   useEffect(() => {
     if (!hasUnsavedChanges || isNavigationConfirmed) return;
 
+    const currentUrl = location.pathname + location.search;
+
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
       // User clicked browser back or forward
       setPendingAction('back'); // Assume back for now (can't easily detect forward)
       setShowPrompt(true);
 
-      // Push current state back to stay on page
-      window.history.pushState(null, '', location.pathname);
+      // Push current state back to stay on page (preserve search params)
+      window.history.pushState(null, '', currentUrl);
     };
 
-    // Add a dummy state to prevent immediate back
-    window.history.pushState(null, '', location.pathname);
+    // Add a dummy state to prevent immediate back (preserve search params)
+    window.history.pushState(null, '', currentUrl);
     window.addEventListener('popstate', handlePopState);
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [hasUnsavedChanges, isNavigationConfirmed, location.pathname]);
+  }, [hasUnsavedChanges, isNavigationConfirmed, location.pathname, location.search]);
 
   // Intercept React Router navigation (in-app links)
   useEffect(() => {
