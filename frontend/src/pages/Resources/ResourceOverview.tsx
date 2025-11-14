@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Typography,
   Box,
@@ -44,6 +45,8 @@ import Pagination from '../../components/common/Pagination';
 import { useAppSelector } from '../../hooks/redux';
 import { useScenario } from '../../contexts/ScenarioContext';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import NavigationPrompt from '../../components/common/NavigationPrompt';
 import { People as PeopleIcon } from '@mui/icons-material';
 import TableSkeleton from '../../components/common/TableSkeleton';
 
@@ -193,6 +196,7 @@ interface Allocation {
 }
 
 const ResourceOverview = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { selectedDomainIds } = useAppSelector((state) => state.filters);
   const { activeScenario } = useScenario();
   const [resources, setResources] = useState<Resource[]>([]);
@@ -225,6 +229,13 @@ const ResourceOverview = () => {
     location: '',
     segmentFunction: '',
   });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Navigation blocking hook
+  const { showPrompt, confirmNavigation, cancelNavigation, message: navigationMessage } = useUnsavedChanges(
+    openDialog && hasUnsavedChanges,
+    'You have unsaved changes in the resource form. Are you sure you want to leave this page?'
+  );
 
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -304,11 +315,41 @@ const ResourceOverview = () => {
     }
   }, [debouncedFilters, selectedDomainIds]);
 
+  // Handle deep linking - restore dialog state from URL on browser back/forward
+  useEffect(() => {
+    const editResourceId = searchParams.get('editResourceId');
+
+    if (editResourceId && resources.length > 0) {
+      const resourceId = parseInt(editResourceId);
+      const resource = resources.find(r => r.id === resourceId);
+
+      if (resource && !openDialog) {
+        // Only open if not already open (prevent re-opening on every render)
+        setEditMode(true);
+        setCurrentResource(resource);
+        setCurrentCapabilities(resource.capabilities || []);
+        setNewCapabilities([]);
+        setCapabilitiesToDelete([]);
+        setOpenDialog(true);
+        setHasUnsavedChanges(false);
+      }
+    } else if (!editResourceId && openDialog) {
+      // No editResourceId in URL but dialog is open - user clicked back from dialog state
+      setOpenDialog(false);
+      setCurrentResource({});
+      setCurrentCapabilities([]);
+      setNewCapabilities([]);
+      setCapabilitiesToDelete([]);
+    }
+  }, [searchParams, resources, openDialog]);
+
   const handleOpenDialog = (resource?: Resource) => {
     if (resource) {
       setEditMode(true);
       setCurrentResource(resource);
       setCurrentCapabilities(resource.capabilities || []);
+      // Set URL params to preserve dialog state for browser back/forward
+      setSearchParams({ editResourceId: resource.id!.toString() });
     } else {
       setEditMode(false);
       setCurrentResource({});
@@ -317,6 +358,7 @@ const ResourceOverview = () => {
     setNewCapabilities([]);
     setCapabilitiesToDelete([]);
     setOpenDialog(true);
+    setHasUnsavedChanges(false); // Reset on open
   };
 
   const handleCloseDialog = () => {
@@ -325,6 +367,14 @@ const ResourceOverview = () => {
     setCurrentCapabilities([]);
     setNewCapabilities([]);
     setCapabilitiesToDelete([]);
+    setHasUnsavedChanges(false); // Reset on close
+    setSearchParams({}); // Clear URL params when closing dialog
+  };
+
+  // Helper to update resource and mark as unsaved
+  const updateResource = (updates: Partial<Resource>) => {
+    setCurrentResource({ ...currentResource, ...updates });
+    setHasUnsavedChanges(true);
   };
 
   const handleAddCapability = () => {
@@ -338,21 +388,25 @@ const ResourceOverview = () => {
       isPrimary: false,
     };
     setNewCapabilities([...newCapabilities, newCap]);
+    setHasUnsavedChanges(true);
   };
 
   const handleUpdateNewCapability = (tempId: string, field: string, value: any) => {
     setNewCapabilities(newCapabilities.map(cap =>
       cap.tempId === tempId ? { ...cap, [field]: value } : cap
     ));
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteNewCapability = (tempId: string) => {
     setNewCapabilities(newCapabilities.filter(cap => cap.tempId !== tempId));
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteExistingCapability = (capabilityId: number) => {
     setCapabilitiesToDelete([...capabilitiesToDelete, capabilityId]);
     setCurrentCapabilities(currentCapabilities.filter(cap => cap.id !== capabilityId));
+    setHasUnsavedChanges(true);
   };
 
   const handleTogglePrimaryCapability = (capabilityId: number) => {
@@ -360,6 +414,7 @@ const ResourceOverview = () => {
       ...cap,
       isPrimary: cap.id === capabilityId ? !cap.isPrimary : false,
     })));
+    setHasUnsavedChanges(true);
   };
 
   const handleToggleNewPrimaryCapability = (tempId: string) => {
@@ -367,12 +422,14 @@ const ResourceOverview = () => {
       ...cap,
       isPrimary: cap.tempId === tempId ? !cap.isPrimary : false,
     })));
+    setHasUnsavedChanges(true);
   };
 
   const handleUpdateExistingCapability = (capabilityId: number, field: string, value: any) => {
     setCurrentCapabilities(currentCapabilities.map(cap =>
       cap.id === capabilityId ? { ...cap, [field]: value } : cap
     ));
+    setHasUnsavedChanges(true);
   };
 
   const handleSave = async () => {
@@ -1002,7 +1059,7 @@ const ResourceOverview = () => {
                 label="Employee ID"
                 value={currentResource.employeeId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, employeeId: e.target.value })
+                  updateResource({ employeeId: e.target.value })
                 }
                 disabled={editMode}
                 helperText={editMode ? 'Employee ID cannot be changed' : 'Unique identifier for the employee'}
@@ -1015,7 +1072,7 @@ const ResourceOverview = () => {
                 type="email"
                 value={currentResource.email || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, email: e.target.value })
+                  updateResource({ email: e.target.value })
                 }
               />
             </Grid>
@@ -1026,7 +1083,7 @@ const ResourceOverview = () => {
                 label="Domain"
                 value={currentResource.domainId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, domainId: e.target.value ? Number(e.target.value) : undefined })
+                  updateResource({ domainId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -1044,7 +1101,7 @@ const ResourceOverview = () => {
                 label="Segment Function"
                 value={currentResource.segmentFunctionId || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
+                  updateResource({ segmentFunctionId: e.target.value ? Number(e.target.value) : undefined })
                 }
               >
                 <MenuItem value="">None</MenuItem>
@@ -1061,7 +1118,7 @@ const ResourceOverview = () => {
                 label="First Name"
                 value={currentResource.firstName || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, firstName: e.target.value })
+                  updateResource({ firstName: e.target.value })
                 }
               />
             </Grid>
@@ -1071,7 +1128,7 @@ const ResourceOverview = () => {
                 label="Last Name"
                 value={currentResource.lastName || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, lastName: e.target.value })
+                  updateResource({ lastName: e.target.value })
                 }
               />
             </Grid>
@@ -1081,7 +1138,7 @@ const ResourceOverview = () => {
                 label="Role"
                 value={currentResource.role || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, role: e.target.value })
+                  updateResource({ role: e.target.value })
                 }
               />
             </Grid>
@@ -1091,7 +1148,7 @@ const ResourceOverview = () => {
                 label="Location"
                 value={currentResource.location || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, location: e.target.value })
+                  updateResource({ location: e.target.value })
                 }
               />
             </Grid>
@@ -1102,10 +1159,7 @@ const ResourceOverview = () => {
                 type="number"
                 value={currentResource.hourlyRate || ''}
                 onChange={(e) =>
-                  setCurrentResource({
-                    ...currentResource,
-                    hourlyRate: parseFloat(e.target.value) || 0,
-                  })
+                  updateResource({ hourlyRate: parseFloat(e.target.value) || 0 })
                 }
               />
             </Grid>
@@ -1116,10 +1170,7 @@ const ResourceOverview = () => {
                 type="number"
                 value={currentResource.utilizationRate || ''}
                 onChange={(e) =>
-                  setCurrentResource({
-                    ...currentResource,
-                    utilizationRate: parseFloat(e.target.value) || 0,
-                  })
+                  updateResource({ utilizationRate: parseFloat(e.target.value) || 0 })
                 }
                 inputProps={{ min: 0, max: 100 }}
               />
@@ -1130,7 +1181,7 @@ const ResourceOverview = () => {
                 label="Primary Skill"
                 value={currentResource.primarySkill || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, primarySkill: e.target.value })
+                  updateResource({ primarySkill: e.target.value })
                 }
               />
             </Grid>
@@ -1140,7 +1191,7 @@ const ResourceOverview = () => {
                 label="Secondary Skills"
                 value={currentResource.secondarySkills || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, secondarySkills: e.target.value })
+                  updateResource({ secondarySkills: e.target.value })
                 }
                 placeholder="Comma separated skills"
               />
@@ -1151,7 +1202,7 @@ const ResourceOverview = () => {
                 label="Timezone"
                 value={currentResource.timezone || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, timezone: e.target.value })
+                  updateResource({ timezone: e.target.value })
                 }
                 placeholder="e.g., EST, PST, UTC"
               />
@@ -1163,7 +1214,7 @@ const ResourceOverview = () => {
                 type="date"
                 value={currentResource.joiningDate?.split('T')[0] || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, joiningDate: e.target.value })
+                  updateResource({ joiningDate: e.target.value })
                 }
                 InputLabelProps={{ shrink: true }}
                 helperText="Date when employee joined the organization"
@@ -1176,7 +1227,7 @@ const ResourceOverview = () => {
                 type="date"
                 value={currentResource.endOfServiceDate?.split('T')[0] || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, endOfServiceDate: e.target.value })
+                  updateResource({ endOfServiceDate: e.target.value })
                 }
                 InputLabelProps={{ shrink: true }}
                 helperText="Date when employee leaves the organization (optional)"
@@ -1189,10 +1240,7 @@ const ResourceOverview = () => {
                 type="number"
                 value={currentResource.monthlyCost || ''}
                 onChange={(e) =>
-                  setCurrentResource({
-                    ...currentResource,
-                    monthlyCost: parseFloat(e.target.value) || 0,
-                  })
+                  updateResource({ monthlyCost: parseFloat(e.target.value) || 0 })
                 }
               />
             </Grid>
@@ -1203,10 +1251,7 @@ const ResourceOverview = () => {
                 type="number"
                 value={currentResource.totalCapacityHours || 160}
                 onChange={(e) =>
-                  setCurrentResource({
-                    ...currentResource,
-                    totalCapacityHours: parseInt(e.target.value) || 160,
-                  })
+                  updateResource({ totalCapacityHours: parseInt(e.target.value) || 160 })
                 }
               />
             </Grid>
@@ -1216,7 +1261,7 @@ const ResourceOverview = () => {
                 label="Home Location"
                 value={currentResource.homeLocation || ''}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, homeLocation: e.target.value })
+                  updateResource({ homeLocation: e.target.value })
                 }
               />
             </Grid>
@@ -1227,7 +1272,7 @@ const ResourceOverview = () => {
                 label="Is Remote"
                 value={currentResource.isRemote !== undefined ? (currentResource.isRemote ? 'true' : 'false') : 'false'}
                 onChange={(e) =>
-                  setCurrentResource({ ...currentResource, isRemote: e.target.value === 'true' })
+                  updateResource({ isRemote: e.target.value === 'true' })
                 }
               >
                 <MenuItem value="false">No</MenuItem>
@@ -1929,6 +1974,14 @@ const ResourceOverview = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Navigation Prompt - Warn when leaving with unsaved changes */}
+      <NavigationPrompt
+        open={showPrompt}
+        message={navigationMessage}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </Box>
   );
 };
