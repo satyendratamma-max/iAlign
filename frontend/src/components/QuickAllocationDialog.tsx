@@ -653,11 +653,14 @@ const QuickAllocationDialog = ({
                   }}
                   inputValue={resourceSearchTerm}
                   onInputChange={(_, newInputValue, reason) => {
-                    // Only update search term on user input, not on selection
+                    // Update search term on user input or when option is selected
                     if (reason === 'input') {
                       setResourceSearchTerm(newInputValue);
                     } else if (reason === 'clear') {
                       setResourceSearchTerm('');
+                    } else if (reason === 'reset') {
+                      // When user selects an option, update to show selected option's label
+                      setResourceSearchTerm(newInputValue);
                     }
                   }}
                   loading={resourceSearchLoading}
