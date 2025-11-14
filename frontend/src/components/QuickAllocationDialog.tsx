@@ -244,8 +244,7 @@ const QuickAllocationDialog = ({
             const matchedRequirement = loadedRequirements.find(r => r.id === requirement.id);
             if (matchedRequirement) {
               setSelectedRequirementId(requirement.id);
-              // Load matching resources for this requirement
-              await loadMatchingResources(requirement.id);
+              // Debounced search useEffect will automatically load resources
             }
           }
         }
@@ -253,7 +252,7 @@ const QuickAllocationDialog = ({
 
       initializeDialog();
     }
-  }, [open, resource, project, allocation, requirement]);
+  }, [open, resource, project, allocation]);
 
   const loadProjectRequirements = async (): Promise<Requirement[] | undefined> => {
     if (!project) return undefined;
