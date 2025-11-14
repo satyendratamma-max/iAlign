@@ -1932,12 +1932,17 @@ const ResourceAllocation = () => {
                 }
                 value={resources.find(r => r.id === currentAllocation.resourceId) || null}
                 onChange={(_, newValue) => {
+                  console.log('Autocomplete onChange fired! newValue:', newValue);
                   if (newValue) {
+                    console.log('newValue exists, proceeding with resource change');
                     // Ensure selected resource is in the resources array for proper value binding
                     if (!resources.some(r => r.id === newValue.id)) {
+                      console.log('Adding resource to resources array');
                       setResources(prev => [...prev, newValue]);
                     }
                     handleResourceChange(newValue.id);
+                  } else {
+                    console.log('newValue is null/undefined');
                   }
                 }}
                 renderInput={(params) => (

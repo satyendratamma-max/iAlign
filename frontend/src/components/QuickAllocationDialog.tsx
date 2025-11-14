@@ -626,7 +626,13 @@ const QuickAllocationDialog = ({
                     `${option.firstName} ${option.lastName} (${option.employeeId})${!isEditMode ? ` - ${option.matchScore}%` : ''}`
                   }
                   value={availableResources.find(r => r.id === selectedResourceId) || null}
-                  onChange={(_, newValue) => handleResourceChange(newValue?.id, newValue?.bestCapability?.id)}
+                  onChange={(_, newValue) => {
+                    // Ensure selected resource is in availableResources array
+                    if (newValue && !availableResources.some(r => r.id === newValue.id)) {
+                      setAvailableResources(prev => [...prev, newValue]);
+                    }
+                    handleResourceChange(newValue?.id, newValue?.bestCapability?.id);
+                  }}
                   inputValue={resourceSearchTerm}
                   onInputChange={(_, newInputValue, reason) => {
                     // Only update search term on user input, not on selection
