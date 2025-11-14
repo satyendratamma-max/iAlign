@@ -723,8 +723,7 @@ const ResourceAllocation = () => {
   };
 
   const handleResourceChange = (resourceId: number) => {
-    setCurrentAllocation({
-      ...currentAllocation,
+    updateAllocation({
       resourceId,
       resourceCapabilityId: undefined,
       projectId: undefined,
@@ -738,8 +737,7 @@ const ResourceAllocation = () => {
   };
 
   const handleCapabilityChange = (capabilityId: number | undefined) => {
-    setCurrentAllocation({
-      ...currentAllocation,
+    updateAllocation({
       resourceCapabilityId: capabilityId,
       projectId: undefined,
       projectRequirementId: undefined,
@@ -822,8 +820,7 @@ const ResourceAllocation = () => {
 
   const handleProjectChange = (projectId: number) => {
     const selectedProject = projects.find(p => p.id === projectId) || availableProjects.find(p => p.id === projectId);
-    setCurrentAllocation({
-      ...currentAllocation,
+    updateAllocation({
       projectId,
       projectRequirementId: undefined,
       startDate: selectedProject?.startDate,
@@ -2116,10 +2113,7 @@ const ResourceAllocation = () => {
                 label="Allocation %"
                 value={currentAllocation.allocationPercentage || 50}
                 onChange={(e) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    allocationPercentage: parseInt(e.target.value),
-                  })
+                  updateAllocation({ allocationPercentage: parseInt(e.target.value) })
                 }
                 inputProps={{ min: 1, max: 100 }}
                 required
@@ -2133,10 +2127,7 @@ const ResourceAllocation = () => {
                 label="Allocation Type"
                 value={currentAllocation.allocationType || 'Shared'}
                 onChange={(e) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    allocationType: e.target.value,
-                  })
+                  updateAllocation({ allocationType: e.target.value })
                 }
                 required
               >
@@ -2153,10 +2144,7 @@ const ResourceAllocation = () => {
                 label="Start Date"
                 value={currentAllocation.startDate?.split('T')[0] || ''}
                 onChange={(e) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    startDate: e.target.value,
-                  })
+                  updateAllocation({ startDate: e.target.value })
                 }
                 InputLabelProps={{ shrink: true }}
               />
@@ -2169,10 +2157,7 @@ const ResourceAllocation = () => {
                 label="End Date"
                 value={currentAllocation.endDate?.split('T')[0] || ''}
                 onChange={(e) =>
-                  setCurrentAllocation({
-                    ...currentAllocation,
-                    endDate: e.target.value,
-                  })
+                  updateAllocation({ endDate: e.target.value })
                 }
                 InputLabelProps={{ shrink: true }}
               />
