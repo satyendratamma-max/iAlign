@@ -1204,7 +1204,11 @@ const ResourceAllocation = () => {
                   limitTags={2}
                   options={resources}
                   filterOptions={(x) => x} // No client-side filtering, all filtering is server-side
-                  getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeId})`}
+                  getOptionLabel={(option) =>
+                    option?.firstName && option?.lastName && option?.employeeId
+                      ? `${option.firstName} ${option.lastName} (${option.employeeId})`
+                      : ''
+                  }
                   value={resources.filter(r => selectedResourceIds.includes(r.id))}
                   inputValue={resourceSearchTerm}
                   onChange={(_event, newValue) => {
@@ -1254,7 +1258,9 @@ const ResourceAllocation = () => {
                   limitTags={2}
                   options={projects}
                   filterOptions={(x) => x} // No client-side filtering, all filtering is server-side
-                  getOptionLabel={(option) => option.name || `Project #${option.id}`}
+                  getOptionLabel={(option) =>
+                    option ? (option.name || `Project #${option.id}`) : ''
+                  }
                   value={projects.filter(p => selectedProjectIds.includes(p.id))}
                   inputValue={projectSearchTerm}
                   onChange={(_event, newValue) => {
@@ -1918,7 +1924,11 @@ const ResourceAllocation = () => {
               <Autocomplete
                 fullWidth
                 options={resources}
-                getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeId})`}
+                getOptionLabel={(option) =>
+                  option?.firstName && option?.lastName && option?.employeeId
+                    ? `${option.firstName} ${option.lastName} (${option.employeeId})`
+                    : ''
+                }
                 value={resources.find(r => r.id === currentAllocation.resourceId) || null}
                 onChange={(_, newValue) => {
                   if (newValue) {
@@ -1954,7 +1964,11 @@ const ResourceAllocation = () => {
               <Autocomplete
                 fullWidth
                 options={selectedResourceCapabilities}
-                getOptionLabel={(option) => `${option.app.name} / ${option.technology.name} / ${option.role.name}`}
+                getOptionLabel={(option) =>
+                  option?.app && option?.technology && option?.role
+                    ? `${option.app.name} / ${option.technology.name} / ${option.role.name}`
+                    : ''
+                }
                 value={selectedResourceCapabilities.find(c => c.id === currentAllocation.resourceCapabilityId) || null}
                 onChange={(_, newValue) => {
                   handleCapabilityChange(newValue?.id);
@@ -2025,7 +2039,11 @@ const ResourceAllocation = () => {
               <Autocomplete
                 fullWidth
                 options={availableProjects.filter(p => p.matchScore >= minMatchScore)}
-                getOptionLabel={(option) => `${option.name} (${option.matchScore}% match)`}
+                getOptionLabel={(option) =>
+                  option?.name && option?.matchScore !== undefined
+                    ? `${option.name} (${option.matchScore}% match)`
+                    : ''
+                }
                 value={availableProjects.find(p => p.id === currentAllocation.projectId) || null}
                 onChange={(_, newValue) => {
                   if (newValue) {
