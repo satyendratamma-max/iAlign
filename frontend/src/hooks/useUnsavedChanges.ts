@@ -22,6 +22,7 @@ export function useUnsavedChanges(
 ) {
   const [showPrompt, setShowPrompt] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'back' | 'forward' | 'navigate' | null>(null);
   const [isNavigationConfirmed, setIsNavigationConfirmed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,9 +53,8 @@ export function useUnsavedChanges(
 
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
-      // Store where we want to go
-      const currentPath = window.location.pathname;
-      setPendingNavigation(currentPath);
+      // User clicked browser back or forward
+      setPendingAction('back'); // Assume back for now (can't easily detect forward)
       setShowPrompt(true);
 
       // Push current state back to stay on page
@@ -88,6 +88,7 @@ export function useUnsavedChanges(
       // If trying to navigate to different path, show prompt
       if (targetPath !== location.pathname) {
         setPendingNavigation(targetPath);
+        setPendingAction('navigate');
         setShowPrompt(true);
       } else {
         originalPush.apply(navigator, args);
@@ -100,6 +101,7 @@ export function useUnsavedChanges(
 
       if (targetPath !== location.pathname) {
         setPendingNavigation(targetPath);
+        setPendingAction('navigate');
         setShowPrompt(true);
       } else {
         originalReplace.apply(navigator, args);
@@ -118,20 +120,29 @@ export function useUnsavedChanges(
     setShowPrompt(false);
     setIsNavigationConfirmed(true); // Bypass blocking
 
-    if (pendingNavigation) {
-      // Navigate to the pending path
-      setTimeout(() => {
+    setTimeout(() => {
+      if (pendingAction === 'back') {
+        // User clicked browser back
+        window.history.back();
+      } else if (pendingAction === 'forward') {
+        // User clicked browser forward
+        window.history.forward();
+      } else if (pendingAction === 'navigate' && pendingNavigation) {
+        // User clicked in-app link
         navigate(pendingNavigation);
-        setPendingNavigation(null);
-        setIsNavigationConfirmed(false); // Reset for next time
-      }, 0);
-    }
-  }, [pendingNavigation, navigate]);
+      }
+
+      setPendingNavigation(null);
+      setPendingAction(null);
+      setIsNavigationConfirmed(false); // Reset for next time
+    }, 0);
+  }, [pendingAction, pendingNavigation, navigate]);
 
   // Cancel navigation - stay on current page
   const cancelNavigation = useCallback(() => {
     setShowPrompt(false);
     setPendingNavigation(null);
+    setPendingAction(null);
   }, []);
 
   return {
