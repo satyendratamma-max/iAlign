@@ -277,8 +277,10 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         return;
       }
 
-      // Create requirements for each default role
+      // Check which roles exist and which are missing
       const requirementsToCreate = [];
+      const missingRoles: string[] = [];
+
       for (const defaultRole of defaultRoles) {
         const role = roles.find((r: any) => r.name?.toLowerCase().includes(defaultRole.roleName.toLowerCase()));
 
@@ -295,10 +297,37 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
             endDate: project?.endDate,
             description: `Default requirement for ${defaultRole.roleName}`,
           });
+        } else {
+          missingRoles.push(defaultRole.roleName);
         }
       }
 
-      // Create all requirements
+      // If some roles are missing, show warning with available options
+      if (missingRoles.length > 0) {
+        const availableRoleNames = roles.map((r: any) => r.name).slice(0, 10).join(', ');
+        setError(
+          `Cannot find the following default roles: ${missingRoles.join(', ')}. ` +
+          `Available roles include: ${availableRoleNames}${roles.length > 10 ? ', and more...' : ''}. ` +
+          `Please ensure these roles exist in master data or use 'Add Requirement' to manually select available roles.`
+        );
+
+        // Still create requirements for roles that were found
+        if (requirementsToCreate.length > 0) {
+          await Promise.all(
+            requirementsToCreate.map(req =>
+              axios.post(`${API_URL}/project-requirements`, req, config)
+            )
+          );
+          setSuccessMessage(
+            `Added ${requirementsToCreate.length} of ${defaultRoles.length} default requirements. ` +
+            `${missingRoles.length} role(s) not found.`
+          );
+          fetchRequirements();
+        }
+        return;
+      }
+
+      // Create all requirements if all roles exist
       await Promise.all(
         requirementsToCreate.map(req =>
           axios.post(`${API_URL}/project-requirements`, req, config)
