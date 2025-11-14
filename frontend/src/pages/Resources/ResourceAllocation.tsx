@@ -1932,6 +1932,10 @@ const ResourceAllocation = () => {
                 value={resources.find(r => r.id === currentAllocation.resourceId) || null}
                 onChange={(_, newValue) => {
                   if (newValue) {
+                    // Ensure selected resource is in the resources array for proper value binding
+                    if (!resources.some(r => r.id === newValue.id)) {
+                      setResources(prev => [...prev, newValue]);
+                    }
                     handleResourceChange(newValue.id);
                   }
                 }}
