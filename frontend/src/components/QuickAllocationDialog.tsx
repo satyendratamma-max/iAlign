@@ -324,7 +324,16 @@ const QuickAllocationDialog = ({
       // Sort by match score (highest first)
       resourcesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-      setAvailableResources(resourcesWithScores);
+      // Preserve selected resource if it exists but not in new results
+      setAvailableResources(prev => {
+        if (selectedResourceId) {
+          const selectedResource = prev.find(r => r.id === selectedResourceId);
+          if (selectedResource && !resourcesWithScores.find(r => r.id === selectedResourceId)) {
+            return [selectedResource, ...resourcesWithScores];
+          }
+        }
+        return resourcesWithScores;
+      });
     } catch (error) {
       console.error('Error loading resources:', error);
     } finally {
@@ -392,7 +401,16 @@ const QuickAllocationDialog = ({
       // Sort by match score (highest first)
       resourcesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-      setAvailableResources(resourcesWithScores);
+      // Preserve selected resource if it exists but not in new results
+      setAvailableResources(prev => {
+        if (selectedResourceId) {
+          const selectedResource = prev.find(r => r.id === selectedResourceId);
+          if (selectedResource && !resourcesWithScores.find(r => r.id === selectedResourceId)) {
+            return [selectedResource, ...resourcesWithScores];
+          }
+        }
+        return resourcesWithScores;
+      });
     } catch (error) {
       console.error('Error loading resources for edit mode:', error);
     } finally {
