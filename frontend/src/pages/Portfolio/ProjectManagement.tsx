@@ -7887,6 +7887,7 @@ const ProjectManagement = () => {
         onClose={handleCloseResourcesDialog}
         maxWidth="xl"
         fullWidth
+        key={`resources-${selectedProject?.id}-${projectResources.length}`}
       >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -7923,7 +7924,7 @@ const ProjectManagement = () => {
             </Box>
           ) : (
             <TableContainer>
-              <Table>
+              <Table key={projectResources.length}>
                 <TableHead>
                   <TableRow>
                     <TableCell align="right" sx={{ minWidth: 120 }}>Actions</TableCell>
