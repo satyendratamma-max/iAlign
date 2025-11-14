@@ -1759,7 +1759,7 @@ const ProjectManagement = () => {
 
   // Helper to update project and mark as unsaved
   const updateProject = (updates: Partial<Project>) => {
-    updateProject({ ...updates });
+    setCurrentProject({ ...currentProject, ...updates });
     setHasUnsavedChanges(true);
   };
 
