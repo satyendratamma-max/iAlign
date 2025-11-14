@@ -43,6 +43,8 @@ import {
 import axios from 'axios';
 import CapabilityBuilder from '../CapabilityBuilder';
 import ConfirmDialog from '../common/ConfirmDialog';
+import QuickAllocationDialog from '../QuickAllocationDialog';
+import { useScenario } from '../../contexts/ScenarioContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -106,6 +108,7 @@ const REQUIREMENT_TEMPLATES = {
 
 const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTabProps) => {
   const navigate = useNavigate();
+  const { currentScenario } = useScenario();
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -122,6 +125,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
     open: boolean;
     requirementId: number | null;
   }>({ open: false, requirementId: null });
+  const [openAllocationDialog, setOpenAllocationDialog] = useState(false);
 
   useEffect(() => {
     fetchRequirements();
@@ -220,8 +224,14 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
   };
 
   const handleFindAndAllocate = (requirement: Requirement) => {
-    // Navigate to allocation matrix with pre-filters
-    navigate(`/resources/allocation?projectId=${projectId}&requirementId=${requirement.id}`);
+    // Open Quick Allocation dialog
+    setOpenAllocationDialog(true);
+  };
+
+  const handleAllocationSaved = async () => {
+    setOpenAllocationDialog(false);
+    // Refresh requirements to update fulfilled counts
+    await fetchRequirements();
   };
 
   const handleSuggestResources = (requirement: Requirement) => {
@@ -734,6 +744,17 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         onCancel={() => setConfirmDialog({ open: false, requirementId: null })}
         confirmText="Delete"
         confirmColor="error"
+      />
+
+      {/* Quick Allocation Dialog */}
+      <QuickAllocationDialog
+        open={openAllocationDialog}
+        onClose={() => setOpenAllocationDialog(false)}
+        onSave={handleAllocationSaved}
+        resource={null}
+        project={project}
+        scenarioId={currentScenario?.id || 0}
+        allocation={null}
       />
     </Box>
   );

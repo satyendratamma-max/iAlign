@@ -470,20 +470,15 @@ const QuickAllocationDialog = ({
 
       if (isEditMode && allocation) {
         await axios.put(`${API_URL}/allocations/${allocation.id}`, allocationData, config);
-        console.log('Updated allocation:', allocation.id);
       } else {
-        const result = await axios.post(`${API_URL}/allocations`, allocationData, config);
-        console.log('Created allocation:', result.data);
+        await axios.post(`${API_URL}/allocations`, allocationData, config);
       }
 
       // Delay to ensure backend has fully committed transaction before refreshing
-      console.log('Waiting for backend to commit...');
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Await onSave to ensure parent component completes data refresh
-      console.log('Calling onSave to refresh data...');
       await Promise.resolve(onSave());
-      console.log('Data refresh complete, closing dialog');
       handleClose();
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} allocation:`, error);

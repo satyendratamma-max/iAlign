@@ -1980,7 +1980,6 @@ const ProjectManagement = () => {
         },
       });
 
-      console.log('Fetched project resources:', response.data.data?.length || 0, 'allocations');
       setProjectResources(response.data.data || []);
     } catch (error) {
       console.error('Error fetching project resources:', error);
@@ -2037,13 +2036,10 @@ const ProjectManagement = () => {
   };
 
   const handleAllocationSaved = async () => {
-    console.log('handleAllocationSaved called');
     setOpenAllocationDialog(false);
     // Refresh the allocations list
     if (selectedProject) {
-      console.log('Refreshing resources for project:', selectedProject.id, selectedProject.name);
       await handleViewResources(selectedProject);
-      console.log('Resources refreshed');
     }
   };
 
