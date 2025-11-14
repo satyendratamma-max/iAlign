@@ -126,6 +126,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
     requirementId: number | null;
   }>({ open: false, requirementId: null });
   const [openAllocationDialog, setOpenAllocationDialog] = useState(false);
+  const [selectedRequirementForAllocation, setSelectedRequirementForAllocation] = useState<Requirement | null>(null);
 
   useEffect(() => {
     fetchRequirements();
@@ -224,12 +225,14 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
   };
 
   const handleFindAndAllocate = (requirement: Requirement) => {
-    // Open Quick Allocation dialog
+    // Store the requirement and open Quick Allocation dialog
+    setSelectedRequirementForAllocation(requirement);
     setOpenAllocationDialog(true);
   };
 
   const handleAllocationSaved = async () => {
     setOpenAllocationDialog(false);
+    setSelectedRequirementForAllocation(null);
     // Refresh requirements to update fulfilled counts
     await fetchRequirements();
   };
@@ -749,12 +752,16 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
       {/* Quick Allocation Dialog */}
       <QuickAllocationDialog
         open={openAllocationDialog}
-        onClose={() => setOpenAllocationDialog(false)}
+        onClose={() => {
+          setOpenAllocationDialog(false);
+          setSelectedRequirementForAllocation(null);
+        }}
         onSave={handleAllocationSaved}
         resource={null}
         project={project}
         scenarioId={currentScenario?.id || 0}
         allocation={null}
+        requirement={selectedRequirementForAllocation}
       />
     </Box>
   );

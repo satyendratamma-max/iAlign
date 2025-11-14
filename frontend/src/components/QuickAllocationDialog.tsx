@@ -91,6 +91,7 @@ interface QuickAllocationDialogProps {
   project: Project | null;
   scenarioId: number;
   allocation?: Allocation | null;
+  requirement?: Requirement | null;
 }
 
 // Proficiency level scoring weights
@@ -179,6 +180,7 @@ const QuickAllocationDialog = ({
   project,
   scenarioId,
   allocation,
+  requirement,
 }: QuickAllocationDialogProps) => {
   const isEditMode = !!allocation;
   const [allocationPercentage, setAllocationPercentage] = useState(100);
@@ -235,12 +237,23 @@ const QuickAllocationDialog = ({
           } else {
             setUseProjectDuration(false);
           }
+
+          // Pre-select requirement if passed from Requirements tab
+          if (requirement && loadedRequirements) {
+            // Verify the requirement exists in the loaded requirements
+            const matchedRequirement = loadedRequirements.find(r => r.id === requirement.id);
+            if (matchedRequirement) {
+              setSelectedRequirementId(requirement.id);
+              // Load matching resources for this requirement
+              await loadMatchingResources(requirement.id);
+            }
+          }
         }
       };
 
       initializeDialog();
     }
-  }, [open, resource, project, allocation]);
+  }, [open, resource, project, allocation, requirement]);
 
   const loadProjectRequirements = async (): Promise<Requirement[] | undefined> => {
     if (!project) return undefined;
