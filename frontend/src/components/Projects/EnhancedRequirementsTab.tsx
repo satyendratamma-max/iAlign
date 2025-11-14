@@ -268,50 +268,85 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
       const apps = appsRes.data.data || [];
       const techs = techsRes.data.data || [];
 
-      // Use first app and tech as defaults (or you can make these configurable)
-      const defaultApp = apps[0];
-      const defaultTech = techs[0];
-
-      if (!defaultApp || !defaultTech) {
-        setError('Default app or technology not found. Please ensure master data exists.');
+      if (apps.length === 0 || techs.length === 0) {
+        setError('No apps or technologies found. Please ensure master data exists.');
         return;
       }
 
       // Check which roles exist and which are missing
       const requirementsToCreate = [];
       const missingRoles: string[] = [];
+      const incompatibleRoles: string[] = [];
 
       for (const defaultRole of defaultRoles) {
         const role = roles.find((r: any) => r.name?.toLowerCase().includes(defaultRole.roleName.toLowerCase()));
 
-        if (role) {
-          requirementsToCreate.push({
-            projectId: projectId,
-            appId: defaultApp.id,
-            technologyId: defaultTech.id,
-            roleId: role.id,
-            requiredCount: 1,
-            proficiencyLevel: defaultRole.proficiency,
-            priority: defaultRole.priority,
-            startDate: project?.startDate,
-            endDate: project?.endDate,
-            description: `Default requirement for ${defaultRole.roleName}`,
-          });
-        } else {
+        if (!role) {
           missingRoles.push(defaultRole.roleName);
+          continue;
         }
+
+        // Find compatible app and tech for this role
+        let compatibleApp = apps[0]; // Start with first app
+        let compatibleTech = techs[0]; // Start with first tech
+
+        // If role is specific to an app, use that app
+        if (role.appId) {
+          compatibleApp = apps.find((a: any) => a.id === role.appId);
+          if (!compatibleApp) {
+            incompatibleRoles.push(`${defaultRole.roleName} (requires specific app not found)`);
+            continue;
+          }
+        }
+
+        // If role is specific to a technology, use that technology
+        if (role.technologyId) {
+          compatibleTech = techs.find((t: any) => t.id === role.technologyId);
+          if (!compatibleTech) {
+            incompatibleRoles.push(`${defaultRole.roleName} (requires specific technology not found)`);
+            continue;
+          }
+        }
+
+        // If tech is specific to an app, ensure app matches
+        if (compatibleTech.appId && compatibleTech.appId !== compatibleApp.id) {
+          // Find a tech that's compatible with the role's app
+          const alternativeTech = techs.find((t: any) =>
+            !t.appId || t.appId === compatibleApp.id
+          );
+          if (alternativeTech) {
+            compatibleTech = alternativeTech;
+          } else {
+            incompatibleRoles.push(`${defaultRole.roleName} (no compatible app/tech combination)`);
+            continue;
+          }
+        }
+
+        requirementsToCreate.push({
+          projectId: projectId,
+          appId: compatibleApp.id,
+          technologyId: compatibleTech.id,
+          roleId: role.id,
+          requiredCount: 1,
+          proficiencyLevel: defaultRole.proficiency,
+          priority: defaultRole.priority,
+          startDate: project?.startDate,
+          endDate: project?.endDate,
+          description: `Default requirement for ${defaultRole.roleName}`,
+        });
       }
 
-      // If some roles are missing, show warning with available options
-      if (missingRoles.length > 0) {
+      // If some roles are missing or incompatible, show warning with available options
+      if (missingRoles.length > 0 || incompatibleRoles.length > 0) {
+        const allProblems = [...missingRoles, ...incompatibleRoles];
         const availableRoleNames = roles.map((r: any) => r.name).slice(0, 10).join(', ');
         setError(
-          `Cannot find the following default roles: ${missingRoles.join(', ')}. ` +
+          `Cannot create requirements for: ${allProblems.join(', ')}. ` +
           `Available roles include: ${availableRoleNames}${roles.length > 10 ? ', and more...' : ''}. ` +
           `Please ensure these roles exist in master data or use 'Add Requirement' to manually select available roles.`
         );
 
-        // Still create requirements for roles that were found
+        // Still create requirements for roles that were found and compatible
         if (requirementsToCreate.length > 0) {
           await Promise.all(
             requirementsToCreate.map(req =>
@@ -320,24 +355,44 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
           );
           setSuccessMessage(
             `Added ${requirementsToCreate.length} of ${defaultRoles.length} default requirements. ` +
-            `${missingRoles.length} role(s) not found.`
+            `${allProblems.length} role(s) not created.`
           );
           fetchRequirements();
         }
         return;
       }
 
+      // Log what we're about to create for debugging
+      console.log('Creating requirements:', requirementsToCreate);
+
       // Create all requirements if all roles exist
-      await Promise.all(
+      const results = await Promise.allSettled(
         requirementsToCreate.map(req =>
           axios.post(`${API_URL}/project-requirements`, req, config)
         )
       );
 
-      setSuccessMessage(`Added ${requirementsToCreate.length} default requirements successfully`);
+      // Check for any failures
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('Failed to create some requirements:', failures);
+        const firstError = failures[0] as PromiseRejectedResult;
+        const errorMsg = (firstError.reason?.response?.data?.message || firstError.reason?.message || 'Unknown error');
+        setError(`Failed to create ${failures.length} requirement(s): ${errorMsg}`);
+
+        // Still show success for the ones that worked
+        const successes = results.filter(r => r.status === 'fulfilled').length;
+        if (successes > 0) {
+          setSuccessMessage(`Added ${successes} of ${requirementsToCreate.length} requirements`);
+        }
+      } else {
+        setSuccessMessage(`Added ${requirementsToCreate.length} default requirements successfully`);
+      }
+
       fetchRequirements();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add default requirements');
+      console.error('Error in handleAddDefaultRequirements:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to add default requirements');
     } finally {
       setLoading(false);
     }
