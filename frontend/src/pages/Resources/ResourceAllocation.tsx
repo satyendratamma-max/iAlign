@@ -298,9 +298,8 @@ const ResourceAllocation = () => {
         // URL has editAllocationId but dialog is closed - open it
         handleOpenDialog(allocation);
       }
-    } else if (!editAllocationId && openDialog && editMode) {
-      // URL params cleared but dialog is still open AND we were in edit mode - close it (browser back was clicked)
-      // Don't close if we're adding a new allocation (editMode = false)
+    } else if (!editAllocationId && openDialog) {
+      // URL params cleared but dialog is still open - close it
       setOpenDialog(false);
       setCurrentAllocation({
         allocationPercentage: 50,
@@ -311,6 +310,7 @@ const ResourceAllocation = () => {
       setAvailableProjects([]);
       setMinMatchScore(0);
       setHasUnsavedChanges(false);
+      setEditMode(false);
     }
   }, [searchParams, allocations, openDialog, editMode]);
 
@@ -1932,17 +1932,12 @@ const ResourceAllocation = () => {
                 }
                 value={resources.find(r => r.id === currentAllocation.resourceId) || null}
                 onChange={(_, newValue) => {
-                  console.log('Autocomplete onChange fired! newValue:', newValue);
                   if (newValue) {
-                    console.log('newValue exists, proceeding with resource change');
                     // Ensure selected resource is in the resources array for proper value binding
                     if (!resources.some(r => r.id === newValue.id)) {
-                      console.log('Adding resource to resources array');
                       setResources(prev => [...prev, newValue]);
                     }
                     handleResourceChange(newValue.id);
-                  } else {
-                    console.log('newValue is null/undefined');
                   }
                 }}
                 renderInput={(params) => (
