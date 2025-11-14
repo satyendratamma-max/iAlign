@@ -248,13 +248,13 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Define default requirements: IT Manager, Portfolio Manager, Functional Analyst, Developer, Tester
-      const defaultRoles = [
-        { roleName: 'IT Manager', proficiency: 'Expert', priority: 'High' },
-        { roleName: 'Portfolio Manager', proficiency: 'Expert', priority: 'High' },
-        { roleName: 'Functional Analyst', proficiency: 'Advanced', priority: 'High' },
-        { roleName: 'Developer', proficiency: 'Advanced', priority: 'High' },
-        { roleName: 'Tester', proficiency: 'Intermediate', priority: 'Medium' },
+      // Default requirement specs - we'll match to actual roles in the system
+      const defaultSpecs = [
+        { keywords: ['manager', 'project manager', 'portfolio manager', 'program manager'], proficiency: 'Expert', priority: 'High' },
+        { keywords: ['analyst', 'business analyst', 'functional analyst', 'systems analyst'], proficiency: 'Advanced', priority: 'High' },
+        { keywords: ['developer', 'programmer', 'engineer'], proficiency: 'Advanced', priority: 'High' },
+        { keywords: ['tester', 'qa', 'quality assurance', 'test engineer'], proficiency: 'Intermediate', priority: 'Medium' },
+        { keywords: ['architect', 'technical lead', 'lead developer'], proficiency: 'Expert', priority: 'High' },
       ];
 
       // Fetch all roles, apps, and technologies to find matching IDs
@@ -273,18 +273,23 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         return;
       }
 
-      // Check which roles exist and which are missing
+      // Match default specs to actual roles in the system
       const requirementsToCreate = [];
-      const missingRoles: string[] = [];
-      const incompatibleRoles: string[] = [];
+      const usedRoles = new Set<number>(); // Track roles we've already used
 
-      for (const defaultRole of defaultRoles) {
-        const role = roles.find((r: any) => r.name?.toLowerCase().includes(defaultRole.roleName.toLowerCase()));
+      for (const spec of defaultSpecs) {
+        // Try to find a role that matches any of the keywords
+        const role = roles.find((r: any) => {
+          if (usedRoles.has(r.id)) return false; // Skip already used roles
+          const roleName = r.name?.toLowerCase() || '';
+          return spec.keywords.some(keyword => roleName.includes(keyword.toLowerCase()));
+        });
 
         if (!role) {
-          missingRoles.push(defaultRole.roleName);
-          continue;
+          continue; // Skip if no matching role found
         }
+
+        usedRoles.add(role.id); // Mark this role as used
 
         // Find compatible app and tech for this role
         let compatibleApp = apps[0]; // Start with first app
@@ -294,8 +299,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         if (role.appId) {
           compatibleApp = apps.find((a: any) => a.id === role.appId);
           if (!compatibleApp) {
-            incompatibleRoles.push(`${defaultRole.roleName} (requires specific app not found)`);
-            continue;
+            continue; // Skip this role if required app not found
           }
         }
 
@@ -303,8 +307,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
         if (role.technologyId) {
           compatibleTech = techs.find((t: any) => t.id === role.technologyId);
           if (!compatibleTech) {
-            incompatibleRoles.push(`${defaultRole.roleName} (requires specific technology not found)`);
-            continue;
+            continue; // Skip this role if required tech not found
           }
         }
 
@@ -317,8 +320,7 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
           if (alternativeTech) {
             compatibleTech = alternativeTech;
           } else {
-            incompatibleRoles.push(`${defaultRole.roleName} (no compatible app/tech combination)`);
-            continue;
+            continue; // Skip this role if no compatible combination found
           }
         }
 
@@ -328,37 +330,22 @@ const EnhancedRequirementsTab = ({ projectId, project }: EnhancedRequirementsTab
           technologyId: compatibleTech.id,
           roleId: role.id,
           requiredCount: 1,
-          proficiencyLevel: defaultRole.proficiency,
-          priority: defaultRole.priority,
+          proficiencyLevel: spec.proficiency,
+          priority: spec.priority,
           startDate: project?.startDate,
           endDate: project?.endDate,
-          description: `Default requirement for ${defaultRole.roleName}`,
+          description: `Default requirement for ${role.name}`,
         });
       }
 
-      // If some roles are missing or incompatible, show warning with available options
-      if (missingRoles.length > 0 || incompatibleRoles.length > 0) {
-        const allProblems = [...missingRoles, ...incompatibleRoles];
-        const availableRoleNames = roles.map((r: any) => r.name).slice(0, 10).join(', ');
+      // Check if we found any roles to create
+      if (requirementsToCreate.length === 0) {
+        const availableRoleNames = roles.map((r: any) => r.name).slice(0, 15).join(', ');
         setError(
-          `Cannot create requirements for: ${allProblems.join(', ')}. ` +
-          `Available roles include: ${availableRoleNames}${roles.length > 10 ? ', and more...' : ''}. ` +
-          `Please ensure these roles exist in master data or use 'Add Requirement' to manually select available roles.`
+          `Could not find suitable roles matching: Manager, Analyst, Developer, Tester, or Architect. ` +
+          `Available roles include: ${availableRoleNames}${roles.length > 15 ? ', and more...' : ''}. ` +
+          `Please use 'Add Requirement' to manually select from available roles.`
         );
-
-        // Still create requirements for roles that were found and compatible
-        if (requirementsToCreate.length > 0) {
-          await Promise.all(
-            requirementsToCreate.map(req =>
-              axios.post(`${API_URL}/project-requirements`, req, config)
-            )
-          );
-          setSuccessMessage(
-            `Added ${requirementsToCreate.length} of ${defaultRoles.length} default requirements. ` +
-            `${allProblems.length} role(s) not created.`
-          );
-          fetchRequirements();
-        }
         return;
       }
 
