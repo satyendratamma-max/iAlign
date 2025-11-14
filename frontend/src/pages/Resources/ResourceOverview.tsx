@@ -340,6 +340,7 @@ const ResourceOverview = () => {
       setCurrentCapabilities([]);
       setNewCapabilities([]);
       setCapabilitiesToDelete([]);
+      setHasUnsavedChanges(false);
     }
   }, [searchParams, resources, openDialog]);
 
@@ -362,13 +363,8 @@ const ResourceOverview = () => {
   };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setCurrentResource({});
-    setCurrentCapabilities([]);
-    setNewCapabilities([]);
-    setCapabilitiesToDelete([]);
-    setHasUnsavedChanges(false); // Reset on close
-    setSearchParams({}); // Clear URL params when closing dialog
+    // Just clear URL params - the useEffect will handle closing the dialog
+    setSearchParams({});
   };
 
   // Helper to update resource and mark as unsaved
