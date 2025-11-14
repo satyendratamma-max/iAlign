@@ -22,6 +22,7 @@ export function useUnsavedChanges(
 ) {
   const [showPrompt, setShowPrompt] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [isNavigationConfirmed, setIsNavigationConfirmed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const navigationContext = useRef<any>(null);
@@ -47,7 +48,7 @@ export function useUnsavedChanges(
 
   // Block browser back/forward navigation
   useEffect(() => {
-    if (!hasUnsavedChanges) return;
+    if (!hasUnsavedChanges || isNavigationConfirmed) return;
 
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
@@ -67,11 +68,11 @@ export function useUnsavedChanges(
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [hasUnsavedChanges, location.pathname]);
+  }, [hasUnsavedChanges, isNavigationConfirmed, location.pathname]);
 
   // Intercept React Router navigation (in-app links)
   useEffect(() => {
-    if (!hasUnsavedChanges || !navigationContext.current) return;
+    if (!hasUnsavedChanges || isNavigationConfirmed || !navigationContext.current) return;
 
     const { navigator } = navigationContext.current;
     if (!navigator) return;
@@ -110,17 +111,19 @@ export function useUnsavedChanges(
       navigator.push = originalPush;
       navigator.replace = originalReplace;
     };
-  }, [hasUnsavedChanges, location.pathname]);
+  }, [hasUnsavedChanges, isNavigationConfirmed, location.pathname]);
 
   // Confirm navigation - proceed with pending navigation
   const confirmNavigation = useCallback(() => {
     setShowPrompt(false);
+    setIsNavigationConfirmed(true); // Bypass blocking
 
     if (pendingNavigation) {
       // Navigate to the pending path
       setTimeout(() => {
         navigate(pendingNavigation);
         setPendingNavigation(null);
+        setIsNavigationConfirmed(false); // Reset for next time
       }, 0);
     }
   }, [pendingNavigation, navigate]);
