@@ -1690,6 +1690,9 @@ const ProjectManagement = () => {
       setEditMode(true);
       setCurrentProject(project);
 
+      // Set URL params to preserve dialog state for browser back/forward
+      setSearchParams({ editProjectId: project.id!.toString(), tab: '0' });
+
       // Fetch domain impacts and milestones for this project
       try {
         const token = localStorage.getItem('token');
@@ -1751,6 +1754,7 @@ const ProjectManagement = () => {
     setDialogTab(0);
     setFormErrors({}); // Clear any validation errors
     setHasUnsavedChanges(false); // Reset on close
+    setSearchParams({}); // Clear URL params when closing dialog
   };
 
   // Helper to update project and mark as unsaved
@@ -2439,6 +2443,7 @@ const ProjectManagement = () => {
   }, [activeScenario, page, pageSize, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears]);
 
   // Handle deep linking from My Dashboard - open project edit dialog
+  // Also handles browser back/forward to restore dialog state
   useEffect(() => {
     const editProjectId = searchParams.get('editProjectId');
     const tab = searchParams.get('tab');
@@ -2447,18 +2452,26 @@ const ProjectManagement = () => {
       const projectId = parseInt(editProjectId);
       const project = projects.find(p => p.id === projectId);
 
-      if (project) {
+      if (project && !openDialog) {
+        // Only open if not already open (prevent re-opening on every render)
         setCurrentProject(project);
         setEditMode(true);
         setOpenDialog(true);
         if (tab) {
           setDialogTab(parseInt(tab));
         }
-        // Clear the query params after opening
-        setSearchParams({});
+        // Don't clear params - keep them for browser back/forward navigation
+      } else if (project && openDialog && tab) {
+        // Dialog is already open, just update the tab
+        setDialogTab(parseInt(tab));
       }
+    } else if (!editProjectId && openDialog) {
+      // No editProjectId in URL but dialog is open - user clicked back from dialog state
+      setOpenDialog(false);
+      setCurrentProject({});
+      setDialogTab(0);
     }
-  }, [searchParams, projects, setSearchParams]);
+  }, [searchParams, projects, openDialog]);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
   // For table view: backend handles filtering, so use projects directly
@@ -6840,7 +6853,13 @@ const ProjectManagement = () => {
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
         <Tabs
           value={dialogTab}
-          onChange={(_e, newValue) => setDialogTab(newValue)}
+          onChange={(_e, newValue) => {
+            setDialogTab(newValue);
+            // Update URL params to preserve tab state for browser back/forward
+            if (currentProject.id) {
+              setSearchParams({ editProjectId: currentProject.id.toString(), tab: newValue.toString() });
+            }
+          }}
           variant="scrollable"
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
