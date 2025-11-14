@@ -286,6 +286,33 @@ const ResourceAllocation = () => {
     }
   }, [currentView, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, filters.domainId, filters.businessDecision]);
 
+  // Handle deep linking - restore dialog state from URL or close when params removed
+  useEffect(() => {
+    const editAllocationId = searchParams.get('editAllocationId');
+
+    if (editAllocationId && allocations.length > 0) {
+      const allocationId = parseInt(editAllocationId);
+      const allocation = allocations.find(a => a.id === allocationId);
+
+      if (allocation && !openDialog) {
+        // URL has editAllocationId but dialog is closed - open it
+        handleOpenDialog(allocation);
+      }
+    } else if (!editAllocationId && openDialog) {
+      // URL params cleared but dialog is still open - close it (browser back was clicked)
+      setOpenDialog(false);
+      setCurrentAllocation({
+        allocationPercentage: 50,
+        allocationType: 'Shared',
+      });
+      setSelectedResourceCapabilities([]);
+      setSelectedProjectRequirements([]);
+      setAvailableProjects([]);
+      setMinMatchScore(0);
+      setHasUnsavedChanges(false);
+    }
+  }, [searchParams, allocations, openDialog]);
+
   const fetchData = async () => {
     if (!activeScenario?.id) {
       console.warn('No active scenario selected for ResourceAllocation');
@@ -543,17 +570,8 @@ const ResourceAllocation = () => {
   };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setCurrentAllocation({
-      allocationPercentage: 50,
-      allocationType: 'Shared',
-    });
-    setSelectedResourceCapabilities([]);
-    setSelectedProjectRequirements([]);
-    setAvailableProjects([]);
-    setMinMatchScore(0);
-    setHasUnsavedChanges(false); // Reset on close
-    setSearchParams({}); // Clear URL params
+    // Just clear URL params - the useEffect will handle closing the dialog
+    setSearchParams({});
   };
 
   // Helper to update allocation and mark as unsaved
