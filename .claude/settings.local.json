@@ -52,7 +52,11 @@
       "Bash(netstat:*)",
       "Bash(taskkill:*)",
       "Bash(findstr:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(server.ts)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBpYWxpZ24uY29tIiwicm9sZSI6IkFkbWluaXN0cmF0b3IiLCJpYXQiOjE3NjIxMDc0NzAsImV4cCI6MTc2MjE5Mzg3MH0.6QvVM-bg_yEdTOQ5GP3x9Vc_ejeLwUweDDOMzBSz0DY\")",
+      "Bash(src/server.ts)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

@@ -558,8 +558,14 @@ const ResourceAllocation = () => {
 
   // Helper to update allocation and mark as unsaved
   const updateAllocation = (updates: Partial<Allocation>) => {
-    setCurrentAllocation({ ...currentAllocation, ...updates });
+    const updated = { ...currentAllocation, ...updates };
+    setCurrentAllocation(updated);
     setHasUnsavedChanges(true);
+
+    // Preserve URL params if editing an existing allocation
+    if (updated.id && editMode) {
+      setSearchParams({ editAllocationId: updated.id.toString() }, { replace: true });
+    }
   };
 
   const loadResourceCapabilities = async (resourceId: number) => {

@@ -118,7 +118,11 @@ export function useUnsavedChanges(
   // Confirm navigation - proceed with pending navigation
   const confirmNavigation = useCallback(() => {
     setShowPrompt(false);
-    setIsNavigationConfirmed(true); // Bypass blocking
+    setPendingNavigation(null);
+    setPendingAction(null);
+
+    // Set confirmed flag FIRST, then navigate after a delay to ensure React updates
+    setIsNavigationConfirmed(true);
 
     setTimeout(() => {
       if (pendingAction === 'back') {
@@ -132,10 +136,9 @@ export function useUnsavedChanges(
         navigate(pendingNavigation);
       }
 
-      setPendingNavigation(null);
-      setPendingAction(null);
-      setIsNavigationConfirmed(false); // Reset for next time
-    }, 0);
+      // Reset after navigation completes
+      setTimeout(() => setIsNavigationConfirmed(false), 100);
+    }, 50);
   }, [pendingAction, pendingNavigation, navigate]);
 
   // Cancel navigation - stay on current page
