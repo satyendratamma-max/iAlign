@@ -1970,10 +1970,17 @@ const ProjectManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/allocations/project/${project.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // Add cache-busting timestamp to prevent stale data
+      const cacheBuster = `_t=${Date.now()}`;
+      const response = await axios.get(`${API_URL}/allocations/project/${project.id}?${cacheBuster}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
       });
 
+      console.log('Fetched project resources:', response.data.data?.length || 0, 'allocations');
       setProjectResources(response.data.data || []);
     } catch (error) {
       console.error('Error fetching project resources:', error);
@@ -2030,10 +2037,13 @@ const ProjectManagement = () => {
   };
 
   const handleAllocationSaved = async () => {
+    console.log('handleAllocationSaved called');
     setOpenAllocationDialog(false);
     // Refresh the allocations list
     if (selectedProject) {
+      console.log('Refreshing resources for project:', selectedProject.id, selectedProject.name);
       await handleViewResources(selectedProject);
+      console.log('Resources refreshed');
     }
   };
 
