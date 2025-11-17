@@ -4,6 +4,8 @@ import Project from '../models/Project';
 import Domain from '../models/Domain';
 import SegmentFunction from '../models/SegmentFunction';
 import Milestone from '../models/Milestone';
+import ProjectRequirement from '../models/ProjectRequirement';
+import Role from '../models/Role';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
@@ -152,6 +154,21 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
         attributes: ['id', 'name'],
         ...(segmentFunctionFilter && { where: segmentFunctionFilter, required: true }),
       },
+      {
+        model: ProjectRequirement,
+        as: 'requirements',
+        attributes: ['id', 'roleId'],
+        required: false,
+        where: { isActive: true },
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name'],
+            required: false,
+          },
+        ],
+      },
     ];
 
     const { count, rows: projects } = await Project.findAndCountAll({
@@ -163,9 +180,43 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       distinct: true, // Ensure accurate count with joins
     });
 
+    // Transform projects to include manager information extracted from requirements
+    const projectsWithManagers = projects.map((project: any) => {
+      const projectData = project.toJSON();
+
+      // Extract managers from requirements based on role names
+      let projectManager = null;
+      let portfolioManager = null;
+
+      if (projectData.requirements && Array.isArray(projectData.requirements)) {
+        for (const req of projectData.requirements) {
+          const roleName = req.role?.name?.toLowerCase() || '';
+
+          // Check for Project Manager role
+          if (!projectManager && roleName.includes('project manager')) {
+            projectManager = req.role?.name;
+          }
+
+          // Check for Portfolio Manager role
+          if (!portfolioManager && roleName.includes('portfolio manager')) {
+            portfolioManager = req.role?.name;
+          }
+
+          // Stop if we found both
+          if (projectManager && portfolioManager) break;
+        }
+      }
+
+      return {
+        ...projectData,
+        projectManager,
+        portfolioManager,
+      };
+    });
+
     res.json({
       success: true,
-      data: projects,
+      data: projectsWithManagers,
       pagination: {
         total: count,
         page,

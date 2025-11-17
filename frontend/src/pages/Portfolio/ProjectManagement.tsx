@@ -4389,6 +4389,12 @@ const ProjectManagement = () => {
                   Current Phase
                 </TableSortLabel>
               </TableCell>
+              <TableCell sx={{ minWidth: 150 }}>
+                Project Manager
+              </TableCell>
+              <TableCell sx={{ minWidth: 150 }}>
+                Portfolio Manager
+              </TableCell>
               <TableCell sx={{ minWidth: 100 }}>
                 <TableSortLabel
                   active={orderBy === 'progress'}
@@ -4590,6 +4596,8 @@ const ProjectManagement = () => {
               <TableCell />
               <TableCell />
               <TableCell />
+              <TableCell />
+              <TableCell />
               <TableCell>
                 <Autocomplete
                   size="small"
@@ -4777,6 +4785,12 @@ const ProjectManagement = () => {
                   <Chip label={project.priority} size="small" variant="outlined" />
                 </TableCell>
                 <TableCell>{project.currentPhase || '-'}</TableCell>
+                <TableCell>
+                  <Typography variant="body2">{(project as any).projectManager || '-'}</Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">{(project as any).portfolioManager || '-'}</Typography>
+                </TableCell>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
                     <LinearProgress
