@@ -2600,8 +2600,8 @@ const ProjectManagement = () => {
         bValue = b.progress || 0;
         break;
       case 'budget':
-        aValue = a.budget || 0;
-        bValue = b.budget || 0;
+        aValue = Number(a.budget) || 0;
+        bValue = Number(b.budget) || 0;
         break;
       case 'startDate':
         aValue = a.startDate ? new Date(a.startDate).getTime() : 0;
