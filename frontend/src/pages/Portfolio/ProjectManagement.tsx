@@ -2523,28 +2523,31 @@ const ProjectManagement = () => {
   // For table view: backend handles filtering, so use projects directly
   // For gantt/kanban: client-side filtering needed (all projects loaded)
   const filteredProjects = useMemo(() => {
-    // Table view: backend already filtered, no need for client-side filtering
-    if (viewMode === 'table') {
-      return projects;
-    }
+    // Table view: backend already filtered, no need for client-side filtering (but still need sorting)
+    let projectsToSort = projects;
 
     // Gantt/Kanban view: apply client-side filtering
-    return projects.filter((project) => {
-    const impactedDomains = getImpactedDomains(project.id);
-    const matchesImpactedDomain = debouncedFilters.impactedDomain.length === 0 ||
-      debouncedFilters.impactedDomain.some(domain => impactedDomains.includes(domain));
+    if (viewMode !== 'table') {
+      projectsToSort = projects.filter((project) => {
+        const impactedDomains = getImpactedDomains(project.id);
+        const matchesImpactedDomain = debouncedFilters.impactedDomain.length === 0 ||
+          debouncedFilters.impactedDomain.some(domain => impactedDomains.includes(domain));
 
-    return (
-      (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
-      (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
-      (selectedFiscalYears.length === 0 || selectedFiscalYears.includes(project.fiscalYear || '')) &&
-      matchesImpactedDomain
-    );
-  }).sort((a, b) => {
-    let aValue: any;
-    let bValue: any;
+        return (
+          (selectedDomainIds.length === 0 || selectedDomainIds.includes(project.domainId || 0)) &&
+          (selectedBusinessDecisions.length === 0 || selectedBusinessDecisions.includes(project.businessDecision || '')) &&
+          (selectedFiscalYears.length === 0 || selectedFiscalYears.includes(project.fiscalYear || '')) &&
+          matchesImpactedDomain
+        );
+      });
+    }
 
-    switch (orderBy) {
+    // Apply sorting for all views (table, gantt, kanban)
+    return projectsToSort.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (orderBy) {
       case 'projectNumber':
         aValue = a.projectNumber?.toLowerCase() || '';
         bValue = b.projectNumber?.toLowerCase() || '';
@@ -2634,16 +2637,16 @@ const ProjectManagement = () => {
         const aDate = a.createdDate ? new Date(a.createdDate).getTime() : 0;
         const bDate = b.createdDate ? new Date(b.createdDate).getTime() : 0;
         return bDate - aDate;
-    }
+      }
 
-    if (aValue < bValue) {
-      return order === 'asc' ? -1 : 1;
-    }
-    if (aValue > bValue) {
-      return order === 'asc' ? 1 : -1;
-    }
-    return 0;
-  });
+      if (aValue < bValue) {
+        return order === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return order === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
   }, [projects, viewMode, debouncedFilters, selectedDomainIds, selectedBusinessDecisions, selectedFiscalYears, orderBy, order, projectRisks, allDomainImpacts]);
 
   // Check if filters are sufficient for visualization views (gantt/kanban)
