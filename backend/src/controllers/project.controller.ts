@@ -6,6 +6,8 @@ import SegmentFunction from '../models/SegmentFunction';
 import Milestone from '../models/Milestone';
 import ProjectRequirement from '../models/ProjectRequirement';
 import Role from '../models/Role';
+import ResourceAllocation from '../models/ResourceAllocation';
+import Resource from '../models/Resource';
 import { ValidationError } from '../middleware/errorHandler';
 import logger from '../config/logger';
 import { notifyProjectCreated, notifyProjectStatusChanged } from '../services/notification.service';
@@ -167,6 +169,21 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
             attributes: ['id', 'name'],
             required: false,
           },
+          {
+            model: ResourceAllocation,
+            as: 'allocations',
+            attributes: ['id', 'resourceId'],
+            required: false,
+            where: { isActive: true },
+            include: [
+              {
+                model: Resource,
+                as: 'resource',
+                attributes: ['id', 'firstName', 'lastName', 'employeeId'],
+                required: false,
+              },
+            ],
+          },
         ],
       },
     ];
@@ -180,11 +197,11 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       distinct: true, // Ensure accurate count with joins
     });
 
-    // Transform projects to include manager information extracted from requirements
+    // Transform projects to include manager information extracted from requirements and allocations
     const projectsWithManagers = projects.map((project: any) => {
       const projectData = project.toJSON();
 
-      // Extract managers from requirements based on role names
+      // Extract allocated resource names for manager roles
       let projectManager = null;
       let portfolioManager = null;
 
@@ -192,14 +209,30 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
         for (const req of projectData.requirements) {
           const roleName = req.role?.name?.toLowerCase() || '';
 
-          // Check for Project Manager role
+          // Check for Project Manager role and get allocated resource
           if (!projectManager && roleName.includes('project manager')) {
-            projectManager = req.role?.name;
+            if (req.allocations && Array.isArray(req.allocations) && req.allocations.length > 0) {
+              // Get the first allocated resource for this requirement
+              const allocation = req.allocations[0];
+              if (allocation.resource) {
+                const firstName = allocation.resource.firstName || '';
+                const lastName = allocation.resource.lastName || '';
+                projectManager = `${firstName} ${lastName}`.trim() || allocation.resource.employeeId;
+              }
+            }
           }
 
-          // Check for Portfolio Manager role
+          // Check for Portfolio Manager role and get allocated resource
           if (!portfolioManager && roleName.includes('portfolio manager')) {
-            portfolioManager = req.role?.name;
+            if (req.allocations && Array.isArray(req.allocations) && req.allocations.length > 0) {
+              // Get the first allocated resource for this requirement
+              const allocation = req.allocations[0];
+              if (allocation.resource) {
+                const firstName = allocation.resource.firstName || '';
+                const lastName = allocation.resource.lastName || '';
+                portfolioManager = `${firstName} ${lastName}`.trim() || allocation.resource.employeeId;
+              }
+            }
           }
 
           // Stop if we found both
