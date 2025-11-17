@@ -247,15 +247,38 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       };
     });
 
+    // Apply post-transformation filters for manager fields
+    let filteredProjects = projectsWithManagers;
+
+    // Filter by project manager (case-insensitive partial match)
+    if (req.query.projectManager) {
+      const searchTerm = String(req.query.projectManager).toLowerCase();
+      filteredProjects = filteredProjects.filter((project: any) =>
+        project.projectManager?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filter by portfolio manager (case-insensitive partial match)
+    if (req.query.portfolioManager) {
+      const searchTerm = String(req.query.portfolioManager).toLowerCase();
+      filteredProjects = filteredProjects.filter((project: any) =>
+        project.portfolioManager?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Recalculate pagination after filtering
+    const filteredCount = filteredProjects.length;
+    const totalPages = Math.ceil(filteredCount / limit);
+
     res.json({
       success: true,
-      data: projectsWithManagers,
+      data: filteredProjects,
       pagination: {
-        total: count,
+        total: filteredCount,
         page,
         limit,
-        totalPages: Math.ceil(count / limit),
-        hasMore: page * limit < count,
+        totalPages,
+        hasMore: page * limit < filteredCount,
       },
     });
   } catch (error) {

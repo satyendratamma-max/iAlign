@@ -1120,6 +1120,8 @@ const ProjectManagement = () => {
     status: [] as string[],
     priority: '',
     currentPhase: '',
+    projectManager: '',
+    portfolioManager: '',
     health: [] as string[],
     impactedDomain: [] as string[],
   });
@@ -1323,6 +1325,12 @@ const ProjectManagement = () => {
         }
         if (debouncedFilters.currentPhase) {
           projectsParams.currentPhase = debouncedFilters.currentPhase;
+        }
+        if (debouncedFilters.projectManager) {
+          projectsParams.projectManager = debouncedFilters.projectManager;
+        }
+        if (debouncedFilters.portfolioManager) {
+          projectsParams.portfolioManager = debouncedFilters.portfolioManager;
         }
         if (debouncedFilters.priority) {
           projectsParams.priority = debouncedFilters.priority;
@@ -4592,8 +4600,24 @@ const ProjectManagement = () => {
                   fullWidth
                 />
               </TableCell>
-              <TableCell />
-              <TableCell />
+              <TableCell>
+                <TextField
+                  size="small"
+                  placeholder="Filter by PM"
+                  value={filters.projectManager}
+                  onChange={(e) => setFilters({ ...filters, projectManager: e.target.value })}
+                  fullWidth
+                />
+              </TableCell>
+              <TableCell>
+                <TextField
+                  size="small"
+                  placeholder="Filter by Portfolio Mgr"
+                  value={filters.portfolioManager}
+                  onChange={(e) => setFilters({ ...filters, portfolioManager: e.target.value })}
+                  fullWidth
+                />
+              </TableCell>
               <TableCell />
               <TableCell />
               <TableCell />
