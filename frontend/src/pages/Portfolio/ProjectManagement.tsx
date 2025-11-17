@@ -4663,8 +4663,8 @@ const ProjectManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {/* SERVER-SIDE FILTERING AND PAGINATION: Backend handles filtering and pagination */}
-            {projects.map((project) => (
+            {/* SERVER-SIDE FILTERING AND PAGINATION: Backend handles filtering, frontend handles sorting */}
+            {filteredProjects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
                   <IconButton
