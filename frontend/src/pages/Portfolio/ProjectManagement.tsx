@@ -1130,7 +1130,7 @@ const ProjectManagement = () => {
 
   // Sorting state
   type OrderDirection = 'asc' | 'desc';
-  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'targetRelease' | 'targetSprint' | 'status' | 'priority' | 'currentPhase' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus' | 'risk';
+  type SortableColumn = 'projectNumber' | 'name' | 'domain' | 'segmentFunction' | 'type' | 'fiscalYear' | 'targetRelease' | 'targetSprint' | 'status' | 'priority' | 'currentPhase' | 'projectManager' | 'portfolioManager' | 'progress' | 'budget' | 'startDate' | 'endDate' | 'healthStatus' | 'risk';
   const [orderBy, setOrderBy] = useState<SortableColumn>('projectNumber');
   const [order, setOrder] = useState<OrderDirection>('asc');
   const [projectRisks, setProjectRisks] = useState<Record<number, number>>({});
@@ -2597,6 +2597,14 @@ const ProjectManagement = () => {
       case 'currentPhase':
         aValue = a.currentPhase?.toLowerCase() || '';
         bValue = b.currentPhase?.toLowerCase() || '';
+        break;
+      case 'projectManager':
+        aValue = (a as any).projectManager?.toLowerCase() || '';
+        bValue = (b as any).projectManager?.toLowerCase() || '';
+        break;
+      case 'portfolioManager':
+        aValue = (a as any).portfolioManager?.toLowerCase() || '';
+        bValue = (b as any).portfolioManager?.toLowerCase() || '';
         break;
       case 'progress':
         aValue = a.progress || 0;
@@ -4401,10 +4409,22 @@ const ProjectManagement = () => {
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 150 }}>
-                Project Manager
+                <TableSortLabel
+                  active={orderBy === 'projectManager'}
+                  direction={orderBy === 'projectManager' ? order : 'asc'}
+                  onClick={() => handleRequestSort('projectManager')}
+                >
+                  Project Manager
+                </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 150 }}>
-                Portfolio Manager
+                <TableSortLabel
+                  active={orderBy === 'portfolioManager'}
+                  direction={orderBy === 'portfolioManager' ? order : 'asc'}
+                  onClick={() => handleRequestSort('portfolioManager')}
+                >
+                  Portfolio Manager
+                </TableSortLabel>
               </TableCell>
               <TableCell sx={{ minWidth: 100 }}>
                 <TableSortLabel
