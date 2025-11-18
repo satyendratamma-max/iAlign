@@ -1795,13 +1795,8 @@ const ProjectManagement = () => {
     setOpenDialog(false);
     setSearchParams({}); // Clear URL params when closing dialog
 
-    // Clean up other state immediately (tab state cleanup happens in TransitionProps.onExited)
-    setCurrentProject({});
-    setDomainImpacts([]);
-    setCurrentProjectMilestones([]);
-    setOriginalProjectMilestones([]);
-    setFormErrors({});
-    setHasUnsavedChanges(false);
+    // DO NOT clean up state here - let it happen in TransitionProps.onExited
+    // to prevent visible content changes during the close animation
   };
 
   // Helper to update project and mark as unsaved
@@ -1929,14 +1924,11 @@ const ProjectManagement = () => {
       setOpenDialog(false);
       setSearchParams({}); // Clear URL params when closing dialog
 
-      // Fetch updated data and cleanup state (tab state cleanup happens in TransitionProps.onExited)
+      // Fetch updated data (state cleanup happens in TransitionProps.onExited)
       fetchData();
-      setCurrentProject({});
-      setDomainImpacts([]);
-      setCurrentProjectMilestones([]);
-      setOriginalProjectMilestones([]);
-      setFormErrors({});
-      setHasUnsavedChanges(false);
+
+      // DO NOT clean up state here - let it happen in TransitionProps.onExited
+      // to prevent visible content changes during the close animation
     } catch (error: any) {
       console.error('Error saving project:', error);
 
@@ -7073,11 +7065,18 @@ const ProjectManagement = () => {
         keepMounted
         TransitionProps={{
           onExited: () => {
-            // Reset state only after transition fully completes
+            // Reset ALL state only after transition fully completes
+            // This prevents any visible content changes during the close animation
             setDialogTab(0);
             setFrozenDialogTab(0);
             setIsDialogClosing(false);
             setEditMode(false);
+            setCurrentProject({});
+            setDomainImpacts([]);
+            setCurrentProjectMilestones([]);
+            setOriginalProjectMilestones([]);
+            setFormErrors({});
+            setHasUnsavedChanges(false);
           }
         }}
       >
