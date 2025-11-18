@@ -65,6 +65,7 @@ import {
   Image as ImageIcon,
   PictureAsPdf as PictureAsPdfIcon,
   Refresh as RefreshIcon,
+  Comment as CommentIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { fetchAllPages } from '../../services/api';
@@ -2032,6 +2033,12 @@ const ProjectManagement = () => {
     } finally {
       setLoadingResources(false);
     }
+  };
+
+  const handleViewActivity = async (project: Project) => {
+    // Open the project in edit mode with Activity tab (tab index 8)
+    await handleOpenDialog(project);
+    setDialogTab(8); // Set to Activity tab
   };
 
   const handleCloseResourcesDialog = () => {
@@ -4699,6 +4706,14 @@ const ProjectManagement = () => {
                     title="View Resources"
                   >
                     <PeopleIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleViewActivity(project)}
+                    title="View Activity"
+                  >
+                    <CommentIcon />
                   </IconButton>
                   <Button
                     size="small"
