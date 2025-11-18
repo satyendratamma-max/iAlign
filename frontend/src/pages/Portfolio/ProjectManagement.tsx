@@ -1795,19 +1795,13 @@ const ProjectManagement = () => {
     setOpenDialog(false);
     setSearchParams({}); // Clear URL params when closing dialog
 
-    // Delay state cleanup until after dialog close transition completes
-    // This prevents visible tab switching during the dialog close animation
-    setTimeout(() => {
-      setCurrentProject({});
-      setDomainImpacts([]);
-      setCurrentProjectMilestones([]);
-      setOriginalProjectMilestones([]);
-      setDialogTab(0);
-      setFrozenDialogTab(0);
-      setFormErrors({}); // Clear any validation errors
-      setHasUnsavedChanges(false); // Reset on close
-      setIsDialogClosing(false);
-    }, 300); // Match Material-UI dialog transition duration
+    // Clean up other state immediately (tab state cleanup happens in TransitionProps.onExited)
+    setCurrentProject({});
+    setDomainImpacts([]);
+    setCurrentProjectMilestones([]);
+    setOriginalProjectMilestones([]);
+    setFormErrors({});
+    setHasUnsavedChanges(false);
   };
 
   // Helper to update project and mark as unsaved
@@ -1935,21 +1929,14 @@ const ProjectManagement = () => {
       setOpenDialog(false);
       setSearchParams({}); // Clear URL params when closing dialog
 
-      // Fetch updated data and cleanup state after dialog is closed
+      // Fetch updated data and cleanup state (tab state cleanup happens in TransitionProps.onExited)
       fetchData();
-
-      // Delay state cleanup until after dialog close transition completes
-      setTimeout(() => {
-        setCurrentProject({});
-        setDomainImpacts([]);
-        setCurrentProjectMilestones([]);
-        setOriginalProjectMilestones([]);
-        setDialogTab(0);
-        setFrozenDialogTab(0);
-        setFormErrors({});
-        setHasUnsavedChanges(false);
-        setIsDialogClosing(false);
-      }, 300);
+      setCurrentProject({});
+      setDomainImpacts([]);
+      setCurrentProjectMilestones([]);
+      setOriginalProjectMilestones([]);
+      setFormErrors({});
+      setHasUnsavedChanges(false);
     } catch (error: any) {
       console.error('Error saving project:', error);
 
@@ -2602,18 +2589,13 @@ const ProjectManagement = () => {
       setIsDialogClosing(true);
       setOpenDialog(false);
 
-      // Delay state cleanup to avoid visible tab switching during close animation
-      setTimeout(() => {
-        setCurrentProject({});
-        setDomainImpacts([]);
-        setCurrentProjectMilestones([]);
-        setOriginalProjectMilestones([]);
-        setDialogTab(0);
-        setFrozenDialogTab(0);
-        setFormErrors({});
-        setHasUnsavedChanges(false);
-        setIsDialogClosing(false);
-      }, 300);
+      // Clean up state (tab state cleanup happens in TransitionProps.onExited)
+      setCurrentProject({});
+      setDomainImpacts([]);
+      setCurrentProjectMilestones([]);
+      setOriginalProjectMilestones([]);
+      setFormErrors({});
+      setHasUnsavedChanges(false);
     }
   }, [searchParams, projects, openDialog, editMode]);
 
@@ -7081,7 +7063,21 @@ const ProjectManagement = () => {
       )}
       </Box>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="lg"
+        fullWidth
+        keepMounted
+        TransitionProps={{
+          onExited: () => {
+            // Reset state only after transition fully completes
+            setDialogTab(0);
+            setFrozenDialogTab(0);
+            setIsDialogClosing(false);
+          }
+        }}
+      >
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
         <Tabs
           value={activeDialogTab}
