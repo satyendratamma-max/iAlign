@@ -485,6 +485,15 @@ const QuickAllocationDialog = ({
   const handleSave = async () => {
     if (!selectedResourceId || !project) return;
 
+    // Validate dates
+    const finalStartDate = useProjectDuration ? project.startDate : startDate;
+    const finalEndDate = useProjectDuration ? project.endDate : endDate;
+
+    if (!finalStartDate || !finalEndDate) {
+      alert('Please provide both start and end dates for the allocation.');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -495,8 +504,8 @@ const QuickAllocationDialog = ({
         scenarioId,
         allocationPercentage,
         allocationType,
-        startDate: useProjectDuration ? project.startDate : startDate,
-        endDate: useProjectDuration ? project.endDate : endDate,
+        startDate: finalStartDate,
+        endDate: finalEndDate,
         resourceCapabilityId: selectedCapabilityId,
         projectRequirementId: selectedRequirementId,
         isActive: true,
@@ -853,9 +862,14 @@ const QuickAllocationDialog = ({
                     <Checkbox
                       checked={useProjectDuration}
                       onChange={(e) => setUseProjectDuration(e.target.checked)}
+                      disabled={!project?.startDate || !project?.endDate}
                     />
                   }
-                  label="Use full project duration"
+                  label={
+                    project?.startDate && project?.endDate
+                      ? "Use full project duration"
+                      : "Use full project duration (project dates not set)"
+                  }
                 />
               </Grid>
 
@@ -864,21 +878,25 @@ const QuickAllocationDialog = ({
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
+                      required
                       type="date"
                       label="Start Date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       InputLabelProps={{ shrink: true }}
+                      helperText="* Required"
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
+                      required
                       type="date"
                       label="End Date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       InputLabelProps={{ shrink: true }}
+                      helperText="* Required"
                     />
                   </Grid>
                 </>
