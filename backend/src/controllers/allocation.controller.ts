@@ -363,6 +363,14 @@ export const createAllocation = async (req: Request, res: Response) => {
   try {
     const allocationData = req.body;
 
+    // Validate scenarioId is provided (REQUIRED)
+    if (!allocationData.scenarioId) {
+      return res.status(400).json({
+        success: false,
+        message: 'scenarioId is required. All allocations must belong to a scenario.',
+      });
+    }
+
     // Validate resource employment dates
     if (allocationData.resourceId) {
       const resource = await Resource.findByPk(allocationData.resourceId);
@@ -543,6 +551,14 @@ export const updateAllocation = async (req: Request, res: Response) => {
     }
 
     const updateData = req.body;
+
+    // Prevent removing scenarioId (it's required)
+    if (updateData.scenarioId === null || updateData.scenarioId === undefined || updateData.scenarioId === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'scenarioId cannot be removed or set to null. All allocations must belong to a scenario.',
+      });
+    }
 
     // If projectRequirementId is being updated, automatically set roleOnProject from the requirement
     if (updateData.projectRequirementId && updateData.resourceCapabilityId) {

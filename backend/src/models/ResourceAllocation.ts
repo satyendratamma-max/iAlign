@@ -3,7 +3,7 @@ import sequelize from '../config/database';
 
 export interface ResourceAllocationAttributes {
   id?: number;
-  scenarioId?: number;
+  scenarioId: number; // REQUIRED - allocations are scenario-specific
   projectId: number;
   resourceId: number;
   milestoneId?: number;
@@ -27,7 +27,7 @@ export interface ResourceAllocationAttributes {
 
 class ResourceAllocation extends Model<ResourceAllocationAttributes> implements ResourceAllocationAttributes {
   declare id: number;
-  declare scenarioId?: number;
+  declare scenarioId: number; // REQUIRED - allocations are scenario-specific
   declare projectId: number;
   declare resourceId: number;
   declare milestoneId?: number;
@@ -58,7 +58,7 @@ ResourceAllocation.init(
     },
     scenarioId: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false, // REQUIRED - all allocations must belong to a scenario
     },
     projectId: {
       type: DataTypes.INTEGER,
