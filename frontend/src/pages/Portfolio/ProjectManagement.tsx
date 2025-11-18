@@ -2581,13 +2581,8 @@ const ProjectManagement = () => {
       setIsDialogClosing(true);
       setOpenDialog(false);
 
-      // Clean up state (tab state cleanup happens in TransitionProps.onExited)
-      setCurrentProject({});
-      setDomainImpacts([]);
-      setCurrentProjectMilestones([]);
-      setOriginalProjectMilestones([]);
-      setFormErrors({});
-      setHasUnsavedChanges(false);
+      // DO NOT clean up state here - let it happen in TransitionProps.onExited
+      // to prevent visible content changes during the close animation
     }
   }, [searchParams, projects, openDialog, editMode]);
 
