@@ -2039,6 +2039,8 @@ const ProjectManagement = () => {
     // Open the project in edit mode with Activity tab (tab index 8)
     await handleOpenDialog(project);
     setDialogTab(8); // Set to Activity tab
+    // Update URL params to reflect Activity tab
+    setSearchParams({ editProjectId: project.id!.toString(), tab: '8' });
   };
 
   const handleCloseResourcesDialog = () => {
