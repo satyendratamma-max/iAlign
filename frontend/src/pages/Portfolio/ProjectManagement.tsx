@@ -2919,8 +2919,17 @@ const ProjectManagement = () => {
 
   // Calculate active tab for dialog (use frozen tab during close transition)
   const activeDialogTab = useMemo(() => {
-    return isDialogClosing ? frozenDialogTab : dialogTab;
-  }, [isDialogClosing, frozenDialogTab, dialogTab]);
+    const tab = isDialogClosing ? frozenDialogTab : dialogTab;
+
+    // Constrain tab value to available tabs
+    // In add mode: tabs 0-5 (no Milestones=4, Requirements=7, Activity=8)
+    // In edit mode: tabs 0-8 (all tabs including conditional ones)
+    if (!editMode && tab > 5) {
+      return 0; // Default to first tab if invalid
+    }
+
+    return tab;
+  }, [isDialogClosing, frozenDialogTab, dialogTab, editMode]);
 
   // Calculate total row count for swimlane layout (count all projects, not groups)
   const getTotalSwimlaneRows = (): number => {
