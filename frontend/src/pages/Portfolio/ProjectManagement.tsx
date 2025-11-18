@@ -2511,13 +2511,13 @@ const ProjectManagement = () => {
         // Dialog is already open, just update the tab
         setDialogTab(parseInt(tab));
       }
-    } else if (!editProjectId && openDialog) {
-      // No editProjectId in URL but dialog is open - user clicked back from dialog state
+    } else if (!editProjectId && openDialog && editMode) {
+      // No editProjectId in URL but dialog is open in edit mode - user clicked back from dialog state
       setOpenDialog(false);
       setCurrentProject({});
       setDialogTab(0);
     }
-  }, [searchParams, projects, openDialog]);
+  }, [searchParams, projects, openDialog, editMode]);
 
   // PERFORMANCE: Memoize filtered and sorted projects to avoid recalculating on every render
   // For table view: backend handles filtering, so use projects directly
