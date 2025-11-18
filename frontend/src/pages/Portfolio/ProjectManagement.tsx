@@ -1788,14 +1788,19 @@ const ProjectManagement = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setCurrentProject({});
-    setDomainImpacts([]);
-    setCurrentProjectMilestones([]);
-    setOriginalProjectMilestones([]);
-    setDialogTab(0);
-    setFormErrors({}); // Clear any validation errors
-    setHasUnsavedChanges(false); // Reset on close
     setSearchParams({}); // Clear URL params when closing dialog
+
+    // Delay state cleanup until after dialog close transition completes
+    // This prevents visible tab switching during the dialog close animation
+    setTimeout(() => {
+      setCurrentProject({});
+      setDomainImpacts([]);
+      setCurrentProjectMilestones([]);
+      setOriginalProjectMilestones([]);
+      setDialogTab(0);
+      setFormErrors({}); // Clear any validation errors
+      setHasUnsavedChanges(false); // Reset on close
+    }, 300); // Match Material-UI dialog transition duration
   };
 
   // Helper to update project and mark as unsaved
@@ -2036,11 +2041,51 @@ const ProjectManagement = () => {
   };
 
   const handleViewActivity = async (project: Project) => {
-    // Open the project in edit mode with Activity tab (tab index 8)
-    await handleOpenDialog(project);
-    setDialogTab(8); // Set to Activity tab
-    // Update URL params to reflect Activity tab
+    // Set tab to Activity BEFORE opening dialog to avoid visible tab switching
+    setDialogTab(8);
+    setEditMode(true);
+    setCurrentProject(project);
+
+    // Set URL params with Activity tab from the start
     setSearchParams({ editProjectId: project.id!.toString(), tab: '8' });
+
+    // Fetch domain impacts and milestones for this project
+    try {
+      const token = localStorage.getItem('token');
+      const scenarioParam = activeScenario ? `?scenarioId=${activeScenario.id}` : '';
+
+      const [impactsResponse, milestonesResponse] = await Promise.all([
+        axios.get(`${API_URL}/project-domain-impacts?projectId=${project.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${API_URL}/milestones${scenarioParam}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      const impacts = impactsResponse.data.data.map((impact: any) => ({
+        id: impact.id,
+        domainId: impact.domainId,
+        domainName: impact.domain?.name,
+        impactType: impact.impactType,
+        impactLevel: impact.impactLevel,
+        description: impact.description,
+      }));
+
+      const projectMilestones = milestonesResponse.data.data.filter((m: Milestone) => m.projectId === project.id);
+
+      setDomainImpacts(impacts);
+      setCurrentProjectMilestones(projectMilestones);
+      setOriginalProjectMilestones(projectMilestones);
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+      setDomainImpacts([]);
+      setCurrentProjectMilestones([]);
+      setOriginalProjectMilestones([]);
+    }
+
+    setOpenDialog(true);
+    setHasUnsavedChanges(false);
   };
 
   const handleCloseResourcesDialog = () => {
