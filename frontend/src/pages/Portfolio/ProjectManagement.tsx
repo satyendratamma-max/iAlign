@@ -2935,6 +2935,11 @@ const ProjectManagement = () => {
     return map;
   }, [swimlaneConfig.enabled, swimlaneStructure, filteredProjects]);
 
+  // Calculate active tab for dialog (use frozen tab during close transition)
+  const activeDialogTab = useMemo(() => {
+    return isDialogClosing ? frozenDialogTab : dialogTab;
+  }, [isDialogClosing, frozenDialogTab, dialogTab]);
+
   // Calculate total row count for swimlane layout (count all projects, not groups)
   const getTotalSwimlaneRows = (): number => {
     if (!swimlaneStructure) return 0;
@@ -7079,7 +7084,7 @@ const ProjectManagement = () => {
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
         <Tabs
-          value={isDialogClosing ? frozenDialogTab : dialogTab}
+          value={activeDialogTab}
           onChange={(_e, newValue) => {
             if (!isDialogClosing) {
               setDialogTab(newValue);
@@ -7104,13 +7109,8 @@ const ProjectManagement = () => {
           {editMode && currentProject.id && <Tab label="Activity" />}
         </Tabs>
         <DialogContent>
-          {/* Use frozen tab during close transition to prevent flickering */}
-          {(() => {
-            const activeTab = isDialogClosing ? frozenDialogTab : dialogTab;
-            return (
-              <>
           {/* Tab 0: Basic Info */}
-          {activeTab === 0 && (
+          {activeDialogTab === 0 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7342,7 +7342,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 1: Business Details */}
-          {activeTab === 1 && (
+          {activeDialogTab === 1 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7473,7 +7473,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 2: Financial */}
-          {activeTab === 2 && (
+          {activeDialogTab === 2 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7584,7 +7584,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 3: Dates & Timeline */}
-          {activeTab === 3 && (
+          {activeDialogTab === 3 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7695,7 +7695,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 4: Milestones (only in edit mode) */}
-          {editMode && activeTab === 4 && currentProject.id && (
+          {editMode && activeDialogTab === 4 && currentProject.id && (
             <Box sx={{ mt: 2 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -7832,7 +7832,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab: Management & Classification (index depends on edit mode) */}
-          {((editMode && activeTab === 5) || (!editMode && activeTab === 4)) && (
+          {((editMode && activeDialogTab === 5) || (!editMode && activeDialogTab === 4)) && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7878,7 +7878,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab: Cross-Domain Impact (index depends on edit mode) */}
-          {((editMode && activeTab === 6) || (!editMode && activeTab === 5)) && (
+          {((editMode && activeDialogTab === 6) || (!editMode && activeDialogTab === 5)) && (
             <Box sx={{ mt: 1 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -8078,7 +8078,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 7: Requirements (only in edit mode) */}
-          {activeTab === 7 && editMode && currentProject.id && (
+          {activeDialogTab === 7 && editMode && currentProject.id && (
             <Box sx={{ mt: 1 }}>
               <EnhancedRequirementsTab
                 projectId={currentProject.id}
@@ -8098,14 +8098,11 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 8: Activity (only in edit mode) */}
-          {activeTab === 8 && editMode && currentProject.id && (
+          {activeDialogTab === 8 && editMode && currentProject.id && (
             <Box sx={{ mt: 1 }}>
               <ProjectActivityFeed projectId={currentProject.id} />
             </Box>
           )}
-              </>
-            );
-          })()}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
