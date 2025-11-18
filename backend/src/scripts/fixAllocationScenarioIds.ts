@@ -10,10 +10,11 @@
  *   npx ts-node src/scripts/fixAllocationScenarioIds.ts
  */
 
-import ResourceAllocation from '../models/ResourceAllocation';
-import Project from '../models/Project';
+import { Op } from 'sequelize';
 import sequelize from '../config/database';
 import logger from '../config/logger';
+// Import models with associations
+import { ResourceAllocation, Project } from '../models';
 
 async function fixAllocationScenarioIds() {
   const transaction = await sequelize.transaction();
@@ -22,11 +23,16 @@ async function fixAllocationScenarioIds() {
     console.log('🔍 Finding allocations with missing or zero scenarioId...\n');
 
     // Find all allocations with scenarioId = 0, NULL, or undefined
+    // Type assertion needed because model now defines scenarioId as required,
+    // but we're specifically searching for invalid legacy data to fix
     const problematicAllocations = await ResourceAllocation.findAll({
       where: {
-        scenarioId: [0, null],
+        [Op.or]: [
+          { scenarioId: 0 },
+          { scenarioId: null as any },
+        ],
         isActive: true,
-      },
+      } as any,
       include: [
         {
           model: Project,
