@@ -203,15 +203,47 @@ export const getAllAllocations = async (req: Request, res: Response) => {
         model: ResourceCapability,
         as: 'resourceCapability',
         required: false,
-        attributes: ['id'],
-        // Removed nested includes for App, Technology, Role from list view
+        attributes: ['id', 'appId', 'technologyId', 'roleId', 'proficiencyLevel', 'isPrimary'],
+        include: [
+          {
+            model: App,
+            as: 'app',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Technology,
+            as: 'technology',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code'],
+          },
+        ],
       },
       {
         model: ProjectRequirement,
         as: 'projectRequirement',
         required: false,
-        attributes: ['id'],
-        // Removed nested includes for App, Technology, Role from list view
+        attributes: ['id', 'appId', 'technologyId', 'roleId', 'proficiencyLevel', 'requiredCount', 'fulfilledCount'],
+        include: [
+          {
+            model: App,
+            as: 'app',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Technology,
+            as: 'technology',
+            attributes: ['id', 'name', 'code'],
+          },
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['id', 'name', 'code'],
+          },
+        ],
       },
     ];
 
