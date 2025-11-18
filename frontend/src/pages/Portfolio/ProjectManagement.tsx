@@ -4718,21 +4718,22 @@ const ProjectManagement = () => {
                     >
                       <CommentIcon />
                     </IconButton>
-                    <Button
+                    <IconButton
                       size="small"
-                      startIcon={<EditIcon />}
+                      color="primary"
                       onClick={() => handleOpenDialog(project)}
+                      title="Edit"
                     >
-                      Edit
-                    </Button>
-                    <Button
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
                       size="small"
                       color="error"
-                      startIcon={<DeleteIcon />}
                       onClick={() => handleDelete(project.id)}
+                      title="Delete"
                     >
-                      Delete
-                    </Button>
+                      <DeleteIcon />
+                    </IconButton>
                   </Box>
                 </TableCell>
                 <TableCell sx={{ position: 'sticky', left: 140, bgcolor: 'background.paper', zIndex: 10 }}>
