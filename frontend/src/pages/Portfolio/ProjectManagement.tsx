@@ -1922,8 +1922,23 @@ const ProjectManagement = () => {
         }
       }
 
+      // Close dialog immediately to prevent visible state changes during cleanup
+      setOpenDialog(false);
+      setSearchParams({}); // Clear URL params when closing dialog
+
+      // Fetch updated data and cleanup state after dialog is closed
       fetchData();
-      handleCloseDialog();
+
+      // Delay state cleanup until after dialog close transition completes
+      setTimeout(() => {
+        setCurrentProject({});
+        setDomainImpacts([]);
+        setCurrentProjectMilestones([]);
+        setOriginalProjectMilestones([]);
+        setDialogTab(0);
+        setFormErrors({});
+        setHasUnsavedChanges(false);
+      }, 300);
     } catch (error: any) {
       console.error('Error saving project:', error);
 
@@ -2573,8 +2588,17 @@ const ProjectManagement = () => {
     } else if (!editProjectId && openDialog && editMode) {
       // No editProjectId in URL but dialog is open in edit mode - user clicked back from dialog state
       setOpenDialog(false);
-      setCurrentProject({});
-      setDialogTab(0);
+
+      // Delay state cleanup to avoid visible tab switching during close animation
+      setTimeout(() => {
+        setCurrentProject({});
+        setDomainImpacts([]);
+        setCurrentProjectMilestones([]);
+        setOriginalProjectMilestones([]);
+        setDialogTab(0);
+        setFormErrors({});
+        setHasUnsavedChanges(false);
+      }, 300);
     }
   }, [searchParams, projects, openDialog, editMode]);
 
