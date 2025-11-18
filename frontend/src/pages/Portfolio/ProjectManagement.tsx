@@ -1066,10 +1066,12 @@ const ProjectManagement = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [isDialogClosing, setIsDialogClosing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [dialogTab, setDialogTab] = useState(0);
+  const [frozenDialogTab, setFrozenDialogTab] = useState(0); // Freeze tab during close transition
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const [currentProjectMilestones, setCurrentProjectMilestones] = useState<Milestone[]>([]);
   const [originalProjectMilestones, setOriginalProjectMilestones] = useState<Milestone[]>([]);
@@ -1787,6 +1789,9 @@ const ProjectManagement = () => {
   };
 
   const handleCloseDialog = () => {
+    // Freeze the current tab to prevent flickering during close transition
+    setFrozenDialogTab(dialogTab);
+    setIsDialogClosing(true);
     setOpenDialog(false);
     setSearchParams({}); // Clear URL params when closing dialog
 
@@ -1798,8 +1803,10 @@ const ProjectManagement = () => {
       setCurrentProjectMilestones([]);
       setOriginalProjectMilestones([]);
       setDialogTab(0);
+      setFrozenDialogTab(0);
       setFormErrors({}); // Clear any validation errors
       setHasUnsavedChanges(false); // Reset on close
+      setIsDialogClosing(false);
     }, 300); // Match Material-UI dialog transition duration
   };
 
@@ -1922,7 +1929,9 @@ const ProjectManagement = () => {
         }
       }
 
-      // Close dialog immediately to prevent visible state changes during cleanup
+      // Freeze the current tab and close dialog immediately to prevent visible state changes
+      setFrozenDialogTab(dialogTab);
+      setIsDialogClosing(true);
       setOpenDialog(false);
       setSearchParams({}); // Clear URL params when closing dialog
 
@@ -1936,8 +1945,10 @@ const ProjectManagement = () => {
         setCurrentProjectMilestones([]);
         setOriginalProjectMilestones([]);
         setDialogTab(0);
+        setFrozenDialogTab(0);
         setFormErrors({});
         setHasUnsavedChanges(false);
+        setIsDialogClosing(false);
       }, 300);
     } catch (error: any) {
       console.error('Error saving project:', error);
@@ -2587,6 +2598,8 @@ const ProjectManagement = () => {
       }
     } else if (!editProjectId && openDialog && editMode) {
       // No editProjectId in URL but dialog is open in edit mode - user clicked back from dialog state
+      setFrozenDialogTab(dialogTab);
+      setIsDialogClosing(true);
       setOpenDialog(false);
 
       // Delay state cleanup to avoid visible tab switching during close animation
@@ -2596,8 +2609,10 @@ const ProjectManagement = () => {
         setCurrentProjectMilestones([]);
         setOriginalProjectMilestones([]);
         setDialogTab(0);
+        setFrozenDialogTab(0);
         setFormErrors({});
         setHasUnsavedChanges(false);
+        setIsDialogClosing(false);
       }, 300);
     }
   }, [searchParams, projects, openDialog, editMode]);
@@ -7064,12 +7079,14 @@ const ProjectManagement = () => {
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
         <Tabs
-          value={dialogTab}
+          value={isDialogClosing ? frozenDialogTab : dialogTab}
           onChange={(_e, newValue) => {
-            setDialogTab(newValue);
-            // Update URL params to preserve tab state for browser back/forward
-            if (currentProject.id) {
-              setSearchParams({ editProjectId: currentProject.id.toString(), tab: newValue.toString() });
+            if (!isDialogClosing) {
+              setDialogTab(newValue);
+              // Update URL params to preserve tab state for browser back/forward
+              if (currentProject.id) {
+                setSearchParams({ editProjectId: currentProject.id.toString(), tab: newValue.toString() });
+              }
             }
           }}
           variant="scrollable"
@@ -7087,8 +7104,13 @@ const ProjectManagement = () => {
           {editMode && currentProject.id && <Tab label="Activity" />}
         </Tabs>
         <DialogContent>
+          {/* Use frozen tab during close transition to prevent flickering */}
+          {React.useMemo(() => {
+            const activeTab = isDialogClosing ? frozenDialogTab : dialogTab;
+            return (
+              <>
           {/* Tab 0: Basic Info */}
-          {dialogTab === 0 && (
+          {activeTab === 0 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7320,7 +7342,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 1: Business Details */}
-          {dialogTab === 1 && (
+          {activeTab === 1 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7451,7 +7473,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 2: Financial */}
-          {dialogTab === 2 && (
+          {activeTab === 2 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7562,7 +7584,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 3: Dates & Timeline */}
-          {dialogTab === 3 && (
+          {activeTab === 3 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7673,7 +7695,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 4: Milestones (only in edit mode) */}
-          {editMode && dialogTab === 4 && currentProject.id && (
+          {editMode && activeTab === 4 && currentProject.id && (
             <Box sx={{ mt: 2 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -7810,7 +7832,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab: Management & Classification (index depends on edit mode) */}
-          {((editMode && dialogTab === 5) || (!editMode && dialogTab === 4)) && (
+          {((editMode && activeTab === 5) || (!editMode && activeTab === 4)) && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -7856,7 +7878,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab: Cross-Domain Impact (index depends on edit mode) */}
-          {((editMode && dialogTab === 6) || (!editMode && dialogTab === 5)) && (
+          {((editMode && activeTab === 6) || (!editMode && activeTab === 5)) && (
             <Box sx={{ mt: 1 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -8056,7 +8078,7 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 7: Requirements (only in edit mode) */}
-          {dialogTab === 7 && editMode && currentProject.id && (
+          {activeTab === 7 && editMode && currentProject.id && (
             <Box sx={{ mt: 1 }}>
               <EnhancedRequirementsTab
                 projectId={currentProject.id}
@@ -8076,11 +8098,14 @@ const ProjectManagement = () => {
           )}
 
           {/* Tab 8: Activity (only in edit mode) */}
-          {dialogTab === 8 && editMode && currentProject.id && (
+          {activeTab === 8 && editMode && currentProject.id && (
             <Box sx={{ mt: 1 }}>
               <ProjectActivityFeed projectId={currentProject.id} />
             </Box>
           )}
+              </>
+            );
+          }, [isDialogClosing, frozenDialogTab, dialogTab, currentProject, currentProjectMilestones, domainImpacts, editMode, formErrors])}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
