@@ -1067,6 +1067,7 @@ const ProjectManagement = () => {
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [isDialogClosing, setIsDialogClosing] = useState(false);
+  const [isDialogTransitioning, setIsDialogTransitioning] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState<Partial<Project>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -7059,6 +7060,18 @@ const ProjectManagement = () => {
         fullWidth
         keepMounted
         TransitionProps={{
+          onEnter: () => {
+            // Hide content during enter transition
+            setIsDialogTransitioning(true);
+          },
+          onEntered: () => {
+            // Show content after enter transition completes
+            setIsDialogTransitioning(false);
+          },
+          onExit: () => {
+            // Hide content during exit transition
+            setIsDialogTransitioning(true);
+          },
           onExited: () => {
             // Reset ALL state only after transition fully completes
             // This prevents any visible content changes during the close animation
@@ -7072,37 +7085,41 @@ const ProjectManagement = () => {
             setOriginalProjectMilestones([]);
             setFormErrors({});
             setHasUnsavedChanges(false);
+            setIsDialogTransitioning(false);
           }
         }}
       >
         <DialogTitle>{editMode ? 'Edit Project' : 'Add Project'}</DialogTitle>
-        <Tabs
-          value={activeDialogTab}
-          onChange={(_e, newValue) => {
-            if (!isDialogClosing) {
-              setDialogTab(newValue);
-              // Update URL params to preserve tab state for browser back/forward
-              if (currentProject.id) {
-                setSearchParams({ editProjectId: currentProject.id.toString(), tab: newValue.toString() });
-              }
-            }
-          }}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
-        >
-          <Tab label="Basic Info" />
-          <Tab label="Business Details" />
-          <Tab label="Financial" />
-          <Tab label="Dates & Timeline" />
-          {/* Keep edit-mode tabs during close transition to prevent MUI tab index errors */}
-          {(editMode || isDialogClosing) && <Tab label="Milestones" />}
-          <Tab label="Management" />
-          <Tab label="Cross-Domain Impact" />
-          {(editMode || isDialogClosing) && <Tab label="Requirements" />}
-          {(editMode || isDialogClosing) && <Tab label="Activity" />}
-        </Tabs>
-        <DialogContent>
+        {/* Hide tabs and content during transition to prevent flickering */}
+        {!isDialogTransitioning && (
+          <>
+            <Tabs
+              value={activeDialogTab}
+              onChange={(_e, newValue) => {
+                if (!isDialogClosing) {
+                  setDialogTab(newValue);
+                  // Update URL params to preserve tab state for browser back/forward
+                  if (currentProject.id) {
+                    setSearchParams({ editProjectId: currentProject.id.toString(), tab: newValue.toString() });
+                  }
+                }
+              }}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
+            >
+              <Tab label="Basic Info" />
+              <Tab label="Business Details" />
+              <Tab label="Financial" />
+              <Tab label="Dates & Timeline" />
+              {/* Keep edit-mode tabs during close transition to prevent MUI tab index errors */}
+              {(editMode || isDialogClosing) && <Tab label="Milestones" />}
+              <Tab label="Management" />
+              <Tab label="Cross-Domain Impact" />
+              {(editMode || isDialogClosing) && <Tab label="Requirements" />}
+              {(editMode || isDialogClosing) && <Tab label="Activity" />}
+            </Tabs>
+            <DialogContent>
           {/* Tab 0: Basic Info */}
           {activeDialogTab === 0 && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -8098,12 +8115,14 @@ const ProjectManagement = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            Save
-          </Button>
-        </DialogActions>
+            <DialogActions>
+              <Button onClick={handleCloseDialog}>Cancel</Button>
+              <Button onClick={handleSave} variant="contained">
+                Save
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
 
       <Dialog
