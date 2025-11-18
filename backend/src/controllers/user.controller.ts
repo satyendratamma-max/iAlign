@@ -209,19 +209,20 @@ export const searchUsers = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // Search with query
+    // Search with query - optimized for large datasets
+    // Use left-anchored wildcards (query%) instead of (%query%) for better index usage
     const users = await User.findAll({
       where: {
         isActive: true,
         [Op.or]: [
-          { firstName: { [Op.like]: `%${query}%` } },
-          { lastName: { [Op.like]: `%${query}%` } },
-          { email: { [Op.like]: `%${query}%` } },
-          { username: { [Op.like]: `%${query}%` } },
+          { firstName: { [Op.like]: `${query}%` } },  // Starts with (can use index)
+          { lastName: { [Op.like]: `${query}%` } },   // Starts with (can use index)
+          { email: { [Op.like]: `${query}%` } },      // Starts with (can use index)
+          { username: { [Op.like]: `${query}%` } },   // Starts with (can use index)
         ],
       },
       attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
-      limit: 10,
+      limit: 15, // Show a few more results
       order: [['firstName', 'ASC'], ['lastName', 'ASC']],
     });
 

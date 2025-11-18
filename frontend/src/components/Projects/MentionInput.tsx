@@ -10,6 +10,8 @@ import {
   Box,
   Popper,
   ClickAwayListener,
+  CircularProgress,
+  Typography,
 } from '@mui/material';
 
 interface User {
@@ -43,6 +45,7 @@ const MentionInput: React.FC<MentionInputProps> = ({
   const [mentionStart, setMentionStart] = useState<number>(-1);
   const [mentionQuery, setMentionQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -55,6 +58,7 @@ const MentionInput: React.FC<MentionInputProps> = ({
   useEffect(() => {
     const searchMentions = async () => {
       if (mentionQuery.length >= 2) {
+        setIsSearching(true);
         try {
           const users = await onSearchUsers(mentionQuery);
           setSuggestions(users);
@@ -62,14 +66,30 @@ const MentionInput: React.FC<MentionInputProps> = ({
         } catch (error) {
           console.error('Error searching users:', error);
           setSuggestions([]);
+        } finally {
+          setIsSearching(false);
         }
       } else {
         setSuggestions([]);
+        setIsSearching(false);
       }
     };
 
     if (mentionStart >= 0) {
-      searchMentions();
+      // Show searching state immediately
+      if (mentionQuery.length >= 2) {
+        setIsSearching(true);
+      }
+
+      // Debounce search to reduce API calls (wait 300ms after user stops typing)
+      const debounceTimer = setTimeout(() => {
+        searchMentions();
+      }, 300);
+
+      return () => {
+        clearTimeout(debounceTimer);
+        setIsSearching(false);
+      };
     }
   }, [mentionQuery, mentionStart, onSearchUsers]);
 
@@ -179,37 +199,52 @@ const MentionInput: React.FC<MentionInputProps> = ({
           inputRef={inputRef}
         />
         <Popper
-          open={showSuggestions && suggestions.length > 0}
+          open={showSuggestions && (isSearching || suggestions.length > 0)}
           anchorEl={anchorEl}
           placement="bottom-start"
           style={{ zIndex: 1300, width: anchorEl?.clientWidth }}
         >
           <Paper elevation={3} sx={{ maxHeight: 300, overflow: 'auto', mt: 1 }}>
-            <List>
-              {suggestions.map((user, index) => (
-                <ListItem
-                  key={user.id}
-                  button
-                  selected={index === selectedIndex}
-                  onClick={() => insertMention(user)}
-                  sx={{
-                    bgcolor: index === selectedIndex ? 'action.selected' : 'transparent',
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
-                      {user.firstName[0]}
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={user.displayName}
-                    secondary={user.email}
-                    primaryTypographyProps={{ variant: 'body2' }}
-                    secondaryTypographyProps={{ variant: 'caption' }}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            {isSearching ? (
+              <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={20} />
+                <Typography variant="body2" color="text.secondary">
+                  Searching...
+                </Typography>
+              </Box>
+            ) : suggestions.length === 0 ? (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  No users found
+                </Typography>
+              </Box>
+            ) : (
+              <List>
+                {suggestions.map((user, index) => (
+                  <ListItem
+                    key={user.id}
+                    button
+                    selected={index === selectedIndex}
+                    onClick={() => insertMention(user)}
+                    sx={{
+                      bgcolor: index === selectedIndex ? 'action.selected' : 'transparent',
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+                        {user.firstName[0]}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={user.displayName}
+                      secondary={user.email}
+                      primaryTypographyProps={{ variant: 'body2' }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </Paper>
         </Popper>
       </Box>
