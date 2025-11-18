@@ -690,9 +690,14 @@ const QuickAllocationDialog = ({
                 <Autocomplete
                   fullWidth
                   options={availableResources.filter(r => isEditMode || r.matchScore >= minMatchScore)}
-                  getOptionLabel={(option) =>
-                    `${option.firstName} ${option.lastName} (${option.employeeId})${!isEditMode ? ` - ${option.matchScore}%` : ''}`
-                  }
+                  getOptionLabel={(option) => {
+                    const baseName = `${option.firstName} ${option.lastName} (${option.employeeId})`;
+                    if (option.bestCapability) {
+                      const skill = `${option.bestCapability.app.code}/${option.bestCapability.technology.code}/${option.bestCapability.role.code}`;
+                      return `${baseName} - ${skill}${!isEditMode ? ` - ${option.matchScore}%` : ''}`;
+                    }
+                    return `${baseName}${!isEditMode ? ` - ${option.matchScore}%` : ''}`;
+                  }}
                   value={availableResources.find(r => r.id === selectedResourceId) || null}
                   onChange={(_, newValue) => {
                     // Ensure selected resource is in availableResources array
@@ -792,6 +797,62 @@ const QuickAllocationDialog = ({
               </Grid>
             </>
           ) : null}
+
+          {/* Skill Mapping Display */}
+          {selectedResourceId && selectedRequirementId && (
+            <Grid item xs={12}>
+              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: 1, borderColor: 'divider' }}>
+                <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                  Skill Mapping
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={5}>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      Project Requirement
+                    </Typography>
+                    {selectedRequirement && (
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {selectedRequirement.app.code}/{selectedRequirement.technology.code}/{selectedRequirement.role.code}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedRequirement.proficiencyLevel}
+                          {selectedRequirement.minYearsExp && ` • ${selectedRequirement.minYearsExp}+ years`}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Grid>
+                  <Grid item xs={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography variant="h6" color="primary">
+                      →
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={5}>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      Resource Capability
+                    </Typography>
+                    {(() => {
+                      const selectedResource = availableResources.find(r => r.id === selectedResourceId);
+                      if (selectedResource?.bestCapability) {
+                        return (
+                          <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                              {selectedResource.bestCapability.app.code}/{selectedResource.bestCapability.technology.code}/{selectedResource.bestCapability.role.code}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {selectedResource.bestCapability.proficiencyLevel}
+                              {selectedResource.bestCapability.yearsOfExperience && ` • ${selectedResource.bestCapability.yearsOfExperience} years`}
+                            </Typography>
+                          </Box>
+                        );
+                      }
+                      return <Typography variant="caption">No capability selected</Typography>;
+                    })()}
+                  </Grid>
+                </Grid>
+              </Box>
+            </Grid>
+          )}
 
           {/* Match Score Indicator */}
           {selectedCapabilityId && selectedRequirementId && (
