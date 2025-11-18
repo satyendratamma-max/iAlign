@@ -2919,27 +2919,10 @@ const ProjectManagement = () => {
 
   // Calculate active tab for dialog (use frozen tab during close transition)
   const activeDialogTab = useMemo(() => {
-    const tab = isDialogClosing ? frozenDialogTab : dialogTab;
-
-    // When dialog is kept mounted but closing, we need to check if the project still exists
-    // to determine available tabs (edit mode tabs 0-8, add mode tabs 0-5)
-    const hasProject = currentProject && currentProject.id;
-    const isEditModeTabs = isDialogClosing ? (frozenDialogTab >= 4) : (editMode && hasProject);
-
-    // Constrain tab value to available tabs
-    // In add mode: tabs 0-5 (no Milestones=4, Requirements=7, Activity=8)
-    // In edit mode: tabs 0-8 (all tabs including conditional ones)
-    if (!isEditModeTabs && tab > 5) {
-      return 0; // Default to first tab if invalid
-    }
-
-    // Special case: tabs 4, 7, 8 only exist in edit mode
-    if (!isEditModeTabs && (tab === 4 || tab === 7 || tab === 8)) {
-      return 0;
-    }
-
-    return tab;
-  }, [isDialogClosing, frozenDialogTab, dialogTab, editMode, currentProject]);
+    // During close transition, use frozen tab to prevent flickering
+    // Otherwise use current dialogTab
+    return isDialogClosing ? frozenDialogTab : dialogTab;
+  }, [isDialogClosing, frozenDialogTab, dialogTab]);
 
   // Calculate total row count for swimlane layout (count all projects, not groups)
   const getTotalSwimlaneRows = (): number => {
@@ -7094,6 +7077,7 @@ const ProjectManagement = () => {
             setDialogTab(0);
             setFrozenDialogTab(0);
             setIsDialogClosing(false);
+            setEditMode(false);
           }
         }}
       >
@@ -7117,11 +7101,12 @@ const ProjectManagement = () => {
           <Tab label="Business Details" />
           <Tab label="Financial" />
           <Tab label="Dates & Timeline" />
-          {editMode && currentProject.id && <Tab label="Milestones" />}
+          {/* Keep edit-mode tabs during close transition to prevent MUI tab index errors */}
+          {(editMode || isDialogClosing) && <Tab label="Milestones" />}
           <Tab label="Management" />
           <Tab label="Cross-Domain Impact" />
-          {editMode && currentProject.id && <Tab label="Requirements" />}
-          {editMode && currentProject.id && <Tab label="Activity" />}
+          {(editMode || isDialogClosing) && <Tab label="Requirements" />}
+          {(editMode || isDialogClosing) && <Tab label="Activity" />}
         </Tabs>
         <DialogContent>
           {/* Tab 0: Basic Info */}
