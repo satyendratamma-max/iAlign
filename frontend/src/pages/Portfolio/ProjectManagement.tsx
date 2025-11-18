@@ -4699,37 +4699,39 @@ const ProjectManagement = () => {
             {filteredProjects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell align="right" sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 10 }}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleViewResources(project)}
-                    title="View Resources"
-                  >
-                    <PeopleIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleViewActivity(project)}
-                    title="View Activity"
-                  >
-                    <CommentIcon />
-                  </IconButton>
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(project)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(project.id)}
-                  >
-                    Delete
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'nowrap' }}>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => handleViewResources(project)}
+                      title="View Resources"
+                    >
+                      <PeopleIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => handleViewActivity(project)}
+                      title="View Activity"
+                    >
+                      <CommentIcon />
+                    </IconButton>
+                    <Button
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={() => handleOpenDialog(project)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleDelete(project.id)}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
                 </TableCell>
                 <TableCell sx={{ position: 'sticky', left: 140, bgcolor: 'background.paper', zIndex: 10 }}>
                   <Box display="flex" alignItems="center">
