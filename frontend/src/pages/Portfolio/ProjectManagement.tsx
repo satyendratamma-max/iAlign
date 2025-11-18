@@ -7105,7 +7105,7 @@ const ProjectManagement = () => {
         </Tabs>
         <DialogContent>
           {/* Use frozen tab during close transition to prevent flickering */}
-          {React.useMemo(() => {
+          {(() => {
             const activeTab = isDialogClosing ? frozenDialogTab : dialogTab;
             return (
               <>
@@ -8105,7 +8105,7 @@ const ProjectManagement = () => {
           )}
               </>
             );
-          }, [isDialogClosing, frozenDialogTab, dialogTab, currentProject, currentProjectMilestones, domainImpacts, editMode, formErrors])}
+          })()}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
