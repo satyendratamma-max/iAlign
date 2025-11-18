@@ -118,10 +118,10 @@ export const createDefaultRequirement = async (req: Request, res: Response, next
 
     // Set display order to max + 1 if not provided
     if (!requirementData.displayOrder && requirementData.displayOrder !== 0) {
-      const maxOrder: any = await DefaultRequirement.max('displayOrder', {
+      const maxOrder = await DefaultRequirement.max('displayOrder', {
         where: { isActive: true },
-      });
-      requirementData.displayOrder = (Number(maxOrder) || 0) + 1;
+      }) as number | null;
+      requirementData.displayOrder = (maxOrder || 0) + 1;
     }
 
     const requirement = await DefaultRequirement.create({

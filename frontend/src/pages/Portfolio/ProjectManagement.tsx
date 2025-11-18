@@ -1816,6 +1816,11 @@ const ProjectManagement = () => {
         setDialogTab(0); // Switch to Basic Info tab where name field is
       }
 
+      if (!currentProject.projectNumber || currentProject.projectNumber.trim() === '') {
+        errors.projectNumber = 'Project Number is required';
+        setDialogTab(0); // Switch to Basic Info tab where projectNumber field is
+      }
+
       // Show validation errors if any
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
@@ -7016,12 +7021,18 @@ const ProjectManagement = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
+                  required
                   label="Project Number"
                   value={currentProject.projectNumber || ''}
-                  onChange={(e) =>
-                    updateProject({ projectNumber: e.target.value })
-                  }
-                  helperText="Optional - Unique project identifier"
+                  onChange={(e) => {
+                    updateProject({ projectNumber: e.target.value });
+                    // Clear error when user starts typing
+                    if (formErrors.projectNumber) {
+                      setFormErrors({ ...formErrors, projectNumber: '' });
+                    }
+                  }}
+                  error={!!formErrors.projectNumber}
+                  helperText={formErrors.projectNumber || '* Required field - Unique project identifier'}
                 />
               </Grid>
               <Grid item xs={12}>
