@@ -22,6 +22,9 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 2000); // Max 2000 per page (allows single-request fetching for domain views)
     const offset = (page - 1) * limit;
 
+    // Check if manager filters are present - these require loading all projects
+    const hasManagerFilter = req.query.projectManager || req.query.portfolioManager;
+
     const where: any = { isActive: true };
 
     // Scenario filter (required)
@@ -188,14 +191,22 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       },
     ];
 
-    const { count, rows: projects } = await Project.findAndCountAll({
+    // When manager filters are present, we need to load ALL projects first
+    // because managers are derived from allocations (post-query transformation)
+    const queryOptions: any = {
       where,
-      limit,
-      offset,
       order: [[literal('COALESCE(sortOrder, 999999)'), 'ASC'], ['createdDate', 'DESC']],
       include: includeArray,
       distinct: true, // Ensure accurate count with joins
-    });
+    };
+
+    // Only apply pagination at DB level if no manager filters
+    if (!hasManagerFilter) {
+      queryOptions.limit = limit;
+      queryOptions.offset = offset;
+    }
+
+    const { count, rows: projects } = await Project.findAndCountAll(queryOptions);
 
     // Transform projects to include manager information extracted from requirements and allocations
     const projectsWithManagers = projects.map((project: any) => {
@@ -266,19 +277,29 @@ export const getAllProjects = async (req: Request, res: Response, next: NextFunc
       );
     }
 
-    // Recalculate pagination after filtering
-    const filteredCount = filteredProjects.length;
-    const totalPages = Math.ceil(filteredCount / limit);
+    // Calculate pagination and apply manual pagination if manager filters are present
+    let paginatedProjects = filteredProjects;
+    let totalCount = count;
+
+    if (hasManagerFilter) {
+      // Manager filters were applied - use filtered count and manually paginate
+      totalCount = filteredProjects.length;
+      const startIndex = offset;
+      const endIndex = offset + limit;
+      paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+    }
+
+    const totalPages = Math.ceil(totalCount / limit);
 
     res.json({
       success: true,
-      data: filteredProjects,
+      data: paginatedProjects,
       pagination: {
-        total: filteredCount,
+        total: totalCount,
         page,
         limit,
         totalPages,
-        hasMore: page * limit < filteredCount,
+        hasMore: page * limit < totalCount,
       },
     });
   } catch (error) {
