@@ -403,6 +403,126 @@ export const createAllocation = async (req: Request, res: Response) => {
       });
     }
 
+    // Check if an inactive allocation exists with the same key fields
+    // If yes, reactivate it instead of creating a duplicate
+    const existingInactiveAllocation = await ResourceAllocation.findOne({
+      where: {
+        resourceId: allocationData.resourceId,
+        projectId: allocationData.projectId,
+        scenarioId: allocationData.scenarioId,
+        projectRequirementId: allocationData.projectRequirementId || null,
+        resourceCapabilityId: allocationData.resourceCapabilityId || null,
+        isActive: false,
+      },
+    });
+
+    // If inactive allocation exists, reactivate it
+    if (existingInactiveAllocation) {
+      logger.info(`Reactivating existing allocation ID ${existingInactiveAllocation.id}`);
+
+      // Update the inactive allocation with new data
+      await existingInactiveAllocation.update({
+        ...allocationData,
+        isActive: true,
+      });
+
+      // Fetch updated allocation with full details
+      const reactivatedAllocation = await ResourceAllocation.findOne({
+        where: { id: existingInactiveAllocation.id },
+        include: [
+          {
+            model: Resource,
+            as: 'resource',
+            include: [
+              {
+                model: Domain,
+                as: 'domain',
+                attributes: ['id', 'name'],
+              },
+              {
+                model: ResourceCapability,
+                as: 'capabilities',
+                where: { isActive: true },
+                required: false,
+                include: [
+                  {
+                    model: App,
+                    as: 'app',
+                    attributes: ['id', 'name', 'code'],
+                  },
+                  {
+                    model: Technology,
+                    as: 'technology',
+                    attributes: ['id', 'name', 'code'],
+                  },
+                  {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'name', 'code', 'level'],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: Project,
+            as: 'project',
+          },
+          {
+            model: ResourceCapability,
+            as: 'resourceCapability',
+            required: false,
+            include: [
+              {
+                model: App,
+                as: 'app',
+                attributes: ['id', 'name', 'code'],
+              },
+              {
+                model: Technology,
+                as: 'technology',
+                attributes: ['id', 'name', 'code'],
+              },
+              {
+                model: Role,
+                as: 'role',
+                attributes: ['id', 'name', 'code', 'level'],
+              },
+            ],
+          },
+          {
+            model: ProjectRequirement,
+            as: 'projectRequirement',
+            required: false,
+          },
+        ],
+      });
+
+      // Check for over-allocation and notify if needed
+      if (reactivatedAllocation && reactivatedAllocation.resourceId) {
+        await checkResourceOverAllocation(reactivatedAllocation.resourceId);
+      }
+
+      // Notify stakeholders about the allocation
+      try {
+        if (reactivatedAllocation) {
+          const resource = (reactivatedAllocation as any).resource;
+          const project = (reactivatedAllocation as any).project;
+          if (resource && project) {
+            await notifyResourceAllocated(reactivatedAllocation, resource, project);
+          }
+        }
+      } catch (notifError) {
+        logger.error('Failed to send allocation notification:', notifError);
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: reactivatedAllocation,
+        message: 'Allocation reactivated successfully',
+      });
+    }
+
     // Validate resource employment dates
     if (allocationData.resourceId) {
       const resource = await Resource.findByPk(allocationData.resourceId);
