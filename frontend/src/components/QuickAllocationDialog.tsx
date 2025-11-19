@@ -43,6 +43,8 @@ interface Requirement {
   requiredCount: number;
   fulfilledCount: number;
   minYearsExp?: number;
+  startDate?: string;
+  endDate?: string;
   app: { id: number; name: string; code: string };
   technology: { id: number; name: string; code: string };
   role: { id: number; name: string; code: string; level: string };
@@ -251,8 +253,19 @@ const QuickAllocationDialog = ({
             }
           }
         } else {
-          // Set default dates from project for new allocation
-          if (project.startDate && project.endDate) {
+          // Set default dates for new allocation
+          // Priority: 1) Requirement dates (if available), 2) Project dates
+          const preselectedRequirement = initialRequirementId.current
+            ? loadedRequirements?.find(r => r.id === initialRequirementId.current)
+            : null;
+
+          if (preselectedRequirement?.startDate && preselectedRequirement?.endDate) {
+            // Use requirement dates if available
+            setStartDate(preselectedRequirement.startDate.split('T')[0]);
+            setEndDate(preselectedRequirement.endDate.split('T')[0]);
+            setUseProjectDuration(false);
+          } else if (project.startDate && project.endDate) {
+            // Fallback to project dates
             setStartDate(project.startDate.split('T')[0]);
             setEndDate(project.endDate.split('T')[0]);
             setUseProjectDuration(true);
@@ -472,6 +485,18 @@ const QuickAllocationDialog = ({
 
     if (requirementId) {
       loadMatchingResources(requirementId, '');
+
+      // Update dates based on requirement dates (if available)
+      const requirement = requirements.find(r => r.id === requirementId);
+      if (requirement?.startDate && requirement?.endDate) {
+        setStartDate(requirement.startDate.split('T')[0]);
+        setEndDate(requirement.endDate.split('T')[0]);
+        setUseProjectDuration(false);
+      } else if (project?.startDate && project?.endDate) {
+        setStartDate(project.startDate.split('T')[0]);
+        setEndDate(project.endDate.split('T')[0]);
+        setUseProjectDuration(true);
+      }
     }
   };
 
@@ -922,12 +947,28 @@ const QuickAllocationDialog = ({
                   control={
                     <Checkbox
                       checked={useProjectDuration}
-                      onChange={(e) => setUseProjectDuration(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setUseProjectDuration(checked);
+
+                        // Update dates based on checkbox state
+                        if (checked && project?.startDate && project?.endDate) {
+                          // Use project dates
+                          setStartDate(project.startDate.split('T')[0]);
+                          setEndDate(project.endDate.split('T')[0]);
+                        } else if (!checked && selectedRequirement?.startDate && selectedRequirement?.endDate) {
+                          // Use requirement dates
+                          setStartDate(selectedRequirement.startDate.split('T')[0]);
+                          setEndDate(selectedRequirement.endDate.split('T')[0]);
+                        }
+                      }}
                       disabled={!project?.startDate || !project?.endDate}
                     />
                   }
                   label={
-                    project?.startDate && project?.endDate
+                    selectedRequirement?.startDate && selectedRequirement?.endDate
+                      ? "Use project duration (uncheck to use requirement dates)"
+                      : project?.startDate && project?.endDate
                       ? "Use full project duration"
                       : "Use full project duration (project dates not set)"
                   }
@@ -963,11 +1004,20 @@ const QuickAllocationDialog = ({
                 </>
               )}
 
-              {useProjectDuration && project?.startDate && project?.endDate && (
+              {(useProjectDuration || (!useProjectDuration && selectedRequirement?.startDate && selectedRequirement?.endDate)) && (
                 <Grid item xs={12}>
                   <Typography variant="caption" color="text.secondary">
-                    Duration: {new Date(project.startDate).toLocaleDateString()} -{' '}
-                    {new Date(project.endDate).toLocaleDateString()}
+                    {useProjectDuration && project?.startDate && project?.endDate ? (
+                      <>
+                        Project Duration: {new Date(project.startDate).toLocaleDateString()} -{' '}
+                        {new Date(project.endDate).toLocaleDateString()}
+                      </>
+                    ) : selectedRequirement?.startDate && selectedRequirement?.endDate ? (
+                      <>
+                        Requirement Duration: {new Date(selectedRequirement.startDate).toLocaleDateString()} -{' '}
+                        {new Date(selectedRequirement.endDate).toLocaleDateString()}
+                      </>
+                    ) : null}
                   </Typography>
                 </Grid>
               )}
